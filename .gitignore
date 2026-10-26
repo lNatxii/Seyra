@@ -6,6 +6,7 @@
 /Backend/.env.local
 /Backend/bridge/node_modules/
 /Backend/bridge/dist/
+/.seyra/
 /SeyraUnity/[Ll]ibrary/
 /SeyraUnity/[Tt]emp/
 /SeyraUnity/[Oo]bj/

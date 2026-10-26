@@ -1,6 +1,6 @@
 # Backend de Seyra
 
-Desarrollo incremental del backend y su integración con Unity. OpenCode v2 sirve el chat y administra sesiones, modelos y el [MCP de escena Unity](bridge/README.md). Esta fase incluye exploración, contenedores, primitivas nativas y Transform, sin capturas ni UI generada.
+Desarrollo incremental del backend y su integración con Unity. OpenCode v2 sirve el chat y administra sesiones, modelos y el [MCP de escena Unity](bridge/README.md). Incluye exploración, contenedores por petición, primitivas, Transform, eliminación recuperable, deshacer y persistencia del contenido generado. Todavía no incluye capturas ni UI generada.
 
 ## Arranque
 
@@ -41,10 +41,18 @@ Ejemplos:
 
 Las primitivas se crean con `create_primitive` (cube, sphere, capsule, cylinder, plane, quad) y comparten padres, validaciones, GUID y edición de Transform con los objetos vacíos. La escala multiplica la malla nativa; por ejemplo, un plano es 10 × 10 antes de escalar. La herramienta devuelve su geometría para poder comprobar tamaños. Conserva collider nativo, sin Rigidbody, y utiliza el material compartido del render pipeline.
 
-Los GUID de objetos/componentes permanecen al renombrar o reubicar, pero caducan al reiniciar el runtime. Las creaciones exigen parentId=Generated o un ID confirmado de su subárbol: nunca null. La jerarquía incluye padres, profundidad e inactivos, y permite recorrer todas las páginas. El contrato y límites están en bridge/README.md.
+Los objetos gestionados usan entityId persistentes al guardar/cargar; los componentId y los IDs de objetos externos siguen siendo de runtime. Las creaciones exigen parentId=Generated o un ID confirmado de su subárbol: nunca null. La jerarquía incluye padres, profundidad e inactivos, y permite recorrer todas las páginas.
+
+Para nuevas tareas de creación/edición, el agente abre request_begin y cierra request_end: las nuevas creaciones bajo Generated se agrupan en su contenedor y los cambios sobre contenido anterior quedan asociados a esa petición. No se abre un contenedor nuevo para consultas, deshacer o persistencia. Se conserva compatibilidad con llamadas directas sin petición abierta.
+
+delete_object desactiva y mueve la jerarquía a una papelera; restore_object o undo permiten recuperarla con sus componentes e IDs. history_list y undo permiten deshacer la última operación o el bloque de la última petición. Los cambios externos producen un conflicto en vez de sobrescribirse. No hay redo ni historial persistente.
+
+content_save y content_load gestionan slots locales JSON versionados. En el Editor se almacenan en `.seyra/generated/`, excluido de Git; la carga es explícita y reemplaza Generated, con posibilidad de deshacer. Se conservan IDs de objetos, jerarquías, primitivas y Transform. El formato inicial rechaza componentes/materiales no soportados para evitar pérdida silenciosa. No incluye papelera, historial, secretos ni escenas completas. Límites: 2048 objetos vivos, 128 operaciones recuperables y 5 MiB por slot. Consulta [contratos y límites](bridge/README.md).
 
 El Editor lee la contraseña HTTP desde ../Backend/.env.local, relativo al proyecto Unity. Esta prueba no distribuye secretos ni configura red o credenciales del visor. Los mensajes y mutaciones no se reintentan automáticamente. Un timeout deja el resultado desconocido: inspecciona primero antes de volver a modificar.
 
 ## Validación
+
+Estado de esta entrega: pendiente de prueba funcional por el usuario. Se ha reportado un bloqueo de permisos en OpenCode, atribuido provisionalmente al modo `ask` del plan gratuito; esa causa todavía no se ha verificado. La configuración del proyecto mantiene `seyra_*: allow` y no se añaden confirmaciones al bridge ni al runtime. Las pruebas técnicas de contratos, MCP y Unity realizadas durante la implementación no sustituyen la validación del flujo con el modelo y plan del usuario.
 
 npm test --prefix Backend/bridge compila y prueba contratos, igualdad de perfiles/permisos, confirmaciones, timeout sin reenvío y desconexiones. npm run test:unity --prefix Backend/bridge necesita Unity en Play Mode y un puerto MCP libre; crea y transforma contenedores temporales que desaparecen al salir. No llama a un proveedor de modelos. El archivo test-support/SceneContractChecks.cs permite comprobar directamente en el runtime duplicados, caducidad, IDs y validación sin incluir pruebas en Assets.

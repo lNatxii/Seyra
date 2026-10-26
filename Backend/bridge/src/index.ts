@@ -50,7 +50,7 @@ sockets.on('connection', (socket, request) => {
     if (!parsed.success) { log('Ignored invalid tool_result'); return; }
     const result = parsed.data;
     if (pending.get(result.requestId)?.socket !== socket) return;
-    settle(result.requestId, result.success ? { success: true, data: result.data } : { success: false, error: result.error });
+    settle(result.requestId, result.success ? { success: true, data: result.data } : { success: false, error: result.error, ...(result.error.code === 'ROLLBACK_FAILED' ? { outcomeUnknown: true } : {}) });
   });
 });
 

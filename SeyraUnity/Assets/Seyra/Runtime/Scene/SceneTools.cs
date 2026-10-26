@@ -14,20 +14,21 @@ using Object = UnityEngine.Object;
 
 namespace Seyra.SceneTools
 {
-    // Runtime identities never mutate the inspected scene or depend on names/paths/instance-ID reuse.
-    public sealed class SceneToolService
+    // Generated content has persistent logical IDs; external inspected objects keep runtime-only identities.
+    public sealed partial class SceneToolService
     {
         public string RuntimeId { get; } = Guid.NewGuid().ToString("N");
         readonly Transform generated;
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "request_list", "history_list", "content_list" };
 
-        public SceneToolService(Transform generatedRoot)
+        public SceneToolService(Transform generatedRoot,string persistenceDirectory=null)
         {
             if (generatedRoot == null) throw new ArgumentException("Generated debe estar asignado.");
             generated = generatedRoot;
+            InitializeLifecycle(persistenceDirectory);
         }
 
         public string Dispatch(string json)
@@ -54,13 +55,13 @@ namespace Seyra.SceneTools
                     throw new InvalidOperationException("Orden caducada: no se ha ejecutado. Consulta el estado antes de continuar.");
                 if (!Application.isPlaying) throw new InvalidOperationException("Solo disponible en Play Mode.");
                 if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Límite de mutaciones alcanzado; reinicia Play Mode.");
-                response["data"] = Execute(tool,args);
+                response["data"] = ExecuteRecorded(tool,args);
                 response["success"] = true;
             }
             catch (Exception error)
             {
                 response["success"] = false;
-                response["error"] = new JObject { ["code"] = error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+                response["error"] = new JObject { ["code"] = error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
             }
             var result = response.ToString(Formatting.None);
             if (!queries.Contains(tool) && !completed.ContainsKey(requestId) && completed.Count < 4096) completed[requestId] = (signature,result);
@@ -69,6 +70,11 @@ namespace Seyra.SceneTools
 
         string Id(Object value)
         {
+            if(value is GameObject owned)
+            {
+                var record=owned.GetComponent<GeneratedObject>();
+                if(record!=null && !string.IsNullOrEmpty(record.EntityId)) {objects[record.EntityId]=owned;return record.EntityId;}
+            }
             var key = value.GetInstanceID();
             if (identities.TryGetValue(key,out var known) && ReferenceEquals(known.value,value)) return known.id;
             var id = (value is GameObject ? "go_" : "cmp_") + Guid.NewGuid().ToString("N");
@@ -76,13 +82,14 @@ namespace Seyra.SceneTools
             return id;
         }
         string SceneId(UnityEngine.SceneManagement.Scene scene) => "scene_" + RuntimeId + "_" + scene.handle;
-        GameObject Find(JToken token)
+        GameObject Find(JToken token,bool includeDeleted=false)
         {
             var id = String(token,128);
             if(id.Equals("null",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Usa un ID real o Generated; nunca null.");
             if (id == "Generated") { if (generated == null) throw new ArgumentException("Generated ha sido eliminado."); return generated.gameObject; }
             if (!objects.TryGetValue(id,out var target) || !(target is GameObject go) || go == null || !go.scene.IsValid() || !go.scene.isLoaded)
                 throw new ArgumentException("ID de GameObject desconocido o caducado. Consulta la jerarquía de este runtime.");
+            if(!includeDeleted && IsDeleted(go))throw new ArgumentException("El objeto está en la papelera. Recupéralo antes de modificarlo.");
             return go;
         }
         GameObject Parent(JToken token)
@@ -101,9 +108,11 @@ namespace Seyra.SceneTools
         JObject Node(GameObject go, int depth)
         {
             var t=go.transform;
+            var record=go.GetComponent<GeneratedObject>();
             return new JObject { ["entityId"]=Id(go), ["name"]=go.name, ["path"]=Path(t), ["sceneId"]=SceneId(go.scene),
                 ["parentId"]=t.parent!=null ? Id(t.parent.gameObject) : SceneId(go.scene), ["depth"]=depth,
-                ["siblingIndex"]=t.GetSiblingIndex(), ["childCount"]=t.childCount, ["activeSelf"]=go.activeSelf,
+                ["siblingIndex"]=t.GetSiblingIndex(), ["childCount"]=t.Cast<Transform>().Count(c=>c!=trash), ["activeSelf"]=go.activeSelf,
+                ["managed"]=record!=null,["requestGroupId"]=record==null?null:record.RequestGroupId,["deleted"]=IsDeleted(go),
                 ["activeInHierarchy"]=go.activeInHierarchy, ["tag"]=go.tag, ["layer"]=go.layer };
         }
         List<GameObject> Roots()
@@ -128,6 +137,7 @@ namespace Seyra.SceneTools
             while(stack.Count>0)
             {
                 var (t,depth)=stack.Pop();
+                if(t==trash || IsDeleted(t.gameObject))continue;
                 if(!inactive && !t.gameObject.activeInHierarchy) continue;
                 result.Add((t.gameObject,Node(t.gameObject,depth)));
                 if(result.Count>50000) throw new InvalidOperationException("Más de 50000 nodos; restringe con rootId. No se devuelve una jerarquía truncada.");
@@ -204,21 +214,30 @@ namespace Seyra.SceneTools
         // Both creation tools use this path: validate everything before allocating, then commit or roll back.
         JObject CreateObject(JObject args,PrimitiveType? primitive)
         {
+            RequireCapacity(1);
             var parent=Parent(args["parentId"]);var name=String(args["name"],256);
+            if((string)args["parentId"]=="Generated" && !string.IsNullOrEmpty(activeRequest))parent=Find(new JValue(activeRequest));
             var position=ReadVector(args["position"]);var rotation=ReadVector(args["rotation"]);var scale=ReadVector(args["scale"]);
-            var go=primitive.HasValue ? GameObject.CreatePrimitive(primitive.Value) : new GameObject(name);
+            var go=InstantiateManaged(name,parent.transform,primitive.HasValue?"primitive":"empty",primitive.HasValue?Text(args,"primitiveType"):null,activeRequest,position,Quaternion.Euler(rotation),scale);
+            var result=Inspect(go);
+            if(primitive.HasValue)result["primitiveType"]=Text(args,"primitiveType");
+            return result;
+        }
+        GameObject InstantiateManaged(string name,Transform parent,string kind,string shape,string group,Vector3 position,Quaternion rotation,Vector3 scale,string persistentId=null)
+        {
+            if(parent==null)throw new ArgumentException("La creación requiere un padre existente.");
+            var go=shape!=null ? GameObject.CreatePrimitive(Primitive(shape)) : new GameObject(name);
             try
             {
                 go.name=name;
-                SceneManager.MoveGameObjectToScene(go,parent.scene);
-                go.transform.SetParent(parent.transform,false);
-                go.transform.localPosition=position;go.transform.localRotation=Quaternion.Euler(rotation);go.transform.localScale=scale;
-                if(primitive.HasValue && GraphicsSettings.currentRenderPipeline!=null && GraphicsSettings.currentRenderPipeline.defaultMaterial!=null)
+                SceneManager.MoveGameObjectToScene(go,parent.gameObject.scene);
+                go.transform.SetParent(parent,false);
+                go.transform.localPosition=position;go.transform.localRotation=rotation;go.transform.localScale=scale;
+                if(shape!=null && GraphicsSettings.currentRenderPipeline!=null && GraphicsSettings.currentRenderPipeline.defaultMaterial!=null)
                     go.GetComponent<Renderer>().sharedMaterial=GraphicsSettings.currentRenderPipeline.defaultMaterial;
                 Check(go.transform);
-                var result=Inspect(go);
-                if(primitive.HasValue)result["primitiveType"]=Text(args,"primitiveType");
-                return result;
+                AttachRecord(go,kind,shape,group,persistentId);
+                return go;
             }
             catch { Object.DestroyImmediate(go);throw; }
         }
@@ -236,7 +255,7 @@ namespace Seyra.SceneTools
             if(tool=="scene_get")
             {
                 Keys(args,new[]{"entityId"},new[]{"componentOffset","componentLimit"});
-                return Inspect(Find(args["entityId"]),Int(args,"componentOffset",0,0,int.MaxValue),Int(args,"componentLimit",50,1,100));
+                return Inspect(Find(args["entityId"],true),Int(args,"componentOffset",0,0,int.MaxValue),Int(args,"componentLimit",50,1,100));
             }
             if(tool=="create_gameobject" || tool=="create_primitive")
             {

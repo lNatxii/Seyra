@@ -32,6 +32,13 @@ test('schema, agent permissions and parent contract', async()=>{
     assert.equal(primitive.safeParse({...args,primitiveType}).success,false);
   for(const parentId of [null,'null',''])assert.equal(primitive.safeParse({...args,primitiveType:'cube',parentId}).success,false);
   assert.equal(primitive.safeParse({...args,primitiveType:'cube',size:2}).success,false);
+  for(const name of ['content_save','content_load']){
+    const slot=tools.find(t=>t.name===name).schema;
+    for(const invalid of ['../escape','C:/outside','a/b','',null])assert.equal(slot.safeParse({slot:invalid}).success,false);
+    assert.equal(slot.safeParse({slot:'test_01'}).success,true);
+  }
+  assert.equal(tools.find(t=>t.name==='undo').schema.safeParse({scope:'all'}).success,false);
+  assert.equal(tools.find(t=>t.name==='undo').schema.safeParse({scope:'request',expectedOperationId:'op_'+'a'.repeat(32)}).success,true);
 });
 
 test('MCP transport confirms, rejects invalid arguments, times out without retry, and marks disconnect unknown',async()=>{
@@ -48,6 +55,7 @@ test('MCP transport confirms, rejects invalid arguments, times out without retry
     socket.on('message',bytes=>{
       requests++;const request=JSON.parse(bytes);assert.ok(Date.parse(request.deadlineUtc)>0);
       if(mode==='confirm')socket.send(JSON.stringify({version:1,type:'tool_result',requestId:request.requestId,success:true,data:{runtimeId:'mock',nodes:[]}}));
+      else if(mode==='rollback')socket.send(JSON.stringify({version:1,type:'tool_result',requestId:request.requestId,success:false,error:{code:'ROLLBACK_FAILED',message:'State unknown'}}));
       else if(mode==='disconnect')socket.close();
     });
     const result=outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}));assert.equal(result.success,true);assert.equal(result.data.runtimeId,'mock');
@@ -56,6 +64,9 @@ test('MCP transport confirms, rejects invalid arguments, times out without retry
     mode='timeout';
     const timed=outcome(await client.callTool({name:'set_transform',arguments:{entityId:'Generated',space:'local',position:{x:1,y:2,z:3}}}));
     assert.equal(timed.error.code,'UNITY_TIMEOUT');assert.equal(timed.outcomeUnknown,true);assert.equal(requests,before+1);
+    mode='rollback';
+    const rollback=outcome(await client.callTool({name:'delete_object',arguments:{entityId:'go_test'}}));
+    assert.equal(rollback.error.code,'ROLLBACK_FAILED');assert.equal(rollback.outcomeUnknown,true);
     mode='disconnect';
     const disconnected=outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}));assert.equal(disconnected.error.code,'UNITY_DISCONNECTED');assert.equal(disconnected.outcomeUnknown,true);
   } finally {socket?.terminate();await client.close();await transport.close();}

@@ -60,5 +60,28 @@ try {
     assert.ok(result.isError||!JSON.parse(result.content[0].text).success);
   }
   assert.equal(ok(await call('scene_hierarchy',{rootId:parent.entityId})).total,beforeInvalid);
-  console.log(JSON.stringify({success:true,checks:['paged hierarchy','runtime GUIDs','component GUIDs','create parent/child','duplicate names','local partial transform','world transform','reparent preserve world','reject cycle','reject stale revision','reject null and scene parents','six native primitives','native mesh dimensions and colliders','shared IDs/queries/transform','invalid primitive creates nothing'],runtimeId:first.runtimeId,createdParent:parent.entityId,createdChild:child.entityId},null,2));
+  const request=ok(await call('request_begin',{name:'GroupedRequest'}));
+  const grouped=ok(await call('create_primitive',{primitiveType:'sphere',name:'GroupedSphere',parentId:'Generated',position:vector(1,2,3),rotation:vector(),scale:vector(1,1,1)}));
+  assert.equal(grouped.parentId,request.entityId);assert.equal(grouped.requestGroupId,request.entityId);
+  const componentIds=grouped.components;
+  const edited=ok(await call('set_transform',{entityId:grouped.entityId,space:'local',position:vector(3,2,1)}));
+  ok(await call('request_end',{requestGroupId:request.entityId}));
+  ok(await call('content_save',{slot:'integration'}));
+  assert.equal(ok(await call('content_list')).slots.length,1);
+  const deleted=ok(await call('delete_object',{entityId:request.entityId}));assert.equal(deleted.deleted,true);
+  assert.equal(ok(await call('scene_find',{rootId:'Generated',name:'GroupedSphere',match:'exact'})).total,0);
+  assert.equal(ok(await call('scene_get',{entityId:grouped.entityId})).deleted,true);
+  ok(await call('restore_object',{entityId:request.entityId}));
+  assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).components,componentIds);
+  const loaded=ok(await call('content_load',{slot:'integration'}));assert.ok(loaded.nodeCount>6);
+  assert.equal(ok(await call('scene_get',{entityId:grouped.entityId})).parentId,request.entityId);
+  ok(await call('undo',{scope:'operation',expectedOperationId:loaded.operationId}));
+  assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).components,componentIds);
+  ok(await call('undo',{scope:'operation'})); // undo restore: back to trash
+  ok(await call('undo',{scope:'operation'})); // undo delete: live again
+  ok(await call('undo',{scope:'operation',expectedOperationId:edited.operationId}));
+  assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).transform.localPosition,vector(1,2,3));
+  ok(await call('undo',{scope:'request'}));
+  assert.equal(ok(await call('scene_find',{rootId:'Generated',name:'GroupedSphere',match:'exact'})).total,0);
+  console.log(JSON.stringify({success:true,checks:['paged hierarchy','runtime GUIDs','component GUIDs','create parent/child','duplicate names','local partial transform','world transform','reparent preserve world','reject cycle','reject stale revision','reject null and scene parents','six native primitives','native mesh dimensions and colliders','shared IDs/queries/transform','invalid primitive creates nothing','request containers','soft delete and restore','persistent IDs and hierarchy','undo load with original component IDs','operation and request undo'],runtimeId:first.runtimeId,createdParent:parent.entityId,createdChild:child.entityId},null,2));
 } finally {await client.close();await transport.close();}

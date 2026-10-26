@@ -17,7 +17,8 @@ public static class RunUnityIntegration
         if(runtime==null)throw new InvalidOperationException("A configured scene runtime is required.");
         var root=new GameObject("__SeyraIntegrationTests");
         root.transform.SetParent(runtime.transform,false);
-        var service=new SceneToolService(root.transform);
+        var storage=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.utmp/integration-slots-"+Guid.NewGuid().ToString("N")));
+        var service=new SceneToolService(root.transform,storage);
         using var bridge=new BridgeSocketClient();
         async void Receive(string json)
         {
@@ -52,6 +53,7 @@ public static class RunUnityIntegration
             EditorApplication.update-=Pump;
             if(process!=null){if(!process.HasExited)process.Kill();process.Dispose();}
             UnityEngine.Object.DestroyImmediate(root);
+            if(Directory.Exists(storage)){foreach(var file in Directory.EnumerateFiles(storage))File.Delete(file);Directory.Delete(storage);}
         }
     }
 }
