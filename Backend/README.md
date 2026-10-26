@@ -1,40 +1,50 @@
 # Backend de Seyra
 
-Base de la conexión del backend con Unity. Ejecuta la API v2 de `opencode2`; no hay un servidor HTTP propio ni bridge de Unity todavía.
+Desarrollo incremental del backend y su integración con Unity. OpenCode v2 sirve el chat y administra sesiones, modelos y el [MCP de escena Unity](bridge/README.md). Esta fase incluye exploración, contenedores, primitivas nativas y Transform, sin capturas ni UI generada.
 
 ## Arranque
 
-Requiere el CLI `opencode2` instalado en PATH. Desde PowerShell:
+Requiere Node.js 22 o posterior, npm y opencode2 en PATH. Desde la raíz del repositorio:
 
 ```powershell
-cd C:\Proyectos\Seyra\Backend
+npm ci --prefix Backend/bridge
+cd Backend
 .\start.ps1
 ```
 
-El servidor escucha solo en `http://127.0.0.1:4096`. Deténlo con Ctrl+C. Para otra instancia de prueba usa `./start.ps1 -Port 4097`, y cambia también Server Url en el componente de la escena. No ejecutes dos servidores en el mismo puerto.
+start.ps1 carga .env.local como datos, compila el bridge y arranca OpenCode en http://127.0.0.1:4096. OpenCode inicia el bridge por stdio; Unity conecta por WebSocket a localhost:4100. No arranques el bridge por separado durante el uso normal. Reinicia OpenCode tras modificar catálogo/configuración y reconecta el chat para crear una sesión nueva.
 
-`start.ps1` lee `.env.local` como datos, sin ejecutar su contenido, y exige:
+.env.local está excluido de Git y requiere HELMCODE_API_KEY y OPENCODE_SERVER_PASSWORD. La contraseña HTTP es distinta de la clave de Helmcode. El script fija también OPENCODE_PASSWORD al mismo valor, evitando discrepancias con variables heredadas. No copies credenciales a Assets ni las publiques.
 
-```dotenv
-HELMCODE_API_KEY=tu_clave_del_proveedor
-OPENCODE_SERVER_PASSWORD=tu_contraseña_http
-```
+La opción ./start.ps1 -Port 4097 cambia solo el puerto HTTP: no permite ejecutar dos bridges en 4100. Si existe otra instancia/servicio OpenCode, detén esa instancia antes de iniciar la nueva o configura otro puerto WebSocket en ambos extremos. Al mover el repo actualiza command y cwd del MCP en opencode.json.
 
-Las credenciales se configuran localmente. `.env.local` está excluido por el `.gitignore` de la raíz; nunca lo copies a Assets ni lo publiques. La contraseña HTTP y la clave de Helmcode son distintas. El script fija también `OPENCODE_PASSWORD` al mismo valor, pues tiene prioridad en OpenCode 2.
+## Perfiles y permisos
 
-## Configuración mínima
+- seyra hereda helmcode/glm5.3-flash, autenticado por HELMCODE_API_KEY.
+- seyra_deepseek usa opencode/deepseek-v4.1-flash-free.
 
-`opencode.json` conserva dos perfiles con las mismas instrucciones y permisos:
+Ambos perfiles comparten instrucciones y permisos. La regla general ask seguida de seyra_* con allow autoriza las herramientas actuales y futuras de Unity sin ampliar permisos de shell, archivos u otros servicios. No se añaden confirmaciones para el MCP de Unity. Los argumentos se validan en el bridge y en el runtime; el éxito solo se comunica tras confirmación del runtime.
 
-- `seyra`: hereda `helmcode/glm5.3-flash`, con `HELMCODE_API_KEY` por entorno.
-- `seyra_deepseek`: usa `opencode/deepseek-v4.1-flash-free`.
+## Unity
 
-Los prompts son inline para que esta base no dependa de carpetas aún sin portar. No hay servidores MCP registrados. `bridge/` queda vacío y reservado para la siguiente fase (Git no conserva directorios vacíos). La autorización general `ask`, seguida de `seyra_*` con `allow`, queda preparada para las herramientas futuras de Unity y no amplía los permisos de otros servicios.
+SeyraAssistant.unity y OpencodeTestUI.unity contienen SeyraRuntime con el componente SeyraSceneRuntime y un contenedor raíz Generated asignado en el Inspector. Solo un runtime puede poseer el bridge; al cargar ambas escenas aditivamente, el segundo se desactiva. Las operaciones son de Play Mode, en memoria: no guardan cambios en los assets de escena.
 
-## Prueba desde Unity
+Para usar el chat, abre Assets/Scenes/OpencodeTestUI.unity en el proyecto nuevo y entra en Play Mode. El verde confirma conexión con OpenCode, no la conexión del MCP con Unity. Si el runtime no está disponible, las herramientas devuelven UNITY_NOT_CONNECTED.
 
-Abre `SeyraUnity/Assets/Scenes/OpencodeTestUI.unity` y entra en Play Mode con el backend iniciado. Es un canvas de escritorio para comprobar la API, separado de la escena XR `SeyraAssistant`.
+Ejemplos:
 
-El componente `OpenCodeTestChat` permite cambiar Server Url y Agent. En el Editor resuelve `../Backend` desde la raíz del proyecto Unity y lee su contraseña al conectar. La contraseña no se serializa en la escena ni se incluye en builds. Esta prueba está pensada para el Editor; no configura credenciales ni red del visor.
+- «Lista toda la escena de forma jerárquica con sus IDs».
+- «Busca Generated y consulta sus componentes».
+- «Crea un contenedor Mesa dentro de Generated con posición local (0,1,1), rotación (0,0,0) y escala (1,1,1)».
+- «Mueve ese contenedor a X=2 conservando el resto del Transform».
+- «Crea una mesa de 1.2 × 0.8 m usando cubos dentro de un contenedor, con tablero a 0.75 m de altura».
 
-El estado verde confirma que la sesión de OpenCode responde; rojo significa desconectado o autenticación fallida. Se comprueba periódicamente y el botón de reconexión permite crear una sesión nueva. El botón de enviar usa el icono de envío; Enter envía y Shift+Enter añade una línea. El historial se mantiene durante la sesión de Play Mode. La respuesta se consulta mediante la API v2 hasta recibir el evento `idle`; los envíos no se reintentan automáticamente. La UI comunica errores y solicitudes de permisos, pero esta primera fase solo implementa chat, sin ejecutar acciones sobre Unity.
+Las primitivas se crean con `create_primitive` (cube, sphere, capsule, cylinder, plane, quad) y comparten padres, validaciones, GUID y edición de Transform con los objetos vacíos. La escala multiplica la malla nativa; por ejemplo, un plano es 10 × 10 antes de escalar. La herramienta devuelve su geometría para poder comprobar tamaños. Conserva collider nativo, sin Rigidbody, y utiliza el material compartido del render pipeline.
+
+Los GUID de objetos/componentes permanecen al renombrar o reubicar, pero caducan al reiniciar el runtime. Las creaciones exigen parentId=Generated o un ID confirmado de su subárbol: nunca null. La jerarquía incluye padres, profundidad e inactivos, y permite recorrer todas las páginas. El contrato y límites están en bridge/README.md.
+
+El Editor lee la contraseña HTTP desde ../Backend/.env.local, relativo al proyecto Unity. Esta prueba no distribuye secretos ni configura red o credenciales del visor. Los mensajes y mutaciones no se reintentan automáticamente. Un timeout deja el resultado desconocido: inspecciona primero antes de volver a modificar.
+
+## Validación
+
+npm test --prefix Backend/bridge compila y prueba contratos, igualdad de perfiles/permisos, confirmaciones, timeout sin reenvío y desconexiones. npm run test:unity --prefix Backend/bridge necesita Unity en Play Mode y un puerto MCP libre; crea y transforma contenedores temporales que desaparecen al salir. No llama a un proveedor de modelos. El archivo test-support/SceneContractChecks.cs permite comprobar directamente en el runtime duplicados, caducidad, IDs y validación sin incluir pruebas en Assets.

@@ -34,5 +34,11 @@ if ([string]::IsNullOrWhiteSpace($localServerPassword)) {
 if (-not (Get-Command opencode2 -ErrorAction SilentlyContinue)) {
     throw 'No se encuentra opencode2 en PATH. Instala el CLI de OpenCode v2 antes de continuar.'
 }
+$bridgeDirectory = Join-Path $PSScriptRoot 'bridge'
+if (-not (Test-Path -LiteralPath (Join-Path $bridgeDirectory 'node_modules'))) {
+    throw 'Faltan dependencias del bridge. Ejecuta npm ci --prefix Backend/bridge desde la raíz del repo.'
+}
+& npm run build --prefix $bridgeDirectory
+if ($LASTEXITCODE -ne 0) { throw 'No se ha podido compilar el bridge. OpenCode no se ha iniciado.' }
 & opencode2 serve --hostname 127.0.0.1 --port $Port
 if ($LASTEXITCODE -ne 0) { throw "OpenCode terminó con código $LASTEXITCODE." }

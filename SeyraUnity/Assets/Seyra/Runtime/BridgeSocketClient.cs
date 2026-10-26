@@ -1,0 +1,93 @@
+using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Seyra.Networking
+{
+    // Network work runs off-thread; Pump delivers events on Unity's main thread.
+    public sealed class BridgeSocketClient : IDisposable
+    {
+        const int MaxMessageBytes = 8388608;
+        readonly ConcurrentQueue<Action> inbox = new ConcurrentQueue<Action>();
+        readonly SemaphoreSlim sendLock = new SemaphoreSlim(1, 1);
+        readonly CancellationTokenSource lifetime = new CancellationTokenSource();
+        ClientWebSocket socket;
+        public bool IsConnected => socket != null && socket.State == WebSocketState.Open;
+        public event Action<string> Message;
+        public event Action<string> Status;
+
+        public void Start(string url) { _ = RunAsync(new Uri(url)); }
+        public void Pump() { for (var i = 0; i < 64 && inbox.TryDequeue(out var action); i++) action(); }
+        async Task RunAsync(Uri uri)
+        {
+            while (!lifetime.IsCancellationRequested)
+            {
+                using (var connection = new ClientWebSocket())
+                {
+                    socket = connection;
+                    try
+                    {
+                        using (var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                        {
+                            connectTimeout.CancelAfter(3000);
+                            await connection.ConnectAsync(uri, connectTimeout.Token).ConfigureAwait(false);
+                        }
+                        inbox.Enqueue(() => Status?.Invoke("Runtime conectado"));
+                        var buffer = new byte[4096];
+                        while (connection.State == WebSocketState.Open && !lifetime.IsCancellationRequested)
+                        {
+                            using (var message = new MemoryStream())
+                            {
+                                WebSocketReceiveResult part;
+                                do
+                                {
+                                    part = await connection.ReceiveAsync(new ArraySegment<byte>(buffer), lifetime.Token).ConfigureAwait(false);
+                                    if (part.MessageType == WebSocketMessageType.Close) throw new IOException("El puente cerró la conexión.");
+                                    if (part.MessageType != WebSocketMessageType.Text || message.Length + part.Count > MaxMessageBytes)
+                                        throw new IOException("Mensaje WebSocket inválido o demasiado grande.");
+                                    message.Write(buffer, 0, part.Count);
+                                } while (!part.EndOfMessage);
+                                if (inbox.Count >= 64) throw new IOException("Demasiadas órdenes pendientes.");
+                                var text = new UTF8Encoding(false, true).GetString(message.ToArray());
+                                // Bind each queued command to its connection; never acknowledge on a replacement connection.
+                                inbox.Enqueue(() => { if (ReferenceEquals(socket, connection) && IsConnected) Message?.Invoke(text); });
+                            }
+                        }
+                    }
+                    catch (Exception error)
+                    {
+                        if (!lifetime.IsCancellationRequested)
+                        {
+                            var reason = error is WebSocketException ? "Puente no disponible" : error.Message;
+                            inbox.Enqueue(() => Status?.Invoke(reason + " · reconectando"));
+                        }
+                    }
+                    finally { connection.Abort(); }
+                }
+                if (!lifetime.IsCancellationRequested)
+                {
+                    try { await Task.Delay(2000, lifetime.Token).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { }
+                }
+            }
+        }
+
+        public async Task SendAsync(string text)
+        {
+            var connection = socket;
+            await sendLock.WaitAsync(lifetime.Token);
+            try
+            {
+                if (connection == null || connection.State != WebSocketState.Open || !ReferenceEquals(connection, socket))
+                    throw new IOException("Runtime desconectado antes de confirmar.");
+                await connection.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text, true, lifetime.Token);
+            }
+            finally { sendLock.Release(); }
+        }
+        public void Dispose() { lifetime.Cancel(); socket?.Abort(); }
+    }
+}

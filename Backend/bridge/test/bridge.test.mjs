@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { once } from 'node:events';
+import { createServer } from 'node:net';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { WebSocket } from 'ws';
+import { tools } from '../dist/tools.js';
+import { readFile } from 'node:fs/promises';
+
+async function freePort() {
+  const server=createServer();server.listen(0,'127.0.0.1');await once(server,'listening');
+  const port=server.address().port;await new Promise(r=>server.close(r));return port;
+}
+const outcome=result=>JSON.parse(result.content[0].text);
+test('schema, agent permissions and parent contract', async()=>{
+  const config=JSON.parse(await readFile(new URL('../../opencode.json',import.meta.url),'utf8'));
+  assert.deepEqual(Object.keys(config.agents),['seyra','seyra_deepseek']);
+  const {model,...deepseek}=config.agents.seyra_deepseek;
+  assert.equal(model,'opencode/deepseek-v4.1-flash-free');assert.deepEqual(deepseek,config.agents.seyra);
+  assert.deepEqual(config.agents.seyra.permissions,[{action:'*',resource:'*',effect:'ask'},{action:'seyra_*',resource:'*',effect:'allow'}]);
+  const schema=tools.find(t=>t.name==='create_gameobject').schema;
+  const args={name:'Box',parentId:'Generated',position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0},scale:{x:1,y:1,z:1}};
+  for(const invalid of [null,'null','NULL','', '   '])assert.equal(schema.safeParse({...args,parentId:invalid}).success,false);
+  assert.equal(schema.safeParse(args).success,true);
+  assert.equal(tools.find(t=>t.name==='set_transform').schema.safeParse({entityId:'Generated',space:'local'}).success,false);
+  assert.equal(schema.safeParse({...args,position:{x:Infinity,y:0,z:0}}).success,false);
+  const primitive=tools.find(t=>t.name==='create_primitive').schema;
+  for(const primitiveType of ['cube','sphere','capsule','cylinder','plane','quad'])
+    assert.equal(primitive.safeParse({...args,primitiveType}).success,true);
+  for(const primitiveType of ['Cube','torus',0,null])
+    assert.equal(primitive.safeParse({...args,primitiveType}).success,false);
+  for(const parentId of [null,'null',''])assert.equal(primitive.safeParse({...args,primitiveType:'cube',parentId}).success,false);
+  assert.equal(primitive.safeParse({...args,primitiveType:'cube',size:2}).success,false);
+});
+
+test('MCP transport confirms, rejects invalid arguments, times out without retry, and marks disconnect unknown',async()=>{
+  const port=await freePort();
+  const transport=new StdioClientTransport({command:process.execPath,args:['dist/index.js'],cwd:new URL('..',import.meta.url).pathname.replace(/^\/(.:)/,'$1'),env:{...process.env,SEYRA_UNITY_PORT:String(port),SEYRA_UNITY_TIMEOUT_MS:'250'},stderr:'pipe'});
+  const client=new Client({name:'bridge-test',version:'1.0.0'});
+  let socket;
+  try {
+    await client.connect(transport);
+    const list=await client.listTools();assert.deepEqual(list.tools.map(t=>t.name).sort(),tools.map(t=>t.name).sort());
+    assert.equal(outcome(await client.callTool({name:'scene_hierarchy',arguments:{}})).error.code,'UNITY_NOT_CONNECTED');
+    socket=new WebSocket(`ws://127.0.0.1:${port}`);await once(socket,'open');
+    let requests=0;let mode='confirm';
+    socket.on('message',bytes=>{
+      requests++;const request=JSON.parse(bytes);assert.ok(Date.parse(request.deadlineUtc)>0);
+      if(mode==='confirm')socket.send(JSON.stringify({version:1,type:'tool_result',requestId:request.requestId,success:true,data:{runtimeId:'mock',nodes:[]}}));
+      else if(mode==='disconnect')socket.close();
+    });
+    const result=outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}));assert.equal(result.success,true);assert.equal(result.data.runtimeId,'mock');
+    const before=requests;
+    const invalid=await client.callTool({name:'create_gameobject',arguments:{parentId:null}});assert.equal(invalid.isError,true);assert.equal(requests,before);
+    mode='timeout';
+    const timed=outcome(await client.callTool({name:'set_transform',arguments:{entityId:'Generated',space:'local',position:{x:1,y:2,z:3}}}));
+    assert.equal(timed.error.code,'UNITY_TIMEOUT');assert.equal(timed.outcomeUnknown,true);assert.equal(requests,before+1);
+    mode='disconnect';
+    const disconnected=outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}));assert.equal(disconnected.error.code,'UNITY_DISCONNECTED');assert.equal(disconnected.outcomeUnknown,true);
+  } finally {socket?.terminate();await client.close();await transport.close();}
+});

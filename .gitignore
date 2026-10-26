@@ -4,6 +4,8 @@
 #
 .utmp/
 /Backend/.env.local
+/Backend/bridge/node_modules/
+/Backend/bridge/dist/
 /SeyraUnity/[Ll]ibrary/
 /SeyraUnity/[Tt]emp/
 /SeyraUnity/[Oo]bj/

@@ -1,0 +1,328 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
+using Object = UnityEngine.Object;
+
+namespace Seyra.SceneTools
+{
+    // Runtime identities never mutate the inspected scene or depend on names/paths/instance-ID reuse.
+    public sealed class SceneToolService
+    {
+        public string RuntimeId { get; } = Guid.NewGuid().ToString("N");
+        readonly Transform generated;
+        readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
+        readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
+        readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get" };
+
+        public SceneToolService(Transform generatedRoot)
+        {
+            if (generatedRoot == null) throw new ArgumentException("Generated debe estar asignado.");
+            generated = generatedRoot;
+        }
+
+        public string Dispatch(string json)
+        {
+            using var reader = new JsonTextReader(new StringReader(json)) { DateParseHandling = DateParseHandling.None, MaxDepth = 32 };
+            var request = JObject.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
+            while (reader.Read()) throw new ArgumentException("Contenido adicional en JSON.");
+            Keys(request, new[] { "version", "type", "requestId", "tool", "arguments", "deadlineUtc" });
+            if (request["version"].Type != JTokenType.Integer || (int)request["version"] != 1 || Text(request,"type") != "tool_request" || !Guid.TryParse(Text(request,"requestId"), out _))
+                throw new ArgumentException("Orden de bridge inválida.");
+            var requestId = Text(request,"requestId");
+            var tool = Text(request,"tool");
+            var args = request["arguments"] as JObject ?? throw new ArgumentException("arguments debe ser un objeto.");
+            var signature = tool + "\n" + args.ToString(Formatting.None);
+            var response = new JObject { ["version"] = 1, ["type"] = "tool_result", ["requestId"] = requestId };
+            try
+            {
+                if (completed.TryGetValue(requestId, out var old))
+                {
+                    if (old.signature != signature) throw new ArgumentException("requestId reutilizado con otros argumentos.");
+                    return old.response;
+                }
+                if (!DateTimeOffset.TryParse(Text(request,"deadlineUtc"), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var deadline) || deadline <= DateTimeOffset.UtcNow)
+                    throw new InvalidOperationException("Orden caducada: no se ha ejecutado. Consulta el estado antes de continuar.");
+                if (!Application.isPlaying) throw new InvalidOperationException("Solo disponible en Play Mode.");
+                if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Límite de mutaciones alcanzado; reinicia Play Mode.");
+                response["data"] = Execute(tool,args);
+                response["success"] = true;
+            }
+            catch (Exception error)
+            {
+                response["success"] = false;
+                response["error"] = new JObject { ["code"] = error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+            }
+            var result = response.ToString(Formatting.None);
+            if (!queries.Contains(tool) && !completed.ContainsKey(requestId) && completed.Count < 4096) completed[requestId] = (signature,result);
+            return result;
+        }
+
+        string Id(Object value)
+        {
+            var key = value.GetInstanceID();
+            if (identities.TryGetValue(key,out var known) && ReferenceEquals(known.value,value)) return known.id;
+            var id = (value is GameObject ? "go_" : "cmp_") + Guid.NewGuid().ToString("N");
+            identities[key] = (value,id); objects[id] = value;
+            return id;
+        }
+        string SceneId(UnityEngine.SceneManagement.Scene scene) => "scene_" + RuntimeId + "_" + scene.handle;
+        GameObject Find(JToken token)
+        {
+            var id = String(token,128);
+            if(id.Equals("null",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Usa un ID real o Generated; nunca null.");
+            if (id == "Generated") { if (generated == null) throw new ArgumentException("Generated ha sido eliminado."); return generated.gameObject; }
+            if (!objects.TryGetValue(id,out var target) || !(target is GameObject go) || go == null || !go.scene.IsValid() || !go.scene.isLoaded)
+                throw new ArgumentException("ID de GameObject desconocido o caducado. Consulta la jerarquía de este runtime.");
+            return go;
+        }
+        GameObject Parent(JToken token)
+        {
+            var parent = Find(token);
+            if (generated == null || (parent.transform != generated && !parent.transform.IsChildOf(generated)))
+                throw new ArgumentException("El padre debe ser Generated o uno de sus descendientes.");
+            return parent;
+        }
+        static string Path(Transform transform)
+        {
+            var names = new Stack<string>();
+            for (var t=transform; t!=null; t=t.parent) names.Push(t.name);
+            return string.Join("/",names);
+        }
+        JObject Node(GameObject go, int depth)
+        {
+            var t=go.transform;
+            return new JObject { ["entityId"]=Id(go), ["name"]=go.name, ["path"]=Path(t), ["sceneId"]=SceneId(go.scene),
+                ["parentId"]=t.parent!=null ? Id(t.parent.gameObject) : SceneId(go.scene), ["depth"]=depth,
+                ["siblingIndex"]=t.GetSiblingIndex(), ["childCount"]=t.childCount, ["activeSelf"]=go.activeSelf,
+                ["activeInHierarchy"]=go.activeInHierarchy, ["tag"]=go.tag, ["layer"]=go.layer };
+        }
+        List<GameObject> Roots()
+        {
+            var result=new List<GameObject>();
+            for(var i=0;i<SceneManager.sceneCount;i++)
+            {
+                var scene=SceneManager.GetSceneAt(i);
+                if(scene.isLoaded) result.AddRange(scene.GetRootGameObjects());
+            }
+            // Unity excludes DontDestroyOnLoad from sceneCount. Include those scene objects, not prefab assets.
+            result.AddRange(Resources.FindObjectsOfTypeAll<GameObject>().Where(g=>g!=null && g.scene.IsValid() && g.scene.isLoaded && g.scene.name=="DontDestroyOnLoad" && g.transform.parent==null));
+            return result.Distinct().OrderBy(g=>SceneId(g.scene),StringComparer.Ordinal).ThenBy(g=>g.transform.GetSiblingIndex()).ToList();
+        }
+        List<(GameObject go, JObject node)> Scan(JObject args)
+        {
+            var roots=args["rootId"]==null ? Roots() : new List<GameObject>{Find(args["rootId"])};
+            bool inactive=Bool(args,"includeInactive",true);
+            var stack=new Stack<(Transform t,int depth)>();
+            for(int i=roots.Count-1;i>=0;i--) stack.Push((roots[i].transform,0));
+            var result=new List<(GameObject,JObject)>();
+            while(stack.Count>0)
+            {
+                var (t,depth)=stack.Pop();
+                if(!inactive && !t.gameObject.activeInHierarchy) continue;
+                result.Add((t.gameObject,Node(t.gameObject,depth)));
+                if(result.Count>50000) throw new InvalidOperationException("Más de 50000 nodos; restringe con rootId. No se devuelve una jerarquía truncada.");
+                for(int i=t.childCount-1;i>=0;i--) stack.Push((t.GetChild(i),depth+1));
+            }
+            return result;
+        }
+        static bool HasType(Component component,string type)
+        {
+            if(component==null)return false;
+            for(var t=component.GetType();t!=null;t=t.BaseType) if(t.Name==type || t.FullName==type)return true;
+            return component.GetType().GetInterfaces().Any(t=>t.Name==type || t.FullName==type);
+        }
+        JObject Hierarchy(JObject args,bool search)
+        {
+            Keys(args,Array.Empty<string>(),search ? new[]{"rootId","includeInactive","offset","limit","expectedRevision","name","path","componentType","match"} : new[]{"rootId","includeInactive","offset","limit","expectedRevision"});
+            var all=Scan(args);
+            var filtered=all;
+            if(search)
+            {
+                if(args["name"]==null && args["path"]==null && args["componentType"]==null) throw new ArgumentException("Indica name, path o componentType.");
+                var match=args["match"]==null ? "contains" : Text(args,"match");
+                if(match!="exact" && match!="contains")throw new ArgumentException("match debe ser exact o contains.");
+                string name=args["name"]==null?null:String(args["name"],256), path=args["path"]==null?null:String(args["path"],4096), type=args["componentType"]==null?null:String(args["componentType"],512);
+                bool Matches(string value,string filter)=>filter==null || (match=="exact" ? string.Equals(value,filter,StringComparison.OrdinalIgnoreCase) : value.IndexOf(filter,StringComparison.OrdinalIgnoreCase)>=0);
+                filtered=all.Where(p=>Matches(p.go.name,name) && Matches((string)p.node["path"],path) && (type==null || p.go.GetComponents<Component>().Any(c=>HasType(c,type)))).ToList();
+            }
+            var revisionState=new JObject{["runtimeId"]=RuntimeId,["rootId"]=args["rootId"]?.DeepClone(),["includeInactive"]=Bool(args,"includeInactive",true),
+                ["name"]=args["name"]?.DeepClone(),["path"]=args["path"]?.DeepClone(),["componentType"]=args["componentType"]?.DeepClone(),["match"]=args["match"]?.DeepClone(),
+                ["nodes"]=new JArray(filtered.Select(p=>p.node))};
+            string revision;
+            using(var hash=SHA256.Create()) revision=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(revisionState.ToString(Formatting.None)))).Replace("-","").ToLowerInvariant();
+            if(args["expectedRevision"]!=null && String(args["expectedRevision"],128)!=revision) throw new InvalidOperationException("HIERARCHY_CHANGED: reinicia la consulta desde offset=0.");
+            int offset=Int(args,"offset",0,0,1000000),limit=Int(args,"limit",200,1,500);
+            var loadedScenes=new List<UnityEngine.SceneManagement.Scene>();
+            if(args["rootId"]==null) for(int i=0;i<SceneManager.sceneCount;i++) {var s=SceneManager.GetSceneAt(i);if(s.isLoaded)loadedScenes.Add(s);}
+            var scenes=loadedScenes.Concat(all.Select(p=>p.go.scene)).GroupBy(s=>s.handle).Select(g=>g.First()).Select(s=>new JObject{["sceneId"]=SceneId(s),["name"]=s.name,["path"]=s.path});
+            return new JObject { ["runtimeId"]=RuntimeId,["generatedRootId"]=generated==null?null:Id(generated.gameObject),["revision"]=revision,
+                ["scenes"]=new JArray(scenes),["nodes"]=new JArray(filtered.Skip(offset).Take(limit).Select(p=>p.node)),["total"]=filtered.Count,
+                ["nextOffset"]=offset+limit<filtered.Count ? new JValue(offset+limit) : JValue.CreateNull() };
+        }
+
+        JObject Inspect(GameObject go,int offset=0,int limit=50)
+        {
+            var node=Node(go,0); var t=go.transform;
+            int depth=0; for(var p=t.parent;p!=null;p=p.parent)depth++;
+            node["depth"]=depth; node["runtimeId"]=RuntimeId;
+            node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
+            var components=go.GetComponents<Component>();
+            node["components"]=new JArray(components.Skip(offset).Take(limit).Select((c,i)=>c==null
+                ? new JObject{["index"]=offset+i,["componentId"]=null,["type"]=null,["missingScript"]=true}
+                : new JObject{["index"]=offset+i,["componentId"]=Id(c),["type"]=c.GetType().FullName,["missingScript"]=false,["enabled"]=Enabled(c)}));
+            node["componentCount"]=components.Length;
+            node["nextComponentOffset"]=offset+limit<components.Length ? new JValue(offset+limit) : JValue.CreateNull();
+            var meshFilter=go.GetComponent<MeshFilter>();
+            var mesh=meshFilter!=null ? meshFilter.sharedMesh : null;
+            if(mesh!=null) node["geometry"]=new JObject{["meshName"]=mesh.name,["vertexCount"]=mesh.vertexCount,
+                ["meshBoundsLocal"]=new JObject{["center"]=Vector(mesh.bounds.center),["size"]=Vector(mesh.bounds.size)}};
+            return node;
+        }
+        static PrimitiveType Primitive(string name)
+        {
+            switch(name)
+            {
+                case "cube":return PrimitiveType.Cube;
+                case "sphere":return PrimitiveType.Sphere;
+                case "capsule":return PrimitiveType.Capsule;
+                case "cylinder":return PrimitiveType.Cylinder;
+                case "plane":return PrimitiveType.Plane;
+                case "quad":return PrimitiveType.Quad;
+                default:throw new ArgumentException("primitiveType debe ser cube, sphere, capsule, cylinder, plane o quad.");
+            }
+        }
+        // Both creation tools use this path: validate everything before allocating, then commit or roll back.
+        JObject CreateObject(JObject args,PrimitiveType? primitive)
+        {
+            var parent=Parent(args["parentId"]);var name=String(args["name"],256);
+            var position=ReadVector(args["position"]);var rotation=ReadVector(args["rotation"]);var scale=ReadVector(args["scale"]);
+            var go=primitive.HasValue ? GameObject.CreatePrimitive(primitive.Value) : new GameObject(name);
+            try
+            {
+                go.name=name;
+                SceneManager.MoveGameObjectToScene(go,parent.scene);
+                go.transform.SetParent(parent.transform,false);
+                go.transform.localPosition=position;go.transform.localRotation=Quaternion.Euler(rotation);go.transform.localScale=scale;
+                if(primitive.HasValue && GraphicsSettings.currentRenderPipeline!=null && GraphicsSettings.currentRenderPipeline.defaultMaterial!=null)
+                    go.GetComponent<Renderer>().sharedMaterial=GraphicsSettings.currentRenderPipeline.defaultMaterial;
+                Check(go.transform);
+                var result=Inspect(go);
+                if(primitive.HasValue)result["primitiveType"]=Text(args,"primitiveType");
+                return result;
+            }
+            catch { Object.DestroyImmediate(go);throw; }
+        }
+        static JToken Enabled(Component c)
+        {
+            if(c is Behaviour b)return new JValue(b.enabled);
+            if(c is Renderer r)return new JValue(r.enabled);
+            if(c is Collider co)return new JValue(co.enabled);
+            if(c is Collider2D co2)return new JValue(co2.enabled);
+            return JValue.CreateNull();
+        }
+        JObject Execute(string tool,JObject args)
+        {
+            if(tool=="scene_hierarchy" || tool=="scene_find") return Hierarchy(args,tool=="scene_find");
+            if(tool=="scene_get")
+            {
+                Keys(args,new[]{"entityId"},new[]{"componentOffset","componentLimit"});
+                return Inspect(Find(args["entityId"]),Int(args,"componentOffset",0,0,int.MaxValue),Int(args,"componentLimit",50,1,100));
+            }
+            if(tool=="create_gameobject" || tool=="create_primitive")
+            {
+                var primitive=tool=="create_primitive";
+                Keys(args,primitive ? new[]{"name","parentId","position","rotation","scale","primitiveType"} : new[]{"name","parentId","position","rotation","scale"});
+                return CreateObject(args,primitive ? Primitive(Text(args,"primitiveType")) : (PrimitiveType?)null);
+            }
+            if(tool=="set_transform")
+            {
+                Keys(args,new[]{"entityId","space"},new[]{"position","rotation","scale"});
+                if(args["position"]==null && args["rotation"]==null && args["scale"]==null)throw new ArgumentException("Indica al menos un campo de transform.");
+                var go=Find(args["entityId"]);var t=go.transform;var space=Text(args,"space");
+                if(space!="local" && space!="world")throw new ArgumentException("space debe ser local o world.");
+                Vector3? pos=args["position"]==null?null:ReadVector(args["position"]), rot=args["rotation"]==null?null:ReadVector(args["rotation"]), scale=args["scale"]==null?null:ReadVector(args["scale"]);
+                if(space=="world" && (pos.HasValue || rot.HasValue)) Invertible(t.parent);
+                var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
+                try
+                {
+                    if(pos.HasValue) { if(space=="local")t.localPosition=pos.Value;else t.position=pos.Value; }
+                    if(rot.HasValue) { if(space=="local")t.localRotation=Quaternion.Euler(rot.Value);else t.rotation=Quaternion.Euler(rot.Value); }
+                    if(scale.HasValue)t.localScale=scale.Value;
+                    Check(t);return Inspect(go);
+                }
+                catch {t.localPosition=oldPos;t.localRotation=oldRot;t.localScale=oldScale;throw;}
+            }
+            if(tool=="set_parent")
+            {
+                Keys(args,new[]{"entityId","parentId","worldPositionStays"});
+                var go=Find(args["entityId"]);var t=go.transform;var parent=Parent(args["parentId"]);
+                if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Solo se reubican descendientes de Generated.");
+                if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("La jerarquía no puede contener ciclos.");
+                if(parent.scene!=go.scene)throw new ArgumentException("No se permite cambiar de escena.");
+                var stays=Bool(args,"worldPositionStays");if(stays)Invertible(parent.transform);
+                var oldParent=t.parent;var oldIndex=t.GetSiblingIndex();var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
+                try { t.SetParent(parent.transform,stays);Check(t);return Inspect(go); }
+                catch {t.SetParent(oldParent,false);t.SetSiblingIndex(oldIndex);t.localPosition=oldPos;t.localRotation=oldRot;t.localScale=oldScale;throw;}
+            }
+            throw new ArgumentException("Herramienta desconocida.");
+        }
+        static void Invertible(Transform parent)
+        {
+            if(parent==null)return;
+            var determinant=parent.localToWorldMatrix.determinant;
+            if(!Finite(determinant) || Math.Abs(determinant)<1e-12f)throw new ArgumentException("El padre no tiene una matriz invertible para operar en espacio global.");
+        }
+        static void Check(Transform t)
+        {
+            foreach(var value in new[]{t.position,t.localPosition,t.eulerAngles,t.localEulerAngles,t.localScale,t.lossyScale})
+                if(!Finite(value.x)||!Finite(value.y)||!Finite(value.z))throw new ArgumentException("Transform no representable; operación revertida.");
+            var matrix=t.localToWorldMatrix;
+            for(int i=0;i<16;i++)if(!Finite(matrix[i]))throw new ArgumentException("Matriz no finita; operación revertida.");
+        }
+        static bool Finite(float f)=>!float.IsNaN(f)&&!float.IsInfinity(f);
+        static JObject Vector(Vector3 v)=>new JObject{["x"]=v.x,["y"]=v.y,["z"]=v.z};
+        static Vector3 ReadVector(JToken token)
+        {
+            var a=token as JObject??throw new ArgumentException("Vector debe contener x,y,z.");Keys(a,new[]{"x","y","z"});
+            float Number(string key)
+            {
+                if(a[key].Type!=JTokenType.Integer && a[key].Type!=JTokenType.Float)throw new ArgumentException("Coordenada debe ser numérica.");
+                var value=(double)a[key];if(double.IsNaN(value)||double.IsInfinity(value)||Math.Abs(value)>float.MaxValue)throw new ArgumentException("Coordenada fuera de rango float.");
+                return (float)value;
+            }
+            return new Vector3(Number("x"),Number("y"),Number("z"));
+        }
+        static string String(JToken value,int maximum=4096)
+        {
+            if(value==null || value.Type!=JTokenType.String)throw new ArgumentException("Se esperaba una cadena no vacía.");
+            var text=((string)value).Trim();if(text.Length==0||text.Length>maximum)throw new ArgumentException("Cadena vacía o demasiado larga.");return text;
+        }
+        static string Text(JObject a,string key)=>String(a[key]);
+        static int Int(JObject a,string key,int fallback,int minimum,int maximum)
+        {
+            if(a[key]==null)return fallback;
+            if(a[key].Type!=JTokenType.Integer)throw new ArgumentException(key+" debe ser entero.");
+            var value=(long)a[key];if(value<minimum||value>maximum)throw new ArgumentException(key+" fuera de rango.");return(int)value;
+        }
+        static bool Bool(JObject a,string key,bool fallback=false)
+        {
+            if(a[key]==null)return fallback;
+            if(a[key].Type!=JTokenType.Boolean)throw new ArgumentException(key+" debe ser booleano.");return(bool)a[key];
+        }
+        static void Keys(JObject a,string[] required,string[] optional=null)
+        {
+            var allowed=new HashSet<string>(required.Concat(optional??Array.Empty<string>()));
+            if(required.Any(k=>a[k]==null)||a.Properties().Any(p=>!allowed.Contains(p.Name)))throw new ArgumentException("Campos obligatorios ausentes o campos no reconocidos.");
+        }
+    }
+}
