@@ -3,6 +3,7 @@
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
 .utmp/
+/Backend/.env.local
 /SeyraUnity/[Ll]ibrary/
 /SeyraUnity/[Tt]emp/
 /SeyraUnity/[Oo]bj/

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "helmcode/glm5.3-flash",
+  "websearch": {
+    "provider": "exa"
+  },
+  "mcp": {
+    "servers": {}
+  },
+  "agents": {
+    "seyra": {
+      "description": "Asistente de conversación de Seyra",
+      "mode": "primary",
+      "permissions": [
+        {
+          "action": "*",
+          "resource": "*",
+          "effect": "ask"
+        },
+        {
+          "action": "seyra_*",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ],
+      "system": "Eres Seyra. Responde en español de forma breve y natural. Esta primera versión solo permite conversar: el bridge de Unity todavía no está implementado. No uses herramientas de archivos, shell ni servicios externos para responder mensajes de chat. No afirmes haber modificado Unity."
+    },
+    "seyra_deepseek": {
+      "description": "Asistente de conversación de Seyra",
+      "mode": "primary",
+      "permissions": [
+        {
+          "action": "*",
+          "resource": "*",
+          "effect": "ask"
+        },
+        {
+          "action": "seyra_*",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ],
+      "system": "Eres Seyra. Responde en español de forma breve y natural. Esta primera versión solo permite conversar: el bridge de Unity todavía no está implementado. No uses herramientas de archivos, shell ni servicios externos para responder mensajes de chat. No afirmes haber modificado Unity.",
+      "model": "opencode/deepseek-v4.1-flash-free"
+    }
+  },
+  "providers": {
+    "helmcode": {
+      "name": "Helmcode",
+      "env": [
+        "HELMCODE_API_KEY"
+      ],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://api.helmcode.com/v1"
+      },
+      "models": {
+        "glm5.3-flash": {
+          "name": "GLM 5.3 Flash"
+        }
+      }
+    }
+  }
+}
