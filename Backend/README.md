@@ -23,7 +23,7 @@ La opción ./start.ps1 -Port 4097 cambia solo el puerto HTTP: no permite ejecuta
 - seyra hereda helmcode/glm5.3-flash, autenticado por HELMCODE_API_KEY.
 - seyra_deepseek usa opencode/deepseek-v4.1-flash-free.
 
-Ambos perfiles comparten instrucciones y permisos. La regla general ask seguida de seyra_* con allow autoriza las herramientas actuales y futuras de Unity sin ampliar permisos de shell, archivos u otros servicios. No se añaden confirmaciones para el MCP de Unity. Los argumentos se validan en el bridge y en el runtime; el éxito solo se comunica tras confirmación del runtime.
+Ambos perfiles comparten instrucciones y permisos. Las instrucciones viven en [prompts/seyra.md](prompts/seyra.md); el campo `system` de cada perfil contiene solo `{file:./prompts/seyra.md}`, que OpenCode expande al cargar la configuración (ruta relativa a opencode.json). Para cambiar el comportamiento del agente se edita ese archivo y se reinicia OpenCode; `opencode2 debug config`, ejecutado en Backend, muestra el texto expandido. La regla general ask seguida de seyra_* con allow autoriza las herramientas actuales y futuras de Unity sin ampliar permisos de shell, archivos u otros servicios. No se añaden confirmaciones para el MCP de Unity. Los argumentos se validan en el bridge y en el runtime; el éxito solo se comunica tras confirmación del runtime.
 
 El chat consulta `/api/agent` al conectar y envía explícitamente el modelo declarado por el perfil al crear la sesión. Esta versión de la API seleccionaba el modelo global si solo se enviaba el nombre del agente, por lo que `seyra_deepseek` podía ejecutar GLM sin indicarlo. El perfil `seyra`, sin modelo propio, hereda el valor global.
 

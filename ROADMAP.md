@@ -106,6 +106,26 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 02 y 05. Reutiliza la biblioteca visual de las fases de UI; no requiere un rediseño visual completo ni reconocimiento de habitaciones.
 
+### 06b. Compositor por voz: dictado a borrador y envío explícito
+
+**Estado:** diseño listo. [Diseño](Progress/InProgress/06b-voice-draft-composer.md).
+
+**Entrega:** el compositor del chat espacial pasa a ser solo voz: la transcripción queda como borrador de solo lectura y se envía con Enviar. Sin envío automático tras dictar ni botón de borrar.
+
+**Aceptación:** dictar nunca envía un mensaje; Enviar envía el borrador una vez; un dictado fallido conserva el borrador anterior; se puede dictar durante un turno.
+
+**Dependencias:** 06. Adelanta la parte de "texto antes de enviar" de 17; la edición y Muse Voice Transcribe siguen en 17. Se implementa en secuencia con 06c (mismos prefabs y escena).
+
+### 06c. Seguimiento perezoso del menú espacial
+
+**Estado:** diseño listo. [Diseño](Progress/InProgress/06c-menu-lazy-follow.md).
+
+**Entrega:** componente de lazy follow propio para el menú (el SDK 207.0.1 no trae uno): zona cómoda bajo la mirada, movimiento amortiguado, respeto del agarre y de la posición elegida al soltar, y "Reubicar" que coloca chat y menú.
+
+**Aceptación:** el menú vuelve a su sitio tras girar o desplazarse, no se mueve con giros breves ni mientras se agarra; el chat no se mueve solo.
+
+**Dependencias:** 06. Base del seguimiento de 22d.
+
 ### 07. Conexión y ejecución verificadas en Quest
 
 **Entrega:** configurar desde la aplicación la dirección del backend, autenticar la conexión sin incluir secretos de proveedores en assets o builds y verificar el enlace Unity–bridge fuera del Editor. El backend sigue ejecutándose en un equipo accesible por red.
