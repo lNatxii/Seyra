@@ -39,7 +39,6 @@ namespace Seyra.UI
         void ClearPermissions()
         {
             pendingPermission = null;
-            submittedPermissions.Clear();
             replyingPermission = false;
             permissionPanel.SetActive(false);
         }
@@ -68,7 +67,7 @@ namespace Seyra.UI
                 Canvas.ForceUpdateCanvases();
                 permissionScroll.verticalNormalizedPosition = 1;
             }
-            SetConnected(true, "Conectado · esperando permiso");
+            RefreshControls();
         }
 
         void AllowPermission() => ReplyPermission(true);
@@ -76,7 +75,7 @@ namespace Seyra.UI
 
         async void ReplyPermission(bool allow)
         {
-            if (pendingPermission == null || replyingPermission) return;
+            if (pendingPermission == null || replyingPermission || cancelRequested || !connected) return;
             var id = (string)pendingPermission["id"];
             if (!submittedPermissions.Add(id)) return;
             var token = lifetime.Token;
@@ -99,7 +98,7 @@ namespace Seyra.UI
                     AddMessage("Sistema", error.Message);
                 }
             }
-            finally { if (!token.IsCancellationRequested) replyingPermission = false; }
+            finally { if (!token.IsCancellationRequested) { replyingPermission = false; RefreshControls(); } }
         }
     }
 }

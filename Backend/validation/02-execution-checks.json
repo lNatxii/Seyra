@@ -1,0 +1,242 @@
+{
+  "checks": [
+    "sending, permission, completion and one permission decision",
+    "server cancellation while waiting for permission, explicit close, no rollback claim",
+    "cancellation waits for in-flight admission, duplicate-click guard",
+    "read outage resumes original session and turn without resubmission",
+    "lost POST response reconciled to exactly one server user message",
+    "lost interrupt response inspected without repeating interrupt",
+    "disable/re-enable retains active identity and transcript",
+    "unknown runtime result and provider failure are visible and require explicit closure",
+    "completion/cancel race preserves actual succeeded outcome",
+    "lost permission decision remains single-use across re-enable and can be stopped",
+    "unreceived interruption permits an explicit second stop but never an automatic retry",
+    "unadmitted ambiguous POST is never resubmitted or misrepresented as executed",
+    "cancellation queued during an unadmitted POST is completed after reconnect",
+    "unavailable session requires explicit closure before a fresh conversation",
+    "exact prompt/interrupt/decision counts, no duplicate rows, no reasoning or raw tool arguments"
+  ],
+  "server": {
+    "sessions": [
+      {
+        "id": "fixture-1",
+        "prompts": 13,
+        "interrupts": 9,
+        "mutations": 7,
+        "outcome": "interrupted"
+      },
+      {
+        "id": "fixture-35",
+        "prompts": 0,
+        "interrupts": 0,
+        "mutations": 0
+      }
+    ],
+    "events": [
+      {
+        "type": "session",
+        "id": "fixture-1",
+        "model": {
+          "id": "fixture",
+          "providerID": "test"
+        }
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "permission"
+      },
+      {
+        "type": "decision",
+        "session": "fixture-1",
+        "decision": "once"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "cancel_permission"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "interrupted"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": true
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "cancel_during_admission"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "interrupted"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": true
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "disconnect"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "drop_prompt"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "drop_interrupt"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "interrupted"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": true
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "disconnect"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "unknown_tool"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "disconnect"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "fail"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "failed"
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "cancel_race_complete"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "succeeded"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": false
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "lost_permission"
+      },
+      {
+        "type": "decision",
+        "session": "fixture-1",
+        "decision": "once"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "interrupted"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": true
+      },
+      {
+        "type": "prompt",
+        "session": "fixture-1",
+        "text": "interrupt_not_received"
+      },
+      {
+        "type": "terminal",
+        "session": "fixture-1",
+        "outcome": "interrupted"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": true
+      },
+      {
+        "type": "unconfirmed-prompt",
+        "session": "fixture-1"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": false
+      },
+      {
+        "type": "unconfirmed-prompt",
+        "session": "fixture-1"
+      },
+      {
+        "type": "interrupt",
+        "session": "fixture-1",
+        "interrupted": false
+      },
+      {
+        "type": "session",
+        "id": "fixture-35",
+        "model": {
+          "id": "fixture",
+          "providerID": "test"
+        }
+      }
+    ]
+  }
+}

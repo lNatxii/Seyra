@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","set_transform","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","set_transform","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
 
         void InitializeLifecycle(string directory)
         {
@@ -79,16 +79,19 @@ namespace Seyra.SceneTools
             public Vector3 Position,Scale;
             public Quaternion Rotation;
             public bool Active;
+            public AppearanceStyle? Style;
+            public Color Color;
+            public string AppearanceSignature;
             public static ObjectState Capture(GameObject go)
             {
                 var t=go.transform;var record=go.GetComponent<GeneratedObject>();
                 return new ObjectState{Object=go,Parent=t.parent,Sibling=t.GetSiblingIndex(),Name=go.name,Tag=go.tag,Layer=go.layer,
                     Position=t.localPosition,Rotation=t.localRotation,Scale=t.localScale,Active=go.activeSelf,
                     EntityId=record!=null?record.EntityId:null,Kind=record!=null?record.Kind:null,Shape=record!=null?record.PrimitiveType:null,GroupId=record!=null?record.RequestGroupId:null,
-                    Components=ComponentConfiguration(go)};
+                    Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components;
+                Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature;
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
@@ -101,6 +104,11 @@ namespace Seyra.SceneTools
                 Object.name=Name;Object.layer=Layer;Object.tag=Tag;
                 var record=Object.GetComponent<GeneratedObject>();
                 if(record!=null)record.Initialize(EntityId,Kind,Shape,GroupId);
+                if(Style.HasValue)
+                {
+                    var appearance=Object.GetComponent<ManagedAppearance>();
+                    if(appearance.Style!=Style.Value || !appearance.Color.Equals(Color))appearance.SetAppearance(Style.Value,Color);
+                }
             }
         }
         sealed class Snapshot

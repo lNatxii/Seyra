@@ -11,7 +11,8 @@ public static class PermissionUiCheck {
  public static async Task<string> Run(){
  var c=UnityEngine.Object.FindFirstObjectByType<Seyra.UI.OpenCodeTestChat>();
  if(!Application.isPlaying)throw new Exception("Play Mode required");
- c.enabled=false;F("serverUrl").SetValue(c,"http://127.0.0.1:4199");c.enabled=true;
+ var originalSession=Get<string>(c,"sessionId");
+ c.enabled=false;F("sessionId").SetValue(c,null);F("serverUrl").SetValue(c,"http://127.0.0.1:4199");c.enabled=true;
  try{
  await Wait(()=>Get<bool>(c,"connected"));
  for(int round=0;round<2;round++){
@@ -23,7 +24,12 @@ public static class PermissionUiCheck {
  await Wait(()=>!Get<bool>(c,"sending"));
  if(Get<GameObject>(c,"permissionPanel").activeSelf||!Get<UnityEngine.UI.Button>(c,"sendButton").interactable)throw new Exception("Turn did not resume");
  }
- return "PASS: pending display, literal details, allow once, reject, duplicate-click guard, turn continuation, panel hidden and send restored";
- }finally{c.enabled=false;F("serverUrl").SetValue(c,"http://127.0.0.1:4096");}
+ using(var check=new Seyra.Networking.JsonHttpClient("http://127.0.0.1:4199")){
+ var state=await check.RequestAsync("GET","/test/state",null,System.Threading.CancellationToken.None);
+ var replies=(Newtonsoft.Json.Linq.JArray)state["replies"];
+ if(replies.Count!=2||(string)replies[0]!="once"||(string)replies[1]!="reject")throw new Exception("Server received duplicate or incorrect permission decisions");
+ }
+ return "PASS: agent model forwarding, pending display, literal details, exactly one allow and one reject received by server, duplicate-click guard, turn continuation, panel hidden and send restored";
+ }finally{c.enabled=false;F("sessionId").SetValue(c,originalSession);F("serverUrl").SetValue(c,"http://127.0.0.1:4096");}
  }
 }

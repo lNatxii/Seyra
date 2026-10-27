@@ -44,7 +44,7 @@ public static class SceneContractChecks
         Require((int)Call("scene_find",new JObject{["name"]="PrimitiveContractTest",["match"]="exact"})["data"]["total"]==1,"Primitive created twice");
         var primitiveObject=GameObject.Find("Generated/PrimitiveContractTest");
         var pipeline=UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
-        if(pipeline!=null && pipeline.defaultMaterial!=null)Require(primitiveObject.GetComponent<Renderer>().sharedMaterial==pipeline.defaultMaterial,"Primitive material does not match the render pipeline");
+        Require(primitiveObject.GetComponent<Renderer>().sharedMaterial.shader.name=="Seyra/MatteOpaque","Primitive does not use the managed matte style");
         Require(primitiveObject.GetComponent<Renderer>().sharedMaterial.shader.isSupported,"Primitive shader unsupported");
         UnityEngine.Object.DestroyImmediate(primitiveObject);
         primitiveArgs["name"]="InvalidPrimitiveType";primitiveArgs["primitiveType"]="torus";
@@ -52,6 +52,6 @@ public static class SceneContractChecks
         Require(GameObject.Find("Generated/InvalidPrimitiveType")==null,"Invalid primitive leaked an object");
         primitiveArgs["primitiveType"]="cube";primitiveArgs["parentId"]=null;
         Require(!(bool)Call("create_primitive",primitiveArgs)["success"],"Primitive accepted null parent at runtime");
-        return "PASS: duplicate/conflicting UUIDs, expired mutation, stable object/component IDs, inactive filtering, zero scale, singular parent, null-parent rejection, float range, destroyed IDs, primitive deduplication, invalid primitive rollback, pipeline material and supported shader.";
+        return "PASS: duplicate/conflicting UUIDs, expired mutation, stable object/component IDs, inactive filtering, zero scale, singular parent, null-parent rejection, float range, destroyed IDs, primitive deduplication, invalid primitive rollback, managed matte material and supported shader.";
     }
 }

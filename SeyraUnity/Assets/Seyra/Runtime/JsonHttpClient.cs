@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
-using UnityEngine.Networking;
 
 namespace Seyra.Networking
 {
@@ -13,57 +12,56 @@ namespace Seyra.Networking
         public long StatusCode { get; }
         public OpenCodeHttpException(long code, string message) : base(message) { StatusCode = code; }
     }
-    // Called on Unity's main thread. No credentials are serialized or written to disk.
+
     public sealed class JsonHttpClient : IDisposable
     {
         readonly string baseUrl;
-        readonly HashSet<UnityWebRequest> active = new HashSet<UnityWebRequest>();
+        readonly HttpClient client;
         string password;
         bool disposed;
 
-        public JsonHttpClient(string baseUrl) { this.baseUrl = baseUrl.TrimEnd('/'); }
+        public JsonHttpClient(string baseUrl)
+        {
+            this.baseUrl = baseUrl.TrimEnd('/');
+            client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+            client.Timeout = TimeSpan.FromSeconds(15);
+        }
         public void SetPassword(string value) { password = value; }
 
         public async Task<JObject> RequestAsync(string method, string path, JObject body, CancellationToken token)
         {
             if (disposed) throw new ObjectDisposedException(nameof(JsonHttpClient));
             token.ThrowIfCancellationRequested();
-            using (var request = new UnityWebRequest(baseUrl + path, method))
+            using (var request = new HttpRequestMessage(new HttpMethod(method), baseUrl + path))
             {
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.timeout = 15;
-                request.redirectLimit = 0;
-                request.SetRequestHeader("Accept", "application/json");
+                // Reused native connections can replay a POST after a lost response. Do not pool these requests.
+                request.Headers.ConnectionClose = true;
+                request.Headers.Accept.ParseAdd("application/json");
                 if (!string.IsNullOrEmpty(password))
-                    request.SetRequestHeader("Authorization", "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password)));
-                if (body != null)
-                {
-                    request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body.ToString(Newtonsoft.Json.Formatting.None)));
-                    request.SetRequestHeader("Content-Type", "application/json");
-                }
-                active.Add(request);
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",
+                        Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password)));
+                if (body != null) request.Content = new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json");
                 try
                 {
-                    var operation = request.SendWebRequest();
-                    while (!operation.isDone)
+                    using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead, token))
                     {
-                        if (token.IsCancellationRequested || disposed) { request.Abort(); token.ThrowIfCancellationRequested(); throw new ObjectDisposedException(nameof(JsonHttpClient)); }
-                        await Task.Yield();
+                        token.ThrowIfCancellationRequested();
+                        if ((int)response.StatusCode == 401)
+                            throw new InvalidOperationException("OpenCode rejected authentication. Check the connection credentials and reconnect.");
+                        if (!response.IsSuccessStatusCode)
+                            throw new OpenCodeHttpException((int)response.StatusCode, "OpenCode HTTP " + (int)response.StatusCode + ": " + response.ReasonPhrase);
+                        var text = await response.Content.ReadAsStringAsync();
+                        token.ThrowIfCancellationRequested();
+                        if (string.IsNullOrWhiteSpace(text)) return new JObject();
+                        try { return JObject.Parse(text); }
+                        catch (Exception error) when (error is Newtonsoft.Json.JsonException)
+                        { throw new InvalidOperationException("Incompatible OpenCode response: expected API v2 JSON.", error); }
                     }
-                    token.ThrowIfCancellationRequested();
-                    if (request.responseCode == 401)
-#if UNITY_EDITOR
-                        throw new InvalidOperationException("OpenCode rejected authentication. Check OPENCODE_SERVER_PASSWORD in Backend/.env.local and click Reconnect.");
-#else
-                        throw new InvalidOperationException("OpenCode rejected authentication. Check the connection credentials and click Reconnect.");
-#endif
-                    if (request.result != UnityWebRequest.Result.Success)
-                        throw new OpenCodeHttpException(request.responseCode, $"OpenCode HTTP {request.responseCode}: {request.error}. Check that the server is running.");
-                    if (string.IsNullOrWhiteSpace(request.downloadHandler.text)) return new JObject();
-                    try { return JObject.Parse(request.downloadHandler.text); }
-                    catch (Exception error) { throw new InvalidOperationException("Incompatible OpenCode response: expected API v2 JSON.", error); }
                 }
-                finally { active.Remove(request); }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                { throw new OpenCodeHttpException(0, "OpenCode HTTP timed out. Outcome unknown; inspect before repeating any mutation."); }
+                catch (HttpRequestException error)
+                { throw new OpenCodeHttpException(0, "OpenCode HTTP connection failed. Outcome unknown; no request will be retried. " + error.Message); }
             }
         }
 
@@ -71,7 +69,7 @@ namespace Seyra.Networking
         {
             disposed = true;
             password = null;
-            foreach (var request in active) request.Abort();
+            client.Dispose();
         }
     }
 }

@@ -9,6 +9,7 @@ OpenCode inicia `node dist/index.js` por stdio. El bridge escucha un único runt
 | `scene_get` | Identidad, Transform y componentes paginados con sus GUID. |
 | `create_gameobject` | GameObject vacío con padre y Transform local explícitos. |
 | `create_primitive` | Cubo, esfera, cápsula, cilindro, plano o quad con el mismo contrato de creación. |
+| `set_appearance` | Six managed styles and per-object RGBA; [contract and shader details](APPEARANCE.md). |
 | `set_transform` | Modificar únicamente los campos proporcionados. |
 | `set_parent` | Reubicar descendientes dentro de Generated, sin ciclos. |
 | `request_begin` / `request_end` / `request_list` | Contenedor y agrupación de una petición de trabajo. |
@@ -48,7 +49,7 @@ Para consultar, deshacer, guardar o cargar, no abras una petición nueva: añadi
 
 `delete_object` solo admite descendientes de Generated; protege la raíz, la papelera y el contenedor de la petición abierta (ciérrala primero). Desactiva el objeto y mueve su subárbol a la papelera. `restore_object` recupera la raíz de esa eliminación con su padre, índice, Transform y activeSelf originales. Los hijos y componentes permanecen intactos, por lo que mantienen sus IDs. Si el padre también está eliminado, recupéralo primero. Desactivar un objeto puede ejecutar sus callbacks de Unity; no equivale a pausar efectos externos de scripts arbitrarios.
 
-`history_list` devuelve las operaciones más recientes primero, con `operationId`, herramienta, objeto y petición. `undo({scope:"operation",expectedOperationId})` deshace la última operación; `scope:"request"` deshace todo el bloque más reciente de la misma petición. No se salta cambios posteriores. Se registran creaciones, Transform, reparenting, eliminación, recuperación y carga de contenido. Deshacer una creación la mueve a papelera; deshacer una carga devuelve los objetos anteriores con sus componentes originales. No hay redo.
+`history_list` devuelve las operaciones más recientes primero, con `operationId`, herramienta, objeto y petición. `undo({scope:"operation",expectedOperationId})` deshace la última operación; `scope:"request"` deshace todo el bloque más reciente de la misma petición. No se salta cambios posteriores. Se registran creaciones, Transform, apariencia, reparenting, eliminación, recuperación y carga de contenido. Deshacer una creación la mueve a papelera; deshacer una carga devuelve los objetos anteriores con sus componentes originales. No hay redo.
 
 Antes de deshacer se compara el estado esperado con la escena actual. Cambios externos en Transform, jerarquía, activación, nombres o configuración de componentes producen `HISTORY_CONFLICT` sin sobrescribirlos. Esto también protege Transform de objetos externos modificados por una petición. Sistemas de tracking/animación pueden causar conflictos legítimos. Si un script destruye objetos y una reversión no puede completarse, el resultado es `ROLLBACK_FAILED` y el bridge marca `outcomeUnknown`: inspecciona la escena, no reintentes automáticamente.
 
@@ -60,7 +61,7 @@ El historial y los datos de recuperación solo duran el runtime; no se serializa
 
 En el Editor los slots están en `.seyra/generated/` de la raíz del repositorio, excluida de Git. En builds se usa `Application.persistentDataPath/Seyra/Generated`. Esta implementación no cambia la limitación actual de red a localhost. El MCP recibe únicamente nombres de slot (ASCII, números, guion/guion bajo, 1..64), nunca rutas. `content_list` devuelve hasta 1000 slots con tamaño y fecha.
 
-El formato v1 guarda:
+El formato v2 guarda (v1 se carga como mate blanco):
 
 - IDs de objetos gestionados y contenedores de petición, procedencia y jerarquía con orden de hermanos.
 - Tipos de las seis primitivas, nombre, posición/rotación/escala locales, activeSelf, tag y layer.
@@ -86,7 +87,7 @@ Límites: 2048 objetos vivos contando Generated y 5 MiB por archivo. No se carga
 
 Las unidades son locales al padre. `scale` multiplica esa malla; no existe otro factor `size`. Por ejemplo, un plano local de 1 × 1 usa scale=(0.1,1,0.1). Los ancestros también afectan las dimensiones globales.
 
-Se conservan MeshFilter, MeshRenderer y collider nativos; no se añade Rigidbody. El material es compartido y procede del render pipeline activo cuando ofrece uno; no se instancia un material por objeto. Esta fase no añade color ni edición de materiales.
+Se conservan MeshFilter, MeshRenderer y collider nativos; no se añade Rigidbody. Cada primitiva tiene una apariencia mate blanca gestionada y un material propio reutilizable. `set_appearance` cambia entre seis estilos cerrados y color RGBA; consulta [el contrato de apariencia](APPEARANCE.md).
 
 La respuesta de creación incluye `primitiveType`. Creación y `scene_get` devuelven además `geometry` para objetos con MeshFilter: nombre de malla, número de vértices y `meshBoundsLocal` (center/size sin Transform). Esos bounds son de la malla, no dimensiones globales ni bounds del collider. Para editar, buscar o reubicar la primitiva se reutilizan `set_transform`, `scene_get`, `scene_find` y `set_parent` con los GUID existentes.
 

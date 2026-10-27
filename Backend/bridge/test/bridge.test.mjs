@@ -18,7 +18,7 @@ test('schema, agent permissions and parent contract', async()=>{
   assert.deepEqual(Object.keys(config.agents),['seyra','seyra_deepseek']);
   const {model,...deepseek}=config.agents.seyra_deepseek;
   assert.equal(model,'opencode/deepseek-v4.1-flash-free');assert.deepEqual(deepseek,config.agents.seyra);
-  assert.deepEqual(config.agents.seyra.permissions,[{action:'*',resource:'*',effect:'ask'},{action:'seyra_*',resource:'*',effect:'allow'}]);
+  assert.deepEqual(config.agents.seyra.permissions,[{action:'*',resource:'*',effect:'ask'},{action:'seyra_*',resource:'*',effect:'allow'},{action:'websearch',resource:'*',effect:'allow'}]);
   const schema=tools.find(t=>t.name==='create_gameobject').schema;
   const args={name:'Box',parentId:'Generated',position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0},scale:{x:1,y:1,z:1}};
   for(const invalid of [null,'null','NULL','', '   '])assert.equal(schema.safeParse({...args,parentId:invalid}).success,false);

@@ -186,6 +186,8 @@ namespace Seyra.SceneTools
             int depth=0; for(var p=t.parent;p!=null;p=p.parent)depth++;
             node["depth"]=depth; node["runtimeId"]=RuntimeId;
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
+            var appearance=go.GetComponent<ManagedAppearance>();
+            if(appearance!=null){node["appearance"]=AppearanceJson(appearance);node["appearanceIntact"]=appearance.IsIntact();}
             var components=go.GetComponents<Component>();
             node["components"]=new JArray(components.Skip(offset).Take(limit).Select((c,i)=>c==null
                 ? new JObject{["index"]=offset+i,["componentId"]=null,["type"]=null,["missingScript"]=true}
@@ -236,6 +238,7 @@ namespace Seyra.SceneTools
                 if(shape!=null && GraphicsSettings.currentRenderPipeline!=null && GraphicsSettings.currentRenderPipeline.defaultMaterial!=null)
                     go.GetComponent<Renderer>().sharedMaterial=GraphicsSettings.currentRenderPipeline.defaultMaterial;
                 Check(go.transform);
+                if(shape!=null)go.AddComponent<ManagedAppearance>().SetAppearance(AppearanceStyle.MatteOpaque,Color.white);
                 AttachRecord(go,kind,shape,group,persistentId);
                 return go;
             }
@@ -252,6 +255,7 @@ namespace Seyra.SceneTools
         JObject Execute(string tool,JObject args)
         {
             if(tool=="scene_hierarchy" || tool=="scene_find") return Hierarchy(args,tool=="scene_find");
+            if(tool=="set_appearance")return SetAppearance(args);
             if(tool=="scene_get")
             {
                 Keys(args,new[]{"entityId"},new[]{"componentOffset","componentLimit"});
