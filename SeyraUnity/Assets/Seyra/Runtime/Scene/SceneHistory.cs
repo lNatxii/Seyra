@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","set_transform","set_parent","request_begin","delete_object","restore_object","content_load"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","set_transform","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
 
         void InitializeLifecycle(string directory)
         {
@@ -28,7 +28,7 @@ namespace Seyra.SceneTools
             // A runtime can be restarted after a script reload; retain existing tombstones and IDs.
             // Ownership is an explicit reference, never inferred from a user-controlled name.
             trash=record.TrashRoot;
-            if(trash!=null && trash.parent!=generated)throw new InvalidOperationException("La papelera configurada ya no está dentro de Generated.");
+            if(trash!=null && trash.parent!=generated)throw new InvalidOperationException("The configured trash container is no longer inside Generated.");
             if(trash==null){trash=new GameObject("__SeyraTrash").transform;trash.SetParent(generated,false);}
             record.TrashRoot=trash;
             trash.gameObject.SetActive(false);
@@ -37,7 +37,7 @@ namespace Seyra.SceneTools
         bool IsDeleted(GameObject go)=>trash!=null && (go.transform==trash || go.transform.IsChildOf(trash));
         void RequireCapacity(int additional)
         {
-            if(generated.GetComponentsInChildren<Transform>(true).Length+additional>8192)throw new InvalidOperationException("Límite de objetos retenidos, incluida la papelera, alcanzado. Guarda el contenido y reinicia Play Mode.");
+            if(generated.GetComponentsInChildren<Transform>(true).Length+additional>8192)throw new InvalidOperationException("Retained object limit reached, including trash. Save the content and restart Play Mode.");
         }
         GeneratedObject AttachRecord(GameObject go,string kind,string shape,string group,string persistentId=null)
         {
@@ -91,7 +91,7 @@ namespace Seyra.SceneTools
                 Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components;
             public void Validate()
             {
-                if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("No se puede recuperar: un objeto o su padre ha sido destruido fuera de Seyra.");
+                if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
             }
             public void Apply()
             {
@@ -115,13 +115,13 @@ namespace Seyra.SceneTools
         }
         sealed class SceneRollbackException:InvalidOperationException
         {
-            public SceneRollbackException():base("La operación falló y no pudo revertirse por completo. Resultado desconocido: consulta la escena antes de continuar; no repitas automáticamente la mutación."){}
+            public SceneRollbackException():base("The operation failed and could not be fully rolled back. Outcome unknown: inspect the scene before continuing; do not retry the mutation automatically."){}
         }
         Snapshot Capture(IEnumerable<GameObject> externals=null)
         {
             var snapshot=new Snapshot();
             foreach(var t in LiveContent())snapshot.Content.Add(t.gameObject);
-            if(snapshot.Content.Count>ContentLimit)throw new InvalidOperationException("El contenido generado supera el límite de 2048 objetos.");
+            if(snapshot.Content.Count>ContentLimit)throw new InvalidOperationException("Generated content exceeds the limit of 2048 objects.");
             foreach(var go in snapshot.Content.Concat(externals??externalTargets).Where(g=>g!=null).Distinct())
             {
                 var state=ObjectState.Capture(go);
@@ -135,11 +135,11 @@ namespace Seyra.SceneTools
             foreach(var state in expected.States.Values)state.Validate();
             var current=Capture(expected.States.Keys.Where(g=>!expected.Content.Contains(g)));
             if(!expected.Content.SetEquals(current.Content) || expected.States.Any(p=>!current.States.TryGetValue(p.Key,out var state)||!p.Value.Same(state)))
-                throw new InvalidOperationException("HISTORY_CONFLICT: el contenido ha cambiado fuera de la operación registrada. No se ha deshecho nada.");
+                throw new InvalidOperationException("HISTORY_CONFLICT: content changed outside the recorded operation. Nothing was undone.");
         }
         void MoveToTrash(GameObject go)
         {
-            if(go==generated.gameObject || go.transform==trash || !go.transform.IsChildOf(generated))throw new ArgumentException("Solo se eliminan descendientes de Generated; el destino y la papelera están protegidos.");
+            if(go==generated.gameObject || go.transform==trash || !go.transform.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be deleted; the root and trash container are protected.");
             deletedOrigins[go]=ObjectState.Capture(go);
             go.SetActive(false);go.transform.SetParent(trash,false);
         }
@@ -153,7 +153,7 @@ namespace Seyra.SceneTools
             while(pending.Count>0)
             {
                 var ready=pending.Where(s=>s.Parent==null || !target.States.ContainsKey(s.Parent.gameObject) || applied.Contains(s.Parent.gameObject)).ToArray();
-                if(ready.Length==0)throw new InvalidOperationException("Historial con jerarquía cíclica.");
+                if(ready.Length==0)throw new InvalidOperationException("History contains a cyclic hierarchy.");
                 foreach(var state in ready){state.Apply();applied.Add(state.Object);pending.Remove(state);}
             }
             foreach(var group in target.States.Values.GroupBy(s=>s.Parent))foreach(var state in group.OrderBy(s=>s.Sibling))state.Object.transform.SetSiblingIndex(state.Sibling);
@@ -163,7 +163,7 @@ namespace Seyra.SceneTools
         JObject ExecuteRecorded(string tool,JObject args)
         {
             if(!recordedTools.Contains(tool))return ExecuteLifecycle(tool,args);
-            if(history.Count>=HistoryLimit)throw new InvalidOperationException("Límite de 128 operaciones recuperables alcanzado. Guarda el contenido y reinicia el runtime o deshaz operaciones.");
+            if(history.Count>=HistoryLimit)throw new InvalidOperationException("Limit of 128 recoverable operations reached. Save the content and restart the runtime, or undo operations.");
             externalTargets.Clear();
             if(tool=="set_transform")
             {
@@ -188,7 +188,7 @@ namespace Seyra.SceneTools
             {
                 case "request_begin":
                     Keys(args,new[]{"name"});
-                    if(activeRequest!=null)throw new InvalidOperationException("Ya hay una petición abierta. Finalízala antes de iniciar otra.");
+                    if(activeRequest!=null)throw new InvalidOperationException("A request is already open. End it before starting another.");
                     RequireCapacity(1);
                     var groupId="go_"+Guid.NewGuid().ToString("N");
                     var container=InstantiateManaged(String(args["name"],256),generated,"request",null,groupId,Vector3.zero,Quaternion.identity,Vector3.one,groupId);
@@ -196,20 +196,20 @@ namespace Seyra.SceneTools
                     activeRequest=record.EntityId;return Inspect(container);
                 case "request_end":
                     Keys(args,new[]{"requestGroupId"});
-                    if(Text(args,"requestGroupId")!=activeRequest)throw new ArgumentException("La petición no es la petición abierta.");
+                    if(Text(args,"requestGroupId")!=activeRequest)throw new ArgumentException("The request is not the currently open request.");
                     var ended=activeRequest;activeRequest=null;return new JObject{["requestGroupId"]=ended,["closed"]=true};
                 case "request_list":
                     Keys(args,Array.Empty<string>());
                     return new JObject{["activeRequestGroupId"]=activeRequest,["requests"]=new JArray(LiveContent().Select(t=>t.GetComponent<GeneratedObject>()).Where(r=>r!=null&&r.Kind=="request").Select(r=>new JObject{["requestGroupId"]=r.EntityId,["name"]=r.name,["open"]=r.EntityId==activeRequest}))};
                 case "delete_object":
                     Keys(args,new[]{"entityId"});var deleted=Find(args["entityId"]);
-                    if(Id(deleted)==activeRequest)throw new InvalidOperationException("Finaliza la petición antes de eliminar su contenedor.");
+                    if(Id(deleted)==activeRequest)throw new InvalidOperationException("End the request before deleting its container.");
                     MoveToTrash(deleted);return Inspect(deleted);
                 case "restore_object":
                     Keys(args,new[]{"entityId"});var restored=Find(args["entityId"],true);
-                    if(!IsDeleted(restored)||!deletedOrigins.TryGetValue(restored,out var origin))throw new ArgumentException("No hay una eliminación recuperable para este objeto en este runtime.");
+                    if(!IsDeleted(restored)||!deletedOrigins.TryGetValue(restored,out var origin))throw new ArgumentException("This object has no recoverable deletion in this runtime.");
                     origin.Validate();
-                    if(origin.Parent==null||IsDeleted(origin.Parent.gameObject))throw new InvalidOperationException("Recupera primero el padre original.");
+                    if(origin.Parent==null||IsDeleted(origin.Parent.gameObject))throw new InvalidOperationException("Restore the original parent first.");
                     origin.Apply();restored.transform.SetSiblingIndex(origin.Sibling);restored.SetActive(origin.Active);Reindex();return Inspect(restored);
                 case "history_list":
                     Keys(args,Array.Empty<string>(),new[]{"offset","limit"});
@@ -225,16 +225,16 @@ namespace Seyra.SceneTools
         JObject Undo(JObject args)
         {
             Keys(args,new[]{"scope"},new[]{"expectedOperationId"});
-            if(history.Count==0)throw new InvalidOperationException("No hay operaciones para deshacer.");
+            if(history.Count==0)throw new InvalidOperationException("There are no operations to undo.");
             var latest=history[history.Count-1];
-            if(args["expectedOperationId"]!=null && Text(args,"expectedOperationId")!=latest.Id)throw new InvalidOperationException("HISTORY_CONFLICT: la última operación es otra.");
+            if(args["expectedOperationId"]!=null && Text(args,"expectedOperationId")!=latest.Id)throw new InvalidOperationException("HISTORY_CONFLICT: the latest operation does not match.");
             var scope=Text(args,"scope");int start=history.Count-1;
             if(scope=="request")
             {
-                if(latest.GroupId==null)throw new InvalidOperationException("La última operación no pertenece a una petición.");
+                if(latest.GroupId==null)throw new InvalidOperationException("The latest operation does not belong to a request.");
                 while(start>0 && history[start-1].GroupId==latest.GroupId)start--;
             }
-            else if(scope!="operation")throw new ArgumentException("scope debe ser operation o request.");
+            else if(scope!="operation")throw new ArgumentException("scope must be operation or request.");
             var target=new Snapshot();var expected=new Snapshot();
             target.Content.UnionWith(history[start].Before.Content);expected.Content.UnionWith(latest.After.Content);
             foreach(var pair in history[start].Before.States)target.States[pair.Key]=pair.Value;

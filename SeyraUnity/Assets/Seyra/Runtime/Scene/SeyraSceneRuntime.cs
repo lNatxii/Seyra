@@ -17,10 +17,10 @@ namespace Seyra.SceneTools
 
         void OnEnable()
         {
-            if(owner!=null && owner!=this) { Debug.LogWarning("Seyra: ya hay un runtime activo en otra escena.");enabled=false;return; }
-            if(generatedRoot==null) {Debug.LogError("Seyra: asigna el contenedor Generated en SeyraSceneRuntime.");enabled=false;return;}
+            if(owner!=null && owner!=this) { Debug.LogWarning("Seyra: a runtime is already active in another scene.");enabled=false;return; }
+            if(generatedRoot==null) {Debug.LogError("Seyra: assign the Generated container in SeyraSceneRuntime.");enabled=false;return;}
             if(!Uri.TryCreate(bridgeUrl,UriKind.Absolute,out var uri) || uri.Scheme!="ws" || !uri.IsLoopback)
-            {Debug.LogError("Seyra: esta primera integración requiere un bridge WebSocket local.");enabled=false;return;}
+            {Debug.LogError("Seyra: this initial integration requires a local WebSocket bridge.");enabled=false;return;}
             owner=this;
             Tools=new SceneToolService(generatedRoot);
             bridge=new BridgeSocketClient();bridge.Message+=Receive;
@@ -32,7 +32,7 @@ namespace Seyra.SceneTools
         {
             var connection=bridge;
             try { var result=Tools.Dispatch(json);await connection.SendAsync(result); }
-            catch(Exception error) { if(this!=null && isActiveAndEnabled)Debug.LogWarning("Seyra: no se pudo confirmar la orden: "+error.Message); }
+            catch(Exception error) { if(this!=null && isActiveAndEnabled)Debug.LogWarning("Seyra: could not confirm the command: "+error.Message); }
         }
         void OnDisable()
         {

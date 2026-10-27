@@ -33,6 +33,13 @@ public static class LifecycleChecks
             Check((string)cube["parentId"]==groupId,"Generated did not route to request container");
             Check((string)cube["requestGroupId"]==groupId,"Provenance missing");
             var componentIds=cube["components"].DeepClone();
+            var renamed=Call("rename_object",new JObject{["entityId"]=cubeId,["name"]=" Tabletop renamed "});
+            Check((string)renamed["name"]=="Tabletop renamed" && (string)renamed["entityId"]==cubeId && JToken.DeepEquals(componentIds,renamed["components"]),"Rename lost identity or components");
+            Call("undo",new JObject{["scope"]="operation",["expectedOperationId"]=renamed["operationId"]});
+            Check((string)Call("scene_get",new JObject{["entityId"]=cubeId})["name"]=="Tabletop","Rename undo failed");
+            foreach(var invalidName in new[]{"", "   ", new string('x',257)})Check(!(bool)Raw("rename_object",new JObject{["entityId"]=cubeId,["name"]=invalidName})["success"],"Invalid rename accepted");
+            Check(!(bool)Raw("rename_object",new JObject{["entityId"]="Generated",["name"]="Forbidden"})["success"],"Renamed protected root");
+            Call("rename_object",new JObject{["entityId"]=cubeId,["name"]="Tabletop renamed"});
             var changed=Call("set_transform",new JObject{["entityId"]=cubeId,["space"]="local",["position"]=V(1,2,3)});
             Check(!(bool)Raw("content_save",new JObject{["slot"]="table"})["success"],"Saved an open request");
             Call("request_end",new JObject{["requestGroupId"]=groupId});
@@ -59,6 +66,7 @@ public static class LifecycleChecks
             Check(live.transform.localPosition==new Vector3(7,8,9),"Conflict changed the scene");
             Call("content_load",new JObject{["slot"]="table"});
             var loaded=Call("scene_get",new JObject{["entityId"]=cubeId});
+            Check((string)loaded["name"]=="Tabletop renamed","Persistence lost renamed object name");
             Check(JToken.DeepEquals(loaded["transform"]["localPosition"],V(1,2,3)),"Load lost saved Transform");
             Check(!JToken.DeepEquals(loaded["components"],componentIds),"Load should create new component IDs");
             Call("undo",new JObject{["scope"]="operation"});

@@ -23,6 +23,9 @@ test('schema, agent permissions and parent contract', async()=>{
   const args={name:'Box',parentId:'Generated',position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0},scale:{x:1,y:1,z:1}};
   for(const invalid of [null,'null','NULL','', '   '])assert.equal(schema.safeParse({...args,parentId:invalid}).success,false);
   assert.equal(schema.safeParse(args).success,true);
+  const rename=tools.find(t=>t.name==='rename_object').schema;
+  for(const name of ['', '   ', null, 'x'.repeat(257)])assert.equal(rename.safeParse({entityId:'go_test',name}).success,false);
+  assert.equal(rename.parse({entityId:'go_test',name:' Renamed '}).name,'Renamed');
   assert.equal(tools.find(t=>t.name==='set_transform').schema.safeParse({entityId:'Generated',space:'local'}).success,false);
   assert.equal(schema.safeParse({...args,position:{x:Infinity,y:0,z:0}}).success,false);
   const primitive=tools.find(t=>t.name==='create_primitive').schema;

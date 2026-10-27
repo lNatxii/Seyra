@@ -35,7 +35,7 @@ namespace Seyra.Configuration
                 error is ArgumentException || error is NotSupportedException)
             {
                 // Never log file contents, credentials, or exception messages containing them.
-                Debug.LogWarning("Seyra: no se pudo leer Backend/.env.local. Comprueba el archivo y pulsa Reconectar.");
+                Debug.LogWarning("Seyra: could not read Backend/.env.local. Check the file and click Reconnect.");
                 return null;
             }
         }

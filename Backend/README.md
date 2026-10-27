@@ -31,6 +31,10 @@ SeyraAssistant.unity y OpencodeTestUI.unity contienen SeyraRuntime con el compon
 
 Para usar el chat, abre Assets/Scenes/OpencodeTestUI.unity en el proyecto nuevo y entra en Play Mode. El verde confirma conexión con OpenCode, no la conexión del MCP con Unity. Si el runtime no está disponible, las herramientas devuelven UNITY_NOT_CONNECTED.
 
+Si OpenCode devuelve una petición de permiso, el chat muestra su acción y los detalles completos como texto literal en un panel desplazable. «Permitir una vez» responde `once`; «Rechazar» responde `reject` y OpenCode rechaza también los demás permisos pendientes de esa sesión. Las decisiones se envían solo al pulsar el botón y no se reintentan automáticamente. La espera de la decisión pausa el timeout del turno; después se sigue leyendo el mismo turno, sin reenviar el mensaje. Este panel atiende solicitudes del servidor y no cambia la regla `seyra_*: allow`. Cabecera, conversación, panel y compositor usan layouts.
+
+Prueba aislada de permisos: ejecuta `node Backend/bridge/test-support/permission-ui-server.mjs`, abre OpencodeTestUI en Play Mode y ejecuta `test-support/PermissionUiCheck.cs` con la entrada `PermissionUiCheck.Run` mediante `unity command script run`. Usa el puerto local 4199, sin proveedor ni herramientas reales. Comprueba aceptar, rechazar, dobles clics y continuación del turno. Detén el servidor y sal de Play Mode al terminar.
+
 Ejemplos:
 
 - «Lista toda la escena de forma jerárquica con sus IDs».

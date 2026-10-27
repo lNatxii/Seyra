@@ -46,12 +46,12 @@ namespace Seyra.Networking
                                 do
                                 {
                                     part = await connection.ReceiveAsync(new ArraySegment<byte>(buffer), lifetime.Token).ConfigureAwait(false);
-                                    if (part.MessageType == WebSocketMessageType.Close) throw new IOException("El puente cerró la conexión.");
+                                    if (part.MessageType == WebSocketMessageType.Close) throw new IOException("The bridge closed the connection.");
                                     if (part.MessageType != WebSocketMessageType.Text || message.Length + part.Count > MaxMessageBytes)
-                                        throw new IOException("Mensaje WebSocket inválido o demasiado grande.");
+                                        throw new IOException("Invalid or oversized WebSocket message.");
                                     message.Write(buffer, 0, part.Count);
                                 } while (!part.EndOfMessage);
-                                if (inbox.Count >= 64) throw new IOException("Demasiadas órdenes pendientes.");
+                                if (inbox.Count >= 64) throw new IOException("Too many pending commands.");
                                 var text = new UTF8Encoding(false, true).GetString(message.ToArray());
                                 // Bind each queued command to its connection; never acknowledge on a replacement connection.
                                 inbox.Enqueue(() => { if (ReferenceEquals(socket, connection) && IsConnected) Message?.Invoke(text); });
@@ -83,7 +83,7 @@ namespace Seyra.Networking
             try
             {
                 if (connection == null || connection.State != WebSocketState.Open || !ReferenceEquals(connection, socket))
-                    throw new IOException("Runtime desconectado antes de confirmar.");
+                    throw new IOException("Runtime disconnected before confirmation.");
                 await connection.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(text)), WebSocketMessageType.Text, true, lifetime.Token);
             }
             finally { sendLock.Release(); }

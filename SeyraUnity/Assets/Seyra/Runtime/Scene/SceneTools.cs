@@ -26,7 +26,7 @@ namespace Seyra.SceneTools
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null)
         {
-            if (generatedRoot == null) throw new ArgumentException("Generated debe estar asignado.");
+            if (generatedRoot == null) throw new ArgumentException("Generated must be assigned.");
             generated = generatedRoot;
             InitializeLifecycle(persistenceDirectory);
         }
@@ -35,26 +35,26 @@ namespace Seyra.SceneTools
         {
             using var reader = new JsonTextReader(new StringReader(json)) { DateParseHandling = DateParseHandling.None, MaxDepth = 32 };
             var request = JObject.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
-            while (reader.Read()) throw new ArgumentException("Contenido adicional en JSON.");
+            while (reader.Read()) throw new ArgumentException("Unexpected trailing JSON content.");
             Keys(request, new[] { "version", "type", "requestId", "tool", "arguments", "deadlineUtc" });
             if (request["version"].Type != JTokenType.Integer || (int)request["version"] != 1 || Text(request,"type") != "tool_request" || !Guid.TryParse(Text(request,"requestId"), out _))
-                throw new ArgumentException("Orden de bridge inválida.");
+                throw new ArgumentException("Invalid bridge command.");
             var requestId = Text(request,"requestId");
             var tool = Text(request,"tool");
-            var args = request["arguments"] as JObject ?? throw new ArgumentException("arguments debe ser un objeto.");
+            var args = request["arguments"] as JObject ?? throw new ArgumentException("arguments must be an object.");
             var signature = tool + "\n" + args.ToString(Formatting.None);
             var response = new JObject { ["version"] = 1, ["type"] = "tool_result", ["requestId"] = requestId };
             try
             {
                 if (completed.TryGetValue(requestId, out var old))
                 {
-                    if (old.signature != signature) throw new ArgumentException("requestId reutilizado con otros argumentos.");
+                    if (old.signature != signature) throw new ArgumentException("requestId was reused with different arguments.");
                     return old.response;
                 }
                 if (!DateTimeOffset.TryParse(Text(request,"deadlineUtc"), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var deadline) || deadline <= DateTimeOffset.UtcNow)
-                    throw new InvalidOperationException("Orden caducada: no se ha ejecutado. Consulta el estado antes de continuar.");
-                if (!Application.isPlaying) throw new InvalidOperationException("Solo disponible en Play Mode.");
-                if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Límite de mutaciones alcanzado; reinicia Play Mode.");
+                    throw new InvalidOperationException("Expired command: it was not executed. Inspect the state before continuing.");
+                if (!Application.isPlaying) throw new InvalidOperationException("Only available in Play Mode.");
+                if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Mutation limit reached; restart Play Mode.");
                 response["data"] = ExecuteRecorded(tool,args);
                 response["success"] = true;
             }
@@ -85,18 +85,18 @@ namespace Seyra.SceneTools
         GameObject Find(JToken token,bool includeDeleted=false)
         {
             var id = String(token,128);
-            if(id.Equals("null",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Usa un ID real o Generated; nunca null.");
-            if (id == "Generated") { if (generated == null) throw new ArgumentException("Generated ha sido eliminado."); return generated.gameObject; }
+            if(id.Equals("null",StringComparison.OrdinalIgnoreCase))throw new ArgumentException("Use an actual ID or Generated; never null.");
+            if (id == "Generated") { if (generated == null) throw new ArgumentException("Generated has been deleted."); return generated.gameObject; }
             if (!objects.TryGetValue(id,out var target) || !(target is GameObject go) || go == null || !go.scene.IsValid() || !go.scene.isLoaded)
-                throw new ArgumentException("ID de GameObject desconocido o caducado. Consulta la jerarquía de este runtime.");
-            if(!includeDeleted && IsDeleted(go))throw new ArgumentException("El objeto está en la papelera. Recupéralo antes de modificarlo.");
+                throw new ArgumentException("Unknown or stale GameObject ID. Query this runtime's hierarchy.");
+            if(!includeDeleted && IsDeleted(go))throw new ArgumentException("The object is in the trash. Restore it before modifying it.");
             return go;
         }
         GameObject Parent(JToken token)
         {
             var parent = Find(token);
             if (generated == null || (parent.transform != generated && !parent.transform.IsChildOf(generated)))
-                throw new ArgumentException("El padre debe ser Generated o uno de sus descendientes.");
+                throw new ArgumentException("The parent must be Generated or one of its descendants.");
             return parent;
         }
         static string Path(Transform transform)
@@ -140,7 +140,7 @@ namespace Seyra.SceneTools
                 if(t==trash || IsDeleted(t.gameObject))continue;
                 if(!inactive && !t.gameObject.activeInHierarchy) continue;
                 result.Add((t.gameObject,Node(t.gameObject,depth)));
-                if(result.Count>50000) throw new InvalidOperationException("Más de 50000 nodos; restringe con rootId. No se devuelve una jerarquía truncada.");
+                if(result.Count>50000) throw new InvalidOperationException("More than 50000 nodes; narrow the query with rootId. A truncated hierarchy will not be returned.");
                 for(int i=t.childCount-1;i>=0;i--) stack.Push((t.GetChild(i),depth+1));
             }
             return result;
@@ -158,9 +158,9 @@ namespace Seyra.SceneTools
             var filtered=all;
             if(search)
             {
-                if(args["name"]==null && args["path"]==null && args["componentType"]==null) throw new ArgumentException("Indica name, path o componentType.");
+                if(args["name"]==null && args["path"]==null && args["componentType"]==null) throw new ArgumentException("Provide name, path or componentType.");
                 var match=args["match"]==null ? "contains" : Text(args,"match");
-                if(match!="exact" && match!="contains")throw new ArgumentException("match debe ser exact o contains.");
+                if(match!="exact" && match!="contains")throw new ArgumentException("match must be exact or contains.");
                 string name=args["name"]==null?null:String(args["name"],256), path=args["path"]==null?null:String(args["path"],4096), type=args["componentType"]==null?null:String(args["componentType"],512);
                 bool Matches(string value,string filter)=>filter==null || (match=="exact" ? string.Equals(value,filter,StringComparison.OrdinalIgnoreCase) : value.IndexOf(filter,StringComparison.OrdinalIgnoreCase)>=0);
                 filtered=all.Where(p=>Matches(p.go.name,name) && Matches((string)p.node["path"],path) && (type==null || p.go.GetComponents<Component>().Any(c=>HasType(c,type)))).ToList();
@@ -170,7 +170,7 @@ namespace Seyra.SceneTools
                 ["nodes"]=new JArray(filtered.Select(p=>p.node))};
             string revision;
             using(var hash=SHA256.Create()) revision=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(revisionState.ToString(Formatting.None)))).Replace("-","").ToLowerInvariant();
-            if(args["expectedRevision"]!=null && String(args["expectedRevision"],128)!=revision) throw new InvalidOperationException("HIERARCHY_CHANGED: reinicia la consulta desde offset=0.");
+            if(args["expectedRevision"]!=null && String(args["expectedRevision"],128)!=revision) throw new InvalidOperationException("HIERARCHY_CHANGED: restart the query from offset=0.");
             int offset=Int(args,"offset",0,0,1000000),limit=Int(args,"limit",200,1,500);
             var loadedScenes=new List<UnityEngine.SceneManagement.Scene>();
             if(args["rootId"]==null) for(int i=0;i<SceneManager.sceneCount;i++) {var s=SceneManager.GetSceneAt(i);if(s.isLoaded)loadedScenes.Add(s);}
@@ -208,7 +208,7 @@ namespace Seyra.SceneTools
                 case "cylinder":return PrimitiveType.Cylinder;
                 case "plane":return PrimitiveType.Plane;
                 case "quad":return PrimitiveType.Quad;
-                default:throw new ArgumentException("primitiveType debe ser cube, sphere, capsule, cylinder, plane o quad.");
+                default:throw new ArgumentException("primitiveType must be cube, sphere, capsule, cylinder, plane or quad.");
             }
         }
         // Both creation tools use this path: validate everything before allocating, then commit or roll back.
@@ -225,7 +225,7 @@ namespace Seyra.SceneTools
         }
         GameObject InstantiateManaged(string name,Transform parent,string kind,string shape,string group,Vector3 position,Quaternion rotation,Vector3 scale,string persistentId=null)
         {
-            if(parent==null)throw new ArgumentException("La creación requiere un padre existente.");
+            if(parent==null)throw new ArgumentException("Creation requires an existing parent.");
             var go=shape!=null ? GameObject.CreatePrimitive(Primitive(shape)) : new GameObject(name);
             try
             {
@@ -266,9 +266,9 @@ namespace Seyra.SceneTools
             if(tool=="set_transform")
             {
                 Keys(args,new[]{"entityId","space"},new[]{"position","rotation","scale"});
-                if(args["position"]==null && args["rotation"]==null && args["scale"]==null)throw new ArgumentException("Indica al menos un campo de transform.");
+                if(args["position"]==null && args["rotation"]==null && args["scale"]==null)throw new ArgumentException("Provide at least one transform field.");
                 var go=Find(args["entityId"]);var t=go.transform;var space=Text(args,"space");
-                if(space!="local" && space!="world")throw new ArgumentException("space debe ser local o world.");
+                if(space!="local" && space!="world")throw new ArgumentException("space must be local or world.");
                 Vector3? pos=args["position"]==null?null:ReadVector(args["position"]), rot=args["rotation"]==null?null:ReadVector(args["rotation"]), scale=args["scale"]==null?null:ReadVector(args["scale"]);
                 if(space=="world" && (pos.HasValue || rot.HasValue)) Invertible(t.parent);
                 var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
@@ -281,67 +281,75 @@ namespace Seyra.SceneTools
                 }
                 catch {t.localPosition=oldPos;t.localRotation=oldRot;t.localScale=oldScale;throw;}
             }
+            if(tool=="rename_object")
+            {
+                Keys(args,new[]{"entityId","name"});
+                var go=Find(args["entityId"]);
+                if(go.transform==generated || !go.transform.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be renamed.");
+                go.name=String(args["name"],256);
+                return Inspect(go);
+            }
             if(tool=="set_parent")
             {
                 Keys(args,new[]{"entityId","parentId","worldPositionStays"});
                 var go=Find(args["entityId"]);var t=go.transform;var parent=Parent(args["parentId"]);
-                if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Solo se reubican descendientes de Generated.");
-                if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("La jerarquía no puede contener ciclos.");
-                if(parent.scene!=go.scene)throw new ArgumentException("No se permite cambiar de escena.");
+                if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be reparented.");
+                if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("The hierarchy cannot contain cycles.");
+                if(parent.scene!=go.scene)throw new ArgumentException("Moving between scenes is not allowed.");
                 var stays=Bool(args,"worldPositionStays");if(stays)Invertible(parent.transform);
                 var oldParent=t.parent;var oldIndex=t.GetSiblingIndex();var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
                 try { t.SetParent(parent.transform,stays);Check(t);return Inspect(go); }
                 catch {t.SetParent(oldParent,false);t.SetSiblingIndex(oldIndex);t.localPosition=oldPos;t.localRotation=oldRot;t.localScale=oldScale;throw;}
             }
-            throw new ArgumentException("Herramienta desconocida.");
+            throw new ArgumentException("Unknown tool.");
         }
         static void Invertible(Transform parent)
         {
             if(parent==null)return;
             var determinant=parent.localToWorldMatrix.determinant;
-            if(!Finite(determinant) || Math.Abs(determinant)<1e-12f)throw new ArgumentException("El padre no tiene una matriz invertible para operar en espacio global.");
+            if(!Finite(determinant) || Math.Abs(determinant)<1e-12f)throw new ArgumentException("The parent matrix is not invertible for world-space operations.");
         }
         static void Check(Transform t)
         {
             foreach(var value in new[]{t.position,t.localPosition,t.eulerAngles,t.localEulerAngles,t.localScale,t.lossyScale})
-                if(!Finite(value.x)||!Finite(value.y)||!Finite(value.z))throw new ArgumentException("Transform no representable; operación revertida.");
+                if(!Finite(value.x)||!Finite(value.y)||!Finite(value.z))throw new ArgumentException("Transform cannot be represented; operation rolled back.");
             var matrix=t.localToWorldMatrix;
-            for(int i=0;i<16;i++)if(!Finite(matrix[i]))throw new ArgumentException("Matriz no finita; operación revertida.");
+            for(int i=0;i<16;i++)if(!Finite(matrix[i]))throw new ArgumentException("Non-finite matrix; operation rolled back.");
         }
         static bool Finite(float f)=>!float.IsNaN(f)&&!float.IsInfinity(f);
         static JObject Vector(Vector3 v)=>new JObject{["x"]=v.x,["y"]=v.y,["z"]=v.z};
         static Vector3 ReadVector(JToken token)
         {
-            var a=token as JObject??throw new ArgumentException("Vector debe contener x,y,z.");Keys(a,new[]{"x","y","z"});
+            var a=token as JObject??throw new ArgumentException("Vector must contain x,y,z.");Keys(a,new[]{"x","y","z"});
             float Number(string key)
             {
-                if(a[key].Type!=JTokenType.Integer && a[key].Type!=JTokenType.Float)throw new ArgumentException("Coordenada debe ser numérica.");
-                var value=(double)a[key];if(double.IsNaN(value)||double.IsInfinity(value)||Math.Abs(value)>float.MaxValue)throw new ArgumentException("Coordenada fuera de rango float.");
+                if(a[key].Type!=JTokenType.Integer && a[key].Type!=JTokenType.Float)throw new ArgumentException("Coordinate must be numeric.");
+                var value=(double)a[key];if(double.IsNaN(value)||double.IsInfinity(value)||Math.Abs(value)>float.MaxValue)throw new ArgumentException("Coordinate is outside the float range.");
                 return (float)value;
             }
             return new Vector3(Number("x"),Number("y"),Number("z"));
         }
         static string String(JToken value,int maximum=4096)
         {
-            if(value==null || value.Type!=JTokenType.String)throw new ArgumentException("Se esperaba una cadena no vacía.");
-            var text=((string)value).Trim();if(text.Length==0||text.Length>maximum)throw new ArgumentException("Cadena vacía o demasiado larga.");return text;
+            if(value==null || value.Type!=JTokenType.String)throw new ArgumentException("Expected a non-empty string.");
+            var text=((string)value).Trim();if(text.Length==0||text.Length>maximum)throw new ArgumentException("String is empty or too long.");return text;
         }
         static string Text(JObject a,string key)=>String(a[key]);
         static int Int(JObject a,string key,int fallback,int minimum,int maximum)
         {
             if(a[key]==null)return fallback;
-            if(a[key].Type!=JTokenType.Integer)throw new ArgumentException(key+" debe ser entero.");
-            var value=(long)a[key];if(value<minimum||value>maximum)throw new ArgumentException(key+" fuera de rango.");return(int)value;
+            if(a[key].Type!=JTokenType.Integer)throw new ArgumentException(key+" must be an integer.");
+            var value=(long)a[key];if(value<minimum||value>maximum)throw new ArgumentException(key+" is out of range.");return(int)value;
         }
         static bool Bool(JObject a,string key,bool fallback=false)
         {
             if(a[key]==null)return fallback;
-            if(a[key].Type!=JTokenType.Boolean)throw new ArgumentException(key+" debe ser booleano.");return(bool)a[key];
+            if(a[key].Type!=JTokenType.Boolean)throw new ArgumentException(key+" must be a boolean.");return(bool)a[key];
         }
         static void Keys(JObject a,string[] required,string[] optional=null)
         {
             var allowed=new HashSet<string>(required.Concat(optional??Array.Empty<string>()));
-            if(required.Any(k=>a[k]==null)||a.Properties().Any(p=>!allowed.Contains(p.Name)))throw new ArgumentException("Campos obligatorios ausentes o campos no reconocidos.");
+            if(required.Any(k=>a[k]==null)||a.Properties().Any(p=>!allowed.Contains(p.Name)))throw new ArgumentException("Required fields are missing or unrecognized fields are present.");
         }
     }
 }

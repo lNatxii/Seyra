@@ -5,14 +5,14 @@ $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $envPath = Join-Path $PSScriptRoot '.env.local'
 if (-not (Test-Path -LiteralPath $envPath)) {
-    throw 'Falta Backend/.env.local. Consulta README.md para crear el archivo.'
+    throw 'Backend/.env.local is missing. See README.md to create the file.'
 }
 $localServerPassword = $null
 foreach ($line in [IO.File]::ReadAllLines($envPath)) {
     $entry = $line.Trim()
     if (-not $entry -or $entry.StartsWith('#')) { continue }
     if ($entry -notmatch '^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
-        throw 'Formato inválido en .env.local: usa NOMBRE=valor, una variable por línea.'
+        throw 'Invalid .env.local format: use NAME=value, one variable per line.'
     }
     $name = $Matches[1]
     $value = $Matches[2].Trim()
@@ -23,22 +23,22 @@ foreach ($line in [IO.File]::ReadAllLines($envPath)) {
     [Environment]::SetEnvironmentVariable($name, $value, 'Process')
 }
 if ([string]::IsNullOrWhiteSpace($env:HELMCODE_API_KEY) -or $env:HELMCODE_API_KEY -eq 'TU_CLAVE') {
-    throw 'Añade tu HELMCODE_API_KEY real en Backend/.env.local antes de arrancar.'
+    throw 'Add your actual HELMCODE_API_KEY to Backend/.env.local before starting.'
 }
 if ([string]::IsNullOrWhiteSpace($localServerPassword)) {
-    throw 'Falta OPENCODE_SERVER_PASSWORD en Backend/.env.local. Añade una contraseña HTTP propia; es distinta de HELMCODE_API_KEY. No se ha iniciado OpenCode.'
+    throw 'OPENCODE_SERVER_PASSWORD is missing from Backend/.env.local. Add your own HTTP password; it is separate from HELMCODE_API_KEY. OpenCode was not started.'
 }
 # OpenCode 2 gives OPENCODE_PASSWORD priority over OPENCODE_SERVER_PASSWORD.
 # Use the file's shared password even if a different value was inherited.
 [Environment]::SetEnvironmentVariable('OPENCODE_PASSWORD', $localServerPassword, 'Process')
 if (-not (Get-Command opencode2 -ErrorAction SilentlyContinue)) {
-    throw 'No se encuentra opencode2 en PATH. Instala el CLI de OpenCode v2 antes de continuar.'
+    throw 'opencode2 was not found in PATH. Install the OpenCode v2 CLI before continuing.'
 }
 $bridgeDirectory = Join-Path $PSScriptRoot 'bridge'
 if (-not (Test-Path -LiteralPath (Join-Path $bridgeDirectory 'node_modules'))) {
-    throw 'Faltan dependencias del bridge. Ejecuta npm ci --prefix Backend/bridge desde la raíz del repo.'
+    throw 'Bridge dependencies are missing. Run npm ci --prefix Backend/bridge from the repository root.'
 }
 & npm run build --prefix $bridgeDirectory
-if ($LASTEXITCODE -ne 0) { throw 'No se ha podido compilar el bridge. OpenCode no se ha iniciado.' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not build the bridge. OpenCode was not started.' }
 & opencode2 serve --hostname 127.0.0.1 --port $Port
-if ($LASTEXITCODE -ne 0) { throw "OpenCode terminó con código $LASTEXITCODE." }
+if ($LASTEXITCODE -ne 0) { throw "OpenCode exited with code $LASTEXITCODE." }

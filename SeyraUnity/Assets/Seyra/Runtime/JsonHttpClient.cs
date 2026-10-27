@@ -53,15 +53,15 @@ namespace Seyra.Networking
                     token.ThrowIfCancellationRequested();
                     if (request.responseCode == 401)
 #if UNITY_EDITOR
-                        throw new InvalidOperationException("OpenCode ha rechazado la autenticación. Revisa OPENCODE_SERVER_PASSWORD en Backend/.env.local y pulsa Reconectar.");
+                        throw new InvalidOperationException("OpenCode rejected authentication. Check OPENCODE_SERVER_PASSWORD in Backend/.env.local and click Reconnect.");
 #else
-                        throw new InvalidOperationException("OpenCode ha rechazado la autenticación. Revisa las credenciales de conexión y pulsa Reconectar.");
+                        throw new InvalidOperationException("OpenCode rejected authentication. Check the connection credentials and click Reconnect.");
 #endif
                     if (request.result != UnityWebRequest.Result.Success)
-                        throw new OpenCodeHttpException(request.responseCode, $"OpenCode HTTP {request.responseCode}: {request.error}. Comprueba que el servidor esté iniciado.");
+                        throw new OpenCodeHttpException(request.responseCode, $"OpenCode HTTP {request.responseCode}: {request.error}. Check that the server is running.");
                     if (string.IsNullOrWhiteSpace(request.downloadHandler.text)) return new JObject();
                     try { return JObject.Parse(request.downloadHandler.text); }
-                    catch (Exception error) { throw new InvalidOperationException("Respuesta de OpenCode incompatible: se esperaba JSON de la API v2.", error); }
+                    catch (Exception error) { throw new InvalidOperationException("Incompatible OpenCode response: expected API v2 JSON.", error); }
                 }
                 finally { active.Remove(request); }
             }

@@ -25,12 +25,12 @@ namespace Seyra.SceneTools
         static JObject QuaternionJson(Quaternion q)=>new JObject{["x"]=q.x,["y"]=q.y,["z"]=q.z,["w"]=q.w};
         static Quaternion ReadQuaternion(JToken token)
         {
-            var value=token as JObject??throw new ArgumentException("Rotación guardada inválida.");
+            var value=token as JObject??throw new ArgumentException("Invalid saved rotation.");
             Keys(value,new[]{"x","y","z","w"});
             var xyz=ReadVector(new JObject{["x"]=value["x"].DeepClone(),["y"]=value["y"].DeepClone(),["z"]=value["z"].DeepClone()});
-            if(value["w"].Type!=JTokenType.Float && value["w"].Type!=JTokenType.Integer)throw new ArgumentException("Quaternion inválido.");
+            if(value["w"].Type!=JTokenType.Float && value["w"].Type!=JTokenType.Integer)throw new ArgumentException("Invalid quaternion.");
             var w=(double)value["w"];var norm=(double)xyz.x*xyz.x+(double)xyz.y*xyz.y+(double)xyz.z*xyz.z+w*w;
-            if(double.IsNaN(norm)||double.IsInfinity(norm)||Math.Abs(norm-1)>0.001)throw new ArgumentException("Quaternion no normalizado.");
+            if(double.IsNaN(norm)||double.IsInfinity(norm)||Math.Abs(norm-1)>0.001)throw new ArgumentException("Quaternion is not normalized.");
             return new Quaternion(xyz.x,xyz.y,xyz.z,(float)w).normalized;
         }
         static string ComponentConfiguration(GameObject go)
@@ -69,22 +69,22 @@ namespace Seyra.SceneTools
         static string PersistentId(JToken token)
         {
             var id=String(token,128);
-            if(!id.StartsWith("go_",StringComparison.Ordinal)||!Guid.TryParseExact(id.Substring(3),"N",out _))throw new ArgumentException("ID persistente inválido.");
+            if(!id.StartsWith("go_",StringComparison.Ordinal)||!Guid.TryParseExact(id.Substring(3),"N",out _))throw new ArgumentException("Invalid persistent ID.");
             return id;
         }
         string SlotPath(JObject args)
         {
             Keys(args,new[]{"slot"});var slot=Text(args,"slot");
-            if(!Regex.IsMatch(slot,"^[A-Za-z0-9_-]{1,64}$"))throw new ArgumentException("slot admite solo letras ASCII, números, guion y guion bajo (1..64).");
+            if(!Regex.IsMatch(slot,"^[A-Za-z0-9_-]{1,64}$"))throw new ArgumentException("slot only accepts ASCII letters, digits, hyphens and underscores (1..64).");
             return System.IO.Path.Combine(storageDirectory,slot+".json");
         }
         JObject PersistNode(Transform t)
         {
             var record=t.GetComponent<GeneratedObject>();
-            if(record==null)throw new InvalidOperationException("No se puede guardar "+t.name+": es un objeto no gestionado por Seyra.");
+            if(record==null)throw new InvalidOperationException("Cannot save "+t.name+": the object is not managed by Seyra.");
             var allowed=record.Kind=="primitive"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(MeshFilter),typeof(MeshRenderer),typeof(BoxCollider),typeof(SphereCollider),typeof(CapsuleCollider),typeof(MeshCollider)}:new[]{typeof(Transform),typeof(GeneratedObject)};
             if(t.GetComponents<Component>().Any(c=>c==null||!allowed.Contains(c.GetType())) || ComponentConfiguration(t.gameObject)!=record.OriginalComponents)
-                throw new InvalidOperationException("No se puede guardar "+t.name+": contiene componentes, malla, material o parámetros nativos modificados no soportados por el formato v1. No se ha sobrescrito el archivo.");
+                throw new InvalidOperationException("Cannot save "+t.name+": modified components, mesh, material or native parameters are not supported by format v1. The file was not overwritten.");
             Check(t);
             var parentId=t==generated?"Generated":t.parent==generated?"Generated":Id(t.parent.gameObject);
             return new JObject{["entityId"]=record.EntityId,["kind"]=record.Kind,["primitiveType"]=record.Kind=="primitive"?new JValue(record.PrimitiveType):JValue.CreateNull(),["requestGroupId"]=string.IsNullOrEmpty(record.RequestGroupId)?JValue.CreateNull():new JValue(record.RequestGroupId),
@@ -94,13 +94,13 @@ namespace Seyra.SceneTools
         JObject SaveContent(JObject args)
         {
             var path=SlotPath(args);
-            if(activeRequest!=null)throw new InvalidOperationException("Finaliza la petición abierta antes de guardar.");
-            var content=LiveContent().ToArray();if(content.Length>ContentLimit)throw new InvalidOperationException("Demasiados objetos para guardar.");
+            if(activeRequest!=null)throw new InvalidOperationException("End the open request before saving.");
+            var content=LiveContent().ToArray();if(content.Length>ContentLimit)throw new InvalidOperationException("Too many objects to save.");
             var root=PersistNode(generated);
             var nodes=new JArray(content.Where(t=>t!=generated).Select(PersistNode));
             var document=new JObject{["version"]=1,["savedAtUtc"]=DateTimeOffset.UtcNow.ToString("O"),["root"]=root,["nodes"]=nodes};
             var bytes=new UTF8Encoding(false,true).GetBytes(document.ToString(Formatting.Indented));
-            if(bytes.Length>FileLimit)throw new InvalidOperationException("El guardado supera 5 MiB.");
+            if(bytes.Length>FileLimit)throw new InvalidOperationException("Saved content exceeds 5 MiB.");
             Directory.CreateDirectory(storageDirectory);
             var temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";
             try
@@ -144,47 +144,47 @@ namespace Seyra.SceneTools
         }
         SavedNode ParseSaved(JToken token,bool root)
         {
-            var a=token as JObject??throw new ArgumentException("Nodo guardado inválido.");
+            var a=token as JObject??throw new ArgumentException("Invalid saved node.");
             Keys(a,new[]{"entityId","kind","primitiveType","requestGroupId","name","parentId","siblingIndex","position","rotation","scale","activeSelf","layer","tag"});
             var node=new SavedNode{Id=PersistentId(a["entityId"]),Kind=Text(a,"kind"),Name=String(a["name"],256),Parent=String(a["parentId"],128),
                 Sibling=Int(a,"siblingIndex",0,0,1000000),Layer=Int(a,"layer",0,0,31),Tag=String(a["tag"],256),Position=ReadVector(a["position"]),Scale=ReadVector(a["scale"]),Rotation=ReadQuaternion(a["rotation"]),Active=Bool(a,"activeSelf")};
             if(a["primitiveType"].Type!=JTokenType.Null){node.Shape=Text(a,"primitiveType");Primitive(node.Shape);}
             if(a["requestGroupId"].Type!=JTokenType.Null)node.Group=PersistentId(a["requestGroupId"]);
-            if(root ? node.Kind!="root"||node.Parent!="Generated"||node.Group!=null : node.Kind!="empty"&&node.Kind!="request"&&node.Kind!="primitive")throw new ArgumentException("Tipo de nodo guardado inválido.");
-            if((node.Kind=="primitive")!=(node.Shape!=null))throw new ArgumentException("Geometría guardada incompatible con el tipo.");
+            if(root ? node.Kind!="root"||node.Parent!="Generated"||node.Group!=null : node.Kind!="empty"&&node.Kind!="request"&&node.Kind!="primitive")throw new ArgumentException("Invalid saved node type.");
+            if((node.Kind=="primitive")!=(node.Shape!=null))throw new ArgumentException("Saved geometry does not match the node type.");
             return node;
         }
         JObject LoadContent(JObject args)
         {
             var path=SlotPath(args);
-            if(activeRequest!=null)throw new InvalidOperationException("Finaliza la petición abierta antes de cargar.");
-            if(!File.Exists(path))throw new ArgumentException("El slot no existe.");
-            if(new FileInfo(path).Length>FileLimit)throw new ArgumentException("Archivo demasiado grande.");
+            if(activeRequest!=null)throw new InvalidOperationException("End the open request before loading.");
+            if(!File.Exists(path))throw new ArgumentException("The slot does not exist.");
+            if(new FileInfo(path).Length>FileLimit)throw new ArgumentException("File is too large.");
             JObject document;
             using(var stream=File.OpenRead(path))using(var text=new StreamReader(stream,new UTF8Encoding(false,true)))using(var reader=new JsonTextReader(text){DateParseHandling=DateParseHandling.None,MaxDepth=32})
             {
                 document=JObject.Load(reader,new JsonLoadSettings{DuplicatePropertyNameHandling=DuplicatePropertyNameHandling.Error});
-                while(reader.Read())throw new ArgumentException("Contenido adicional en el archivo.");
+                while(reader.Read())throw new ArgumentException("Unexpected trailing content in the file.");
             }
             Keys(document,new[]{"version","savedAtUtc","root","nodes"});
-            if(document["version"].Type!=JTokenType.Integer||(int)document["version"]!=1)throw new ArgumentException("Versión de persistencia no soportada.");
+            if(document["version"].Type!=JTokenType.Integer||(int)document["version"]!=1)throw new ArgumentException("Unsupported persistence version.");
             var root=ParseSaved(document["root"],true);
-            var array=document["nodes"] as JArray??throw new ArgumentException("Lista de nodos inválida.");
-            if(array.Count>=ContentLimit)throw new ArgumentException("Demasiados nodos guardados.");
+            var array=document["nodes"] as JArray??throw new ArgumentException("Invalid node list.");
+            if(array.Count>=ContentLimit)throw new ArgumentException("Too many saved nodes.");
             var nodes=array.Select(t=>ParseSaved(t,false)).ToArray();var byId=new Dictionary<string,SavedNode>();
             RequireCapacity(nodes.Length+1);
             byId.Add(root.Id,root);
-            foreach(var node in nodes)if(byId.ContainsKey(node.Id))throw new ArgumentException("IDs duplicados en el archivo.");else byId.Add(node.Id,node);
+            foreach(var node in nodes)if(byId.ContainsKey(node.Id))throw new ArgumentException("Duplicate IDs in the file.");else byId.Add(node.Id,node);
             foreach(var node in nodes)
             {
-                if(node.Parent!="Generated" && (!byId.ContainsKey(node.Parent)||node.Parent==root.Id))throw new ArgumentException("Padre guardado inválido: usa Generated para la raíz.");
-                if(node.Group!=null && (!byId.TryGetValue(node.Group,out var group)||group.Kind!="request"))throw new ArgumentException("Petición guardada inexistente.");
-                if(node.Kind=="request" && node.Group!=node.Id)throw new ArgumentException("Identidad de petición inválida.");
+                if(node.Parent!="Generated" && (!byId.ContainsKey(node.Parent)||node.Parent==root.Id))throw new ArgumentException("Invalid saved parent: use Generated for the root.");
+                if(node.Group!=null && (!byId.TryGetValue(node.Group,out var group)||group.Kind!="request"))throw new ArgumentException("Saved request does not exist.");
+                if(node.Kind=="request" && node.Group!=node.Id)throw new ArgumentException("Invalid request identity.");
                 var visited=new HashSet<string>{node.Id};var parent=node.Parent;
-                while(parent!="Generated"){if(!visited.Add(parent))throw new ArgumentException("Ciclo en la jerarquía guardada.");parent=byId[parent].Parent;}
+                while(parent!="Generated"){if(!visited.Add(parent))throw new ArgumentException("Cycle in the saved hierarchy.");parent=byId[parent].Parent;}
             }
             foreach(var id in byId.Keys)
-                if(objects.TryGetValue(id,out var existing)&&existing is GameObject go&&go!=null&&go.transform!=generated&&!go.transform.IsChildOf(generated))throw new ArgumentException("ID guardado colisiona con un objeto externo.");
+                if(objects.TryGetValue(id,out var existing)&&existing is GameObject go&&go!=null&&go.transform!=generated&&!go.transform.IsChildOf(generated))throw new ArgumentException("Saved ID conflicts with an external object.");
             var stage=new GameObject("__LoadStaging");stage.transform.SetParent(trash,false);stage.SetActive(false);
             var created=new Dictionary<string,GameObject>();
             try
@@ -200,7 +200,7 @@ namespace Seyra.SceneTools
                 {
                     var ready=remaining.Where(n=>n.Parent=="Generated"||ordered.Any(o=>o.Id==n.Parent)).ToArray();
                     foreach(var node in ready){var t=created[node.Id].transform;t.SetParent(node.Parent=="Generated"?stage.transform:created[node.Parent].transform,false);Check(t);ordered.Add(node);remaining.Remove(node);}
-                    if(ready.Length==0)throw new ArgumentException("Jerarquía no reconstruible.");
+                    if(ready.Length==0)throw new ArgumentException("The hierarchy cannot be reconstructed.");
                 }
                 foreach(var child in generated.Cast<Transform>().Where(t=>t!=trash).ToArray())MoveToTrash(child.gameObject);
                 generated.GetComponent<GeneratedObject>().Initialize(root.Id,"root",null,null);

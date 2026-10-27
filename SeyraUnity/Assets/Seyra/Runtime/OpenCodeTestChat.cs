@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Seyra.UI
 {
-    public sealed class OpenCodeTestChat : MonoBehaviour
+    public sealed partial class OpenCodeTestChat : MonoBehaviour
     {
         [SerializeField] string serverUrl = "http://127.0.0.1:4096";
         [SerializeField] string agent = "seyra";
@@ -35,6 +35,7 @@ namespace Seyra.UI
             reconnectButton.onClick.AddListener(Reconnect);
             input.onSubmit.AddListener(Submit);
             messageTemplate.gameObject.SetActive(false);
+            BindPermissions();
             SetConnected(false, "Desconectado");
             _ = ConnectAsync(lifetime.Token);
             _ = MonitorAsync(lifetime.Token);
@@ -45,10 +46,12 @@ namespace Seyra.UI
             sendButton.onClick.RemoveListener(Send);
             reconnectButton.onClick.RemoveListener(Reconnect);
             input.onSubmit.RemoveListener(Submit);
+            UnbindPermissions();
             lifetime?.Cancel();
             http?.Dispose();
             lifetime?.Dispose();
             sessionId = null;
+            ClearPermissions();
             sending = connecting = connected = false;
         }
 
@@ -79,14 +82,14 @@ namespace Seyra.UI
 #else
                 var backend = "";
 #endif
-                if (string.IsNullOrEmpty(password)) throw new InvalidOperationException("Falta la contraseña HTTP en Backend/.env.local (prueba disponible en el Editor).");
+                if (string.IsNullOrEmpty(password)) throw new InvalidOperationException("HTTP password is missing from Backend/.env.local (testing is available in the Editor).");
                 http.SetPassword(password);
                 var result = await http.RequestAsync("POST", "/api/session", new JObject {
                     ["title"] = "Seyra · OpencodeTestUI", ["agent"] = agent,
                     ["location"] = new JObject { ["directory"] = backend.Replace('\\', '/') }
                 }, token);
                 sessionId = (string)result["data"]?["id"];
-                if (string.IsNullOrEmpty(sessionId)) throw new InvalidOperationException("OpenCode no devolvió una sesión de la API v2.");
+                if (string.IsNullOrEmpty(sessionId)) throw new InvalidOperationException("OpenCode did not return an API v2 session.");
                 SetConnected(true, "Conectado · " + agent);
             }
             catch (OperationCanceledException) { }
@@ -105,7 +108,7 @@ namespace Seyra.UI
                     try
                     {
                         await http.RequestAsync("GET", "/api/session/" + Uri.EscapeDataString(sessionId), null, token);
-                        SetConnected(true, sending ? "Conectado · respondiendo…" : turnUnresolved ? "Conectado · reconectar" : "Conectado · " + agent);
+                        SetConnected(true, pendingPermission != null ? "Conectado · esperando permiso" : sending ? "Conectado · respondiendo…" : turnUnresolved ? "Conectado · reconectar" : "Conectado · " + agent);
                     }
                     catch (OperationCanceledException) { throw; }
                     catch { if (!token.IsCancellationRequested) SetConnected(false, "Sin conexión · reconectar"); }
@@ -128,10 +131,12 @@ namespace Seyra.UI
                 // Never retry a submission: it may already have reached the model.
                 var admission = await http.RequestAsync("POST", "/api/session/" + Uri.EscapeDataString(sessionId) + "/prompt", new JObject { ["text"] = text }, token);
                 var userId = (string)admission["data"]?["id"];
-                if (string.IsNullOrEmpty(userId)) throw new InvalidOperationException("El envío no se confirmó; no se reenvía automáticamente.");
+                if (string.IsNullOrEmpty(userId)) throw new InvalidOperationException("Submission was not confirmed; it will not be retried automatically.");
                 var deadline = DateTime.UtcNow.AddMinutes(2);
                 while (DateTime.UtcNow < deadline)
                 {
+                    var pollStarted = DateTime.UtcNow;
+                    var wasWaiting = pendingPermission != null;
                     var messages = await ReadTurnAsync(userId, token);
                     var failed = messages.FirstOrDefault(m => (string)m["type"] == "assistant" && m["error"] != null);
                     if (failed != null) throw new InvalidOperationException((string)failed["error"]?["message"] ?? "El proveedor devolvió un error.");
@@ -145,12 +150,12 @@ namespace Seyra.UI
                         AddMessage("Seyra", string.IsNullOrWhiteSpace(answer) ? "El turno terminó sin texto." : answer);
                         return;
                     }
-                    var permissions = await http.RequestAsync("GET", "/api/session/" + Uri.EscapeDataString(sessionId) + "/permission", null, token);
-                    if ((permissions["data"] as JArray)?.Count > 0)
-                        throw new InvalidOperationException("OpenCode está esperando un permiso. Resuélvelo en OpenCode; esta UI básica solo admite conversación. El mensaje no se reenvía.");
+                    await RefreshPermissionsAsync(token);
                     await Task.Delay(400, token);
+                    // Human approval time does not consume the model's response timeout.
+                    if (wasWaiting || pendingPermission != null) deadline += DateTime.UtcNow - pollStarted;
                 }
-                throw new TimeoutException("La respuesta no terminó en 120 s. El resultado es desconocido; no se reenvía automáticamente. Reconecta para iniciar otra sesión.");
+                throw new TimeoutException("The response did not complete within 120 s. Outcome unknown; it will not be retried automatically. Reconnect to start another session.");
             }
             catch (OperationCanceledException) { }
             catch (Exception error)
@@ -159,12 +164,13 @@ namespace Seyra.UI
                 {
                     AddMessage("Sistema", error.Message);
                     turnUnresolved = true;
-                    if (error is OpenCodeHttpException || error.Message.Contains("autenticación")) SetConnected(false, "Sin conexión · reconectar");
+                    if (error is OpenCodeHttpException || error.Message.Contains("authentication")) SetConnected(false, "Sin conexión · reconectar");
                 }
             }
             finally
             {
                 sending = false;
+                if (!token.IsCancellationRequested) ClearPermissions();
                 if (!token.IsCancellationRequested)
                 {
                     SetConnected(connected, connected ? turnUnresolved ? "Conectado · reconectar" : "Conectado · " + agent : "Sin conexión · reconectar");
@@ -190,7 +196,7 @@ namespace Seyra.UI
                 cursor = (string)response["cursor"]?["next"];
                 if (string.IsNullOrEmpty(cursor)) return new List<JObject>();
             }
-            throw new InvalidOperationException("El turno supera el límite de lectura de mensajes.");
+            throw new InvalidOperationException("The turn exceeds the message reading limit.");
         }
 
         void AddMessage(string role, string text)

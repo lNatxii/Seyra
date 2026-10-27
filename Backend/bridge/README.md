@@ -120,3 +120,7 @@ También comprueba las seis primitivas, sus dimensiones nativas, colliders, reut
 La integración MCP incluye peticiones, papelera, recuperación, deshacer por operación/petición y guardado/carga de las seis primitivas. `test-support/LifecycleChecks.cs` prueba además conflictos por edición externa, sobrescritura atómica, rechazo de componentes no soportados, archivos inválidos, recuperación tras recrear el runtime y ausencia de acceso mediante rutas. Cada fixture usa objetos y archivos propios y los retira al terminar.
 
 Variables: `SEYRA_UNITY_PORT` (4100) y `SEYRA_UNITY_TIMEOUT_MS` (10000, máximo 60000). Si cambias el puerto, cambia `bridgeUrl` en Unity. El timeout MCP de OpenCode debe superar el del bridge. Una sola instancia de OpenCode debe poseer ese puerto.
+# Renombrado
+
+`rename_object({ entityId, name })` renombra descendientes vivos de `Generated` (incluidos contenedores), conservando GUID, componentes, jerarquía y Transform. El nombre se recorta y debe tener 1–256 caracteres; puede repetirse porque los objetos se identifican por GUID. Rechaza la raíz `Generated`, objetos externos y eliminados. Reutiliza el historial por operación/petición y el guardado de nombres de `content_save`/`content_load`. Cubierta por el permiso existente `seyra_*: allow`.
+
