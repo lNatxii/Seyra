@@ -412,7 +412,8 @@ namespace Seyra.UI
 
             if (theme != null)
             {
-                bubble.AddComponent<UIStyle>().Configure(theme, surface: isUser || isTool ? UISurfaceRole.Subtle : UISurfaceRole.Surface);
+                bubble.AddComponent<UIStyle>().Configure(theme, surface: isUser || isTool ? UISurfaceRole.Subtle : UISurfaceRole.Surface,
+                    padding: UISpacing.Large, spacing: UISpacing.Small);
                 roleObj.AddComponent<UIStyle>().Configure(theme, UITextRole.Label, isError ? UIInkRole.Danger : UIInkRole.Accent);
                 bodyObj.AddComponent<UIStyle>().Configure(theme, UITextRole.Body);
             }

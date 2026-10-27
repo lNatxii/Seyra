@@ -18,7 +18,7 @@ namespace Seyra.Editor
             var theme = AssetDatabase.LoadAssetAtPath<SeyraUITheme>(ThemePath);
             var window = root.GetComponent<UIXRWindow>();
             bool chat = root.GetComponent<SeyraSpatialChatWindow>() != null;
-            window.Resize(chat ? new Vector2(900, 680) : new Vector2(640, 164));
+            window.Resize(chat ? new Vector2(900, 760) : new Vector2(640, 164));
             window.Canvas.additionalShaderChannels |= AdditionalCanvasShaderChannels.TexCoord1;
             var native = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Seyra/UI/Controls/UIButtonPrimary.prefab");
             var surface = native.GetComponentsInChildren<RoundedBoxUIProperties>(true).First().GetComponent<UnityEngine.UI.Image>();
@@ -33,6 +33,11 @@ namespace Seyra.Editor
                 text.raycastTarget = false;
                 text.overflowMode = TextOverflowModes.Ellipsis;
                 text.enableWordWrapping = true;
+                if (role == UITextRole.Heading)
+                {
+                    var size = Get<UnityEngine.UI.LayoutElement>(text.gameObject);
+                    size.minHeight = size.preferredHeight = 32;
+                }
                 if (text.GetComponentInParent<UnityEngine.UI.Button>() != null) text.fontStyle = FontStyles.Bold;
             }
 
@@ -92,7 +97,8 @@ namespace Seyra.Editor
                 if (image.name == "ExecutionBanner" || image.name == "PermissionPanel")
                 {
                     Round(image, surface.material, 16);
-                    Get<UIStyle>(image.gameObject).Configure(theme, surface: UISurfaceRole.Subtle);
+                    Get<UIStyle>(image.gameObject).Configure(theme, surface: UISurfaceRole.Subtle,
+                        padding: image.name == "PermissionPanel" ? UISpacing.Large : UISpacing.Standard, spacing: UISpacing.Small);
                     image.raycastTarget = false;
                 }
                 if (image.name == "MessageInput")
@@ -101,6 +107,10 @@ namespace Seyra.Editor
                     Get<UIStyle>(image.gameObject).Configure(theme, surface: UISurfaceRole.Field, size: UISizeRole.Control);
                     image.GetComponent<UnityEngine.UI.LayoutElement>().minWidth = 220;
                     image.GetComponent<TMP_InputField>().targetGraphic = image;
+                    var viewport = image.GetComponent<TMP_InputField>().textViewport;
+                    viewport.offsetMin = new Vector2(16, 8);
+                    viewport.offsetMax = new Vector2(-16, -8);
+                    ((TMP_Text)image.GetComponent<TMP_InputField>().placeholder).text = "Escribe un mensaje…";
                 }
             }
 
@@ -114,8 +124,8 @@ namespace Seyra.Editor
             }
             SetHeight(root, "ComposerRow", 48);
             SetHeight(root, "ControlsRow", 48);
-            SetHeight(root, "ExecutionBanner", 64);
-            SetHeight(root, "PermissionPanel", 232);
+            SetHeight(root, "ExecutionBanner", 80);
+            SetHeight(root, "PermissionPanel", 256);
             SetHeight(root, "ButtonsRow", 48);
             SetHeight(root, "VoiceHintRow", 24);
             SetHeight(root, "HeaderRow", 44);
@@ -126,6 +136,16 @@ namespace Seyra.Editor
                 presentation.FindProperty("presentationTheme").objectReferenceValue = theme;
                 presentation.FindProperty("messageSurfaceMaterial").objectReferenceValue = surface.material;
                 presentation.ApplyModifiedPropertiesWithoutUndo();
+                var details = Find(root, "DetailsScroll").GetComponent<UnityEngine.UI.ScrollRect>();
+                var detailsLayout = Get<UnityEngine.UI.VerticalLayoutGroup>(details.content.gameObject);
+                detailsLayout.childControlWidth = detailsLayout.childControlHeight = true;
+                detailsLayout.childForceExpandWidth = true;
+                detailsLayout.childForceExpandHeight = false;
+                detailsLayout.padding = new RectOffset(4, 4, 4, 4);
+                Get<UnityEngine.UI.ContentSizeFitter>(details.content.gameObject).verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+                var detailsText = Find(root, "PermissionDetails").GetComponent<TMP_Text>();
+                detailsText.alignment = TextAlignmentOptions.TopLeft;
+                detailsText.overflowMode = TextOverflowModes.Overflow;
                 var header = Find(root, "HeaderContainer");
                 SetHeight(root, "HeaderContainer", 48);
                 var title = Find(root, "Title").GetComponent<TMP_Text>();
@@ -171,8 +191,25 @@ namespace Seyra.Editor
             name == "ReconnectButton" || name == "RecenterButton" ? "restart_alt_" :
             name == "ToggleChatButton" ? "chat_info_" : name == "AllowButton" || name == "CloseTurnButton" ? "check_circle_" : "cancel_";
 
-        public static void CapturePreview(UIXRWindow window, string path)
+        public static void CapturePreview(UIXRWindow source, string path, bool showPermission = false)
         {
+            var preview = Object.Instantiate(source.gameObject);
+            preview.name = "AssistantPresentationPreview";
+            var window = preview.GetComponent<UIXRWindow>();
+            foreach (var child in preview.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = 31;
+            var chat = preview.GetComponent<SeyraSpatialChatWindow>();
+            if (chat != null)
+            {
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                foreach (var item in new[] {
+                    new Seyra.Chat.ChatMessageItem { Key = "preview-user", Role = "Tú", Text = "Organiza el espacio de trabajo para empezar." },
+                    new Seyra.Chat.ChatMessageItem { Key = "preview-assistant", Role = "Seyra", Text = "Puedo ayudarte a organizarlo. Dime qué necesitas tener a mano y prepararé el espacio contigo." } })
+                {
+                    var row = typeof(SeyraSpatialChatWindow).GetMethod("CreateRowGameObject", flags).Invoke(chat, new object[] { item });
+                    typeof(SeyraSpatialChatWindow).GetMethod("UpdateRowContent", flags).Invoke(chat, new[] { row, item });
+                }
+                Find(preview, "PermissionPanel").SetActive(showPermission);
+            }
             Canvas.ForceUpdateCanvases();
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(window.Content);
             var go = new GameObject("AssistantPreviewCamera", typeof(Camera));
@@ -182,6 +219,7 @@ namespace Seyra.Editor
             try
             {
                 var camera = go.GetComponent<Camera>();
+                camera.cullingMask = 1 << 31;
                 camera.aspect = 1440f / 1080;
                 var canvas = (RectTransform)window.Canvas.transform;
                 go.transform.rotation = canvas.rotation;
@@ -203,9 +241,11 @@ namespace Seyra.Editor
             finally
             {
                 RenderTexture.active = previous;
+                go.GetComponent<Camera>().targetTexture = null;
                 Object.DestroyImmediate(texture);
                 Object.DestroyImmediate(target);
                 Object.DestroyImmediate(go);
+                Object.DestroyImmediate(preview);
             }
         }
 
