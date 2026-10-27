@@ -1,8 +1,7 @@
 # UI library and windows — phase 1
 
-Recovered from SeyraOld and adapted to the current SeYRA project on 2026-10-27.
-The original project is read-only. Unity and Meta assets retain their original
-GUIDs; native SDK assets remain package references, not local copies.
+Unity and Meta assets keep stable GUIDs; native SDK assets remain package
+references, not local copies.
 
 ## Included
 
@@ -12,7 +11,7 @@ GUIDs; native SDK assets remain package references, not local copies.
 - Semantic theme roles, scoped composition, local events and keyboard navigation.
 - World Space window with a millimeter Canvas, independent content and theme,
   four grab borders, shared baked rail mesh, ray/poke surfaces and native grab.
-- Twenty-one recovered prefabs plus one new two-window demonstration prefab.
+- Twenty-one library prefabs plus one new two-window demonstration prefab.
 - Editor generators and executable validation commands.
 
 The library does not create a camera, rig, EventSystem or backend connection.
@@ -81,8 +80,8 @@ localized in Spanish.
 
 ## Integration boundaries
 
-The former room-placement service, geometry-query marker, chart host, chat dock,
-presentation host and backend tools are not dependencies of this library.
+Room-placement services, geometry-query markers, chart hosts, chat docks,
+presentation hosts and backend tools are not dependencies of this library.
 The window keeps native Meta interaction and visuals; it does not auto-register
 with a global room or scene service. The library generator also builds the twelve phase-3 presentations.
 
@@ -91,4 +90,4 @@ to the existing `SceneToolService`; see `Backend/bridge/PANELS.md` at the reposi
 The phase-1 demonstration remains isolated from Generated. Phase 3 adds the twelve full presentation contracts with shared history and persistence v4. Phase 4 will connect spatial chat to the current conversation logic.
 
 Editor validation is not physical headset validation. See the evidence and
-remaining checks in `Backend/validation/05-ui-phase-1.md` at the repository root.
+remaining checks in `Progress/Completed/05-ui-phase-1.md` at the repository root.

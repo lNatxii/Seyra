@@ -95,6 +95,7 @@ namespace Seyra.UI.Library
             {
                 var colors = selectable.colors;
                 var normal = theme.Surface(surfaceRole);
+                if (meta != null && surfaceRole == UISurfaceRole.Field) normal = meta.sectionPlateColor;
                 colors.normalColor = normal;
                 colors.highlightedColor = Color.Lerp(normal, theme.focus, .18f);
                 colors.pressedColor = Color.Lerp(normal, Color.black, .16f);

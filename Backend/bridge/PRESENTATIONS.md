@@ -58,9 +58,9 @@ hierarchy of separately editable generated objects.
 
 ## Assets and scope
 
-The twelve recovered prefabs preserve their GUIDs and serialized bindings, with
-adapted renderers and builder. Build the UI library to regenerate its presentation
-catalog too. No old presentation host, room service or separate persistence store
+The twelve presentation prefabs keep stable GUIDs and serialized bindings, with
+their renderers and builder. Build the UI library to regenerate its presentation
+catalog too. No dedicated presentation host, room service or separate persistence store
 is required. Replacement prepares an inactive view before retiring the old one.
 
 Images resolve only from registered catalog sprites. Missing references render

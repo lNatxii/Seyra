@@ -48,7 +48,7 @@ own scale affect world dimensions, as with primitives. Query `scene_bounds` for 
 actual world envelope. Numbers must be finite. Rendered UI uses float coordinates,
 while content stores double values to retain validated numeric boundaries.
 
-Panels reuse the recovered Meta window, fixed two-line title region, and scrollable
+Panels reuse the library's Meta window, fixed two-line title region, and scrollable
 body. `fontSize` controls body/label typography; the title retains its semantic
 Title role. Labels use a transparent World Space Canvas, light semantic ink and a dark
 outline. Label overflow uses ellipsis inside the requested rectangle. Panels and
@@ -124,7 +124,7 @@ history, secrets and external objects remain outside the file.
 
 ## Runtime configuration and verification
 
-Both runtime scenes have the recovered `UIPrefabCatalog` assigned to
+Both runtime scenes have the `UIPrefabCatalog` assigned to
 `SeyraSceneRuntime.uiCatalog` and one scene-level `PointableCanvasModule` on their
 EventSystem. The editor menu **Seyra > UI > Configure Panel Runtime Scenes**
 reapplies those bindings and preserves the previously open scenes; save open scene
@@ -143,7 +143,7 @@ unity command script run --caller plugin --skill unity-cli C:/Proyectos/Seyra/Ba
 `PanelChecks` isolates its objects and temporary slots. `RunUnityIntegration` uses
 an isolated service and the actual MCP stdio/WebSocket path on port 4101. Backend
 schema and transport tests run with `npm test`. See
-[the phase-2 evidence](../validation/05-ui-phase-2.md).
+[the phase-2 evidence](../../Progress/Completed/05-ui-phase-2.md).
 
 ## Phase 3 compatibility
 

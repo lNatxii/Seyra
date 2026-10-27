@@ -51,6 +51,8 @@ namespace Seyra.UI
         [SerializeField] ScrollRect conversationScroll;
         [SerializeField] RectTransform messagesContainer;
         [SerializeField] GameObject messageRowPrefab;
+        [SerializeField] SeyraUITheme presentationTheme;
+        [SerializeField] Material messageSurfaceMaterial;
 
         [Header("Composer & Controls")]
         [SerializeField] TMP_InputField inputField;
@@ -358,14 +360,21 @@ namespace Seyra.UI
             bubble.transform.SetParent(row.transform, false);
 
             var bubbleImage = bubble.GetComponent<Image>();
+            var theme = presentationTheme;
             if (isUser)
-                bubbleImage.color = new Color(0.12f, 0.28f, 0.24f); // Personal teal
+                bubbleImage.color = theme != null ? theme.subtle : new Color(.88f, .93f, .89f);
             else if (isTool)
-                bubbleImage.color = new Color(0.16f, 0.21f, 0.26f); // Steel slate for tools
+                bubbleImage.color = theme != null ? theme.background : new Color(.96f, .96f, .93f);
             else if (isError)
-                bubbleImage.color = new Color(0.35f, 0.15f, 0.16f); // Crimson for errors
+                bubbleImage.color = Color.Lerp(theme != null ? theme.surface : Color.white, theme != null ? theme.danger : Color.red, .12f);
             else
-                bubbleImage.color = new Color(0.15f, 0.17f, 0.20f); // Dark surface for Seyra
+                bubbleImage.color = theme != null ? theme.surface : Color.white;
+            bubbleImage.raycastTarget = false;
+            if (messageSurfaceMaterial != null)
+            {
+                bubbleImage.material = messageSurfaceMaterial;
+                bubble.AddComponent<Oculus.Interaction.Samples.RoundedBoxUIProperties>().borderRadius = Vector4.one * 24;
+            }
 
             var bubbleLayout = bubble.GetComponent<VerticalLayoutGroup>();
             bubbleLayout.padding = new RectOffset(16, 16, 12, 12);
@@ -382,20 +391,31 @@ namespace Seyra.UI
             var roleObj = new GameObject("Role", typeof(RectTransform), typeof(TextMeshProUGUI));
             roleObj.transform.SetParent(bubble.transform, false);
             var roleText = roleObj.GetComponent<TextMeshProUGUI>();
-            roleText.fontSize = 15;
+            roleText.font = theme != null ? theme.font : inputField.textComponent.font;
+            roleText.fontSize = theme != null ? theme.labelSize : 18;
             roleText.fontStyle = FontStyles.Bold;
-            roleText.color = isUser ? new Color(0.55f, 0.88f, 0.72f) : (isTool ? new Color(0.6f, 0.8f, 0.95f) : (isError ? new Color(0.95f, 0.6f, 0.6f) : new Color(0.85f, 0.9f, 0.95f)));
+            roleText.color = theme != null ? (isError ? theme.danger : theme.primary) : new Color(.1f, .34f, .29f);
+            roleText.raycastTarget = false;
             roleText.richText = false;
 
             // Body text
             var bodyObj = new GameObject("Body", typeof(RectTransform), typeof(TextMeshProUGUI));
             bodyObj.transform.SetParent(bubble.transform, false);
             var bodyText = bodyObj.GetComponent<TextMeshProUGUI>();
-            bodyText.fontSize = 20;
-            bodyText.color = new Color(0.95f, 0.96f, 0.98f);
+            bodyText.font = roleText.font;
+            bodyText.fontSize = theme != null ? theme.bodySize : 18;
+            bodyText.color = theme != null ? theme.text : new Color(.12f, .18f, .19f);
+            bodyText.raycastTarget = false;
             bodyText.richText = false;
             bodyText.enableWordWrapping = true;
             bodyText.overflowMode = TextOverflowModes.Overflow;
+
+            if (theme != null)
+            {
+                bubble.AddComponent<UIStyle>().Configure(theme, surface: isUser || isTool ? UISurfaceRole.Subtle : UISurfaceRole.Surface);
+                roleObj.AddComponent<UIStyle>().Configure(theme, UITextRole.Label, isError ? UIInkRole.Danger : UIInkRole.Accent);
+                bodyObj.AddComponent<UIStyle>().Configure(theme, UITextRole.Body);
+            }
 
             return row;
         }

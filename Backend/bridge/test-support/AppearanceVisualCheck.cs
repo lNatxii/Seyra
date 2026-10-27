@@ -51,7 +51,7 @@ public static class AppearanceVisualCheck
             if(Time.frameCount<=initialFrame)throw new Exception("Visual check cannot run: player frames are not advancing.");
             camera.Render();RenderTexture.active=target;
             image=new Texture2D(target.width,target.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
-            var path=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Backend/validation/03-appearance-preview.png"));Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
+            var path=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Progress/Evidence/03-appearance-preview.png"));Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,image.EncodeToPNG());
             transparentObject.GetComponent<ManagedAppearance>().SetAppearance(AppearanceStyle.Transparent,new Color(.15f,.55f,.9f,0));
             camera.Render();image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();var invisible=image.GetPixels32();
             transparentObject.GetComponent<Renderer>().enabled=false;

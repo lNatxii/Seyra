@@ -285,6 +285,7 @@ namespace Seyra.Editor
             serializedPtt.FindProperty("dictation").objectReferenceValue = voiceDictation;
             serializedPtt.ApplyModifiedProperties();
 
+            SeyraSpatialChatPresentation.Apply(windowGo);
             var prefab = PrefabUtility.SaveAsPrefabAsset(windowGo, ChatWindowPrefabPath);
             UnityEngine.Object.DestroyImmediate(windowGo);
             return prefab;
@@ -341,6 +342,7 @@ namespace Seyra.Editor
             serializedMenu.FindProperty("statusSummary").objectReferenceValue = summary;
             serializedMenu.ApplyModifiedProperties();
 
+            SeyraSpatialChatPresentation.Apply(menuGo);
             var prefab = PrefabUtility.SaveAsPrefabAsset(menuGo, MenuPrefabPath);
             UnityEngine.Object.DestroyImmediate(menuGo);
             return prefab;
