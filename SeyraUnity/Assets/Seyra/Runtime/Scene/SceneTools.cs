@@ -22,12 +22,14 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "request_list", "history_list", "content_list" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
 
-        public SceneToolService(Transform generatedRoot,string persistenceDirectory=null)
+        public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
             if (generatedRoot == null) throw new ArgumentException("Generated must be assigned.");
             generated = generatedRoot;
+            uiCatalog = panelCatalog;
+            presentations = presentationCatalog ?? Resources.Load<Seyra.UI.Presentations.UIPresentationCatalog>("SeyraUIPresentations");
             InitializeLifecycle(persistenceDirectory);
         }
 
@@ -95,6 +97,7 @@ namespace Seyra.SceneTools
         GameObject Parent(JToken token)
         {
             var parent = Find(token);
+            if(parent.GetComponentInParent<ManagedPanel>(true)!=null)throw new ArgumentException("A panel and its internals cannot be used as a content parent.");
             if (generated == null || (parent.transform != generated && !parent.transform.IsChildOf(generated)))
                 throw new ArgumentException("The parent must be Generated or one of its descendants.");
             return parent;
@@ -188,6 +191,14 @@ namespace Seyra.SceneTools
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
             var appearance=go.GetComponent<ManagedAppearance>();
             if(appearance!=null){node["appearance"]=AppearanceJson(appearance);node["appearanceIntact"]=appearance.IsIntact();}
+            var panel=go.GetComponent<ManagedPanel>();
+            if(panel!=null)
+            {
+                if(panel.IsPresentation){node["presentation"]=panel.Presentation.ToJson();node["interaction"]=panel.InteractionState;
+                    node["missingMedia"]=panel.PresentationView!=null?panel.PresentationView.Snapshot()["missingMedia"]:new JArray();}
+                else node["panel"]=panel.Content.ToJson();
+                node["panelIntact"]=panel.IsIntact();
+            }
             var components=go.GetComponents<Component>();
             node["components"]=new JArray(components.Skip(offset).Take(limit).Select((c,i)=>c==null
                 ? new JObject{["index"]=offset+i,["componentId"]=null,["type"]=null,["missingScript"]=true}
@@ -254,6 +265,11 @@ namespace Seyra.SceneTools
         }
         JObject Execute(string tool,JObject args)
         {
+            if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
+            if(tool=="create_panel")return CreatePanel(args);
+            if(tool=="update_panel")return UpdatePanel(args);
+            if(tool=="scene_bounds")return GetBounds(args);
+            if(tool=="place_relative")return PlaceRelative(args);
             if(tool=="scene_hierarchy" || tool=="scene_find") return Hierarchy(args,tool=="scene_find");
             if(tool=="set_appearance")return SetAppearance(args);
             if(tool=="scene_get")
@@ -272,6 +288,7 @@ namespace Seyra.SceneTools
                 Keys(args,new[]{"entityId","space"},new[]{"position","rotation","scale"});
                 if(args["position"]==null && args["rotation"]==null && args["scale"]==null)throw new ArgumentException("Provide at least one transform field.");
                 var go=Find(args["entityId"]);var t=go.transform;var space=Text(args,"space");
+                RequirePanelRoot(go);
                 if(space!="local" && space!="world")throw new ArgumentException("space must be local or world.");
                 Vector3? pos=args["position"]==null?null:ReadVector(args["position"]), rot=args["rotation"]==null?null:ReadVector(args["rotation"]), scale=args["scale"]==null?null:ReadVector(args["scale"]);
                 if(space=="world" && (pos.HasValue || rot.HasValue)) Invertible(t.parent);
@@ -289,6 +306,7 @@ namespace Seyra.SceneTools
             {
                 Keys(args,new[]{"entityId","name"});
                 var go=Find(args["entityId"]);
+                RequirePanelRoot(go);
                 if(go.transform==generated || !go.transform.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be renamed.");
                 go.name=String(args["name"],256);
                 return Inspect(go);
@@ -297,6 +315,7 @@ namespace Seyra.SceneTools
             {
                 Keys(args,new[]{"entityId","parentId","worldPositionStays"});
                 var go=Find(args["entityId"]);var t=go.transform;var parent=Parent(args["parentId"]);
+                RequirePanelRoot(go);
                 if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be reparented.");
                 if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("The hierarchy cannot contain cycles.");
                 if(parent.scene!=go.scene)throw new ArgumentException("Moving between scenes is not allowed.");

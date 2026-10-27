@@ -18,7 +18,8 @@ public static class RunUnityIntegration
         var root=new GameObject("__SeyraIntegrationTests");
         root.transform.SetParent(runtime.transform,false);
         var storage=Path.GetFullPath(Path.Combine(Application.dataPath,"../../.utmp/integration-slots-"+Guid.NewGuid().ToString("N")));
-        var service=new SceneToolService(root.transform,storage);
+        var catalog=AssetDatabase.LoadAssetAtPath<Seyra.UI.Library.UIPrefabCatalog>("Assets/Seyra/UI/Catalog/SeyraUIPrefabCatalog.asset");
+        var service=new SceneToolService(root.transform,storage,catalog);
         using var bridge=new BridgeSocketClient();
         async void Receive(string json)
         {

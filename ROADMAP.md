@@ -8,7 +8,7 @@ Seyra debe permitir conversar en realidad mixta, crear y modificar contenido esp
 
 El orden numérico es el orden recomendado de desarrollo. P0 entrega un asistente espacial funcional; P1 incorpora comprensión del entorno físico; P2 mejora la experiencia multimodal. Las dependencias indicadas son condiciones de entrada. No se considera terminada una feature solo porque compile: debe cumplir sus criterios de aceptación en el flujo real.
 
-Se desarrolla en `Seyra/`, con una arquitectura y un sistema visual propios.
+Se desarrolla en `Seyra/`. La biblioteca visual, los prefabs y los contratos de presentación se integran en el dominio de SeYRA conservando referencias serializadas, con una arquitectura propia de backend y gestión de escena.
 
 ## Punto de partida
 
@@ -54,13 +54,21 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 03. Colores y apariencia básica de objetos
 
+**Estado:** implementado y validado en el Editor el 27 de octubre de 2026; seis shaders compilados para Android (Vulkan y OpenGL ES 3). [Contrato, implementación y pruebas](Backend/validation/03-appearance.md). La validación en visor permanece en 07.
+
+**Resultado:** seis estilos cerrados (`matte_opaque`, `colored_translucent`, `unlit`, `ui_unlit`, `plastic`, `transparent`) con color RGBA uniforme. `set_appearance` reutiliza MCP, bridge, validación e historial; `scene_get` consulta el aspecto y su integridad. Material propio reutilizable por objeto, deshacer, papelera y persistencia v2 con carga compatible de v1. Alfa permitido solo en los tres estilos transparentes. Shader de UI preparado para Canvas; esta entrega no crea paneles ni incorpora herramientas genéricas para modificar UI existente.
+
 **Entrega:** consultar y cambiar un color RGBA uniforme de primitivas gestionadas. Establecer un contrato pequeño para apariencia compatible con URP, historial y persistencia, sin edición arbitraria de materiales.
 
-**Aceptación:** cambiar un objeto no altera otros que comparten material; deshacer restaura su aspecto; guardar/cargar reproduce el color; recursos creados se liberan correctamente. La transparencia, si no se soporta en esta entrega, se rechaza expresamente.
+**Aceptación:** cambiar un objeto no altera otros que comparten material; deshacer restaura su aspecto; guardar/cargar reproduce el color; recursos creados se liberan correctamente. La transparencia se admite en los estilos declarados; los opacos rechazan alfa distinto de 1. Alfa 0 no contribuye al color visible y no desactiva colliders. Se verifican el recorte de UI y los límites del blending transparente convencional.
 
-**Dependencias:** 01. Se amplía la persistencia existente, que actualmente rechaza materiales personalizados.
+**Dependencias:** 01. Persistencia ampliada a apariencia gestionada; se siguen rechazando materiales arbitrarios.
 
 ### 04. Dimensiones y colocación relativa fiables
+
+**Estado:** implementado y validado en el Editor el 27 de octubre de 2026. [Contrato y pruebas](Backend/bridge/BOUNDS.md). [Resultados](Backend/validation/04-bounds.md). La validación en visor permanece en 07.
+
+**Resultado:** `scene_bounds` calcula AABB globales del subárbol completo con matrices completas y esquinas de RectTransform world space. `place_relative` coloca en seis direcciones globales con separación explícita, independientemente del pivote; reutiliza validación, deduplicación, historial y persistencia de Transform. Comprobadas las seis primitivas, rotaciones, padres con escalas negativas/no uniformes y UI world space. Se rechazan geometría vacía/no soportada, UI de pantalla, referencias relacionadas y colocaciones no representables. Las envolventes no garantizan contacto exacto de superficies curvas/inclinadas; creación y persistencia de paneles permanecen en 05.
 
 **Entrega:** consultar dimensiones y bounds globales; colocar contenido gestionado encima, debajo o junto a otro objeto con una separación explícita. Usar geometría real, no deducir el tamaño únicamente de `localScale`.
 
@@ -70,19 +78,31 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 05. Paneles de texto y etiquetas espaciales
 
+**Plan de UI acordado:** cuatro fases: (1) biblioteca y ventanas; (2) paneles con historial y persistencia; (3) doce presentaciones completas mediante contratos semánticos; (4) chat espacial. La colocación mediante reconocimiento de habitaciones es una ampliación posterior, no un requisito del chat espacial.
+
+**Fase 1:** implementada y validada en el Editor el 27 de octubre de 2026: 20 componentes semánticos, 39 controles nativos de Meta, ventanas manipulables y escenas de catálogo/demostración independientes. 436 comprobaciones en Edit Mode y 14 en Play Mode aprobadas. [Resultado y límites](Backend/validation/05-ui-phase-1.md). Pendiente la prueba física de lectura y manipulación en visor; esta fase no añade herramientas MCP, contenido persistible ni modifica SeyraAssistant.
+
+**Fase 2:** implementada y validada en el Editor el 27 de octubre de 2026. `create_panel` y `update_panel` crean y editan paneles de texto o etiquetas con contratos completos. Integrados con identidad, peticiones, límites geométricos, colocación, papelera y deshacer existentes. Persistencia v3 con lectura de v1/v2; los controles internos se reconstruyen y cada panel ocupa un nodo lógico. 217 comprobaciones de paneles aprobadas, regresiones de ciclo de vida/materiales/bounds y recorrido MCP real verificados. [Contrato](Backend/bridge/PANELS.md) y [resultados](Backend/validation/05-ui-phase-2.md). Pendiente la validación física en visor. El chat permanece en fase 4.
+
 **Entrega:** crear y editar texto en paneles y etiquetas dentro de `Generated`: contenido, dimensiones, tamaño tipográfico y pose. Consultarlos y manipularlos mediante las herramientas existentes siempre que sea posible.
 
 **Aceptación:** texto legible, ajuste de líneas y layouts sin solapamientos; límites de longitud y tamaño; eliminación, deshacer y guardado/carga completos. No interpretar HTML o markup arbitrario enviado por el modelo.
 
 **Dependencias:** 03 y 04. Extender el formato versionado de contenido con migración o rechazo claro de versiones incompatibles.
 
+**Fase 3:** implementada y validada en Editor: doce presentaciones completas, nueve herramientas UI, respuestas y navegación locales persistibles, reemplazo y deshacer compatibles con el historial existente. Persistencia v4 con lectura v1–v3. 209 comprobaciones específicas y recorrido MCP real para las doce variantes aprobados. [Contrato](Backend/bridge/PRESENTATIONS.md) y [validación](Backend/validation/05-ui-phase-3.md). Pendiente la validación física en visor; chat espacial corresponde a fase 4.
+
+**Fase 4:** implementada y validada en el Editor el 27 de octubre de 2026. Ventana de chat espacial (`SeyraSpatialChatWindow`) y menú de asistente (`SeyraSpatialMenu`) funcionales en `SeyraAssistant.unity`, con manipulación espacial nativa (`UIXRWindow`), botón de pulsar para hablar con dictado por voz mediante Meta Voice SDK (`PushToTalkButton` y `VoiceDictation`), soporte de entrada de texto (`TMP_InputField`), proveedor unificado de credenciales locales (`SeyraEnvironmentCredentials`), estado de conexión a OpenCode diferenciado del runtime de escena, visualización de turnos, actividades y solicitudes de permiso legibles con acciones explícitas (`once`/`reject`), cancelación y cierre explícito sin reclamar reversiones. Motor unificado de conversación (`OpenCodeConversationSession`) compartido sin duplicación entre el testbed `OpenCodeTestChat` y la ventana espacial. Ocultar y reabrir la ventana conserva la sesión sin duplicar conexiones ni controladores. 11 grupos de comprobaciones en Play Mode (`SpatialChatChecks.Run`) y 15 comprobaciones de fallos del chat base (`ChatExecutionChecks.Run`) aprobados. [Validación y límites](Backend/validation/05-ui-phase-4.md). Pendiente la validación física en visor (07).
+
 ### 06. Menú y chat funcionales en SeyraAssistant
+
+**Estado:** completado en el Editor el 27 de octubre de 2026. [Informe y evidencias](Backend/validation/05-ui-phase-4.md).
 
 **Entrega:** llevar las funciones del chat de prueba a una UI espacial mínima: conversación, entrada, conexión, actividad, permisos, cancelar y abrir/cerrar panel. Tomar SeyraChat como referencia de comportamiento, creando una estructura propia con layouts.
 
 **Aceptación:** se puede completar una conversación en el visor con los métodos de entrada elegidos, sin depender del Inspector ni del teclado del PC; los paneles no se superponen y pueden recolocarse. `OpencodeTestUI` se conserva como banco de pruebas.
 
-**Dependencias:** 02 y 05. No incluye copiar la suite de estilos anterior ni un rediseño visual completo.
+**Dependencias:** 02 y 05. Reutiliza la biblioteca visual recuperada en las fases de UI; no requiere un rediseño visual completo ni reconocimiento de habitaciones.
 
 ### 07. Conexión y ejecución verificadas en Quest
 
@@ -220,7 +240,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 - Confirmar el resultado del runtime antes de anunciar éxito. Los timeouts y desconexiones no autorizan a repetir mutaciones.
 - Mantener `seyra_*: allow`; el panel atiende permisos que solicite OpenCode, sin introducir aprobaciones nuevas en bridge o runtime. No atribuir bloqueos a un plan o proveedor sin comprobarlos.
 - Mantener la equivalencia de capacidades y permisos entre perfiles existentes. La incorporación de Muse Spark requiere decidir explícitamente la configuración de proveedor/perfil.
-- UI con layouts, referencias serializadas y recursos compartidos cuando proceda.
+- UI con layouts, referencias serializadas y recursos compartidos. Integrar la biblioteca visual conservando sus referencias; mantener un único circuito de herramientas, historial y persistencia.
 - Pruebas técnicas en cada entrega y validación en dispositivo para funciones XR. Medir latencia, volumen de datos y recursos sobre casos de uso concretos; los objetivos cuantitativos se fijan con la primera medición, no con cifras inventadas.
 - La captura y la voz son explícitas. Claves de proveedores en backend; nunca en assets ni builds del visor. Definir retención y eliminación de archivos al introducir recursos persistentes.
 

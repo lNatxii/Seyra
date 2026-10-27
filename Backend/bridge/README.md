@@ -9,6 +9,7 @@ OpenCode inicia `node dist/index.js` por stdio. El bridge escucha un único runt
 | `scene_get` | Identidad, Transform y componentes paginados con sus GUID. |
 | `create_gameobject` | GameObject vacío con padre y Transform local explícitos. |
 | `create_primitive` | Cubo, esfera, cápsula, cilindro, plano o quad con el mismo contrato de creación. |
+| `create_panel` / `update_panel` | Full semantic text panels and labels with existing history and persistence; [contract](PANELS.md). |
 | `set_appearance` | Six managed styles and per-object RGBA; [contract and shader details](APPEARANCE.md). |
 | `set_transform` | Modificar únicamente los campos proporcionados. |
 | `set_parent` | Reubicar descendientes dentro de Generated, sin ciclos. |
@@ -20,6 +21,8 @@ OpenCode inicia `node dist/index.js` por stdio. El bridge escucha un único runt
 En OpenCode se exponen con prefijo `seyra_`, cubierto por `seyra_*: allow`, sin confirmaciones adicionales.
 
 ## Identidad y jerarquía
+
+Dimensiones y colocación relativa: `scene_bounds` consulta la envolvente global del subárbol completo; `place_relative` coloca contenido gestionado con separación explícita sobre los seis ejes globales. Incluye contenedores y rectángulos de UI world space, con historial y persistencia de la pose. [Contrato y pruebas](BOUNDS.md).
 
 `GeneratedObject` identifica los objetos gestionados con un GUID y su procedencia (vacío, primitiva o contenedor de petición). Su `entityId` se conserva al renombrar, reubicar, eliminar recuperablemente, restaurar y guardar/cargar. Para conservarlo entre ejecuciones hay que guardar y cargar un slot; no hay autoguardado ni carga automática. Los objetos externos y los `componentId` siguen teniendo identidad de runtime. `runtimeId` cambia al reiniciar el servicio; al cargar se reconstruyen componentes con nuevos IDs. No son GUID de assets ni IDs persistentes de Editor. Los nombres/rutas pueden repetirse; las búsquedas devuelven cada candidato.
 
@@ -61,13 +64,15 @@ El historial y los datos de recuperación solo duran el runtime; no se serializa
 
 En el Editor los slots están en `.seyra/generated/` de la raíz del repositorio, excluida de Git. En builds se usa `Application.persistentDataPath/Seyra/Generated`. Esta implementación no cambia la limitación actual de red a localhost. El MCP recibe únicamente nombres de slot (ASCII, números, guion/guion bajo, 1..64), nunca rutas. `content_list` devuelve hasta 1000 slots con tamaño y fecha.
 
-El formato v2 guarda (v1 se carga como mate blanco):
+Scene format v4 writes the following data and reads v1/v2/v3 (v1 primitives migrate to matte white):
 
 - IDs de objetos gestionados y contenedores de petición, procedencia y jerarquía con orden de hermanos.
 - Tipos de las seis primitivas, nombre, posición/rotación/escala locales, activeSelf, tag y layer.
 - Transform y estado del contenedor Generated.
+- Managed appearance style and uniform RGBA for each primitive.
+- Atomic text panel/label contracts: kind, title, literal text, local dimensions and font size.
 
-Solo se reconstruyen vacíos, contenedores y primitivas nativas con su malla/material y parámetros originales. Se rechazan objetos no gestionados, scripts adicionales, materiales modificados, colliders alterados y otros datos no soportados, antes de sobrescribir un archivo. No se omiten silenciosamente. No hay todavía persistencia de colores personalizados ni componentes arbitrarios.
+Managed empty objects, request containers, native primitives with supported appearances, and atomic text panels/labels can be reconstructed. Internal UI trees are regenerated from the panel contract. Custom primitive colors and alpha are persisted. Unmanaged objects, extra scripts, arbitrary material changes, altered colliders and unsupported data are rejected before overwriting a file. See [appearance](APPEARANCE.md) and [panels/persistence v4](PANELS.md).
 
 El guardado usa un temporal y sustitución atómica del archivo anterior. La carga valida versión, unicidad de IDs, tipos, padres, referencias a peticiones, ciclos, números y límites; construye primero una jerarquía inactiva de staging. El contenido anterior se conserva recuperable para `undo`. Un archivo inválido no reemplaza el contenido actual. Los componentId cambian al reconstruir, pero los entityId se conservan.
 
@@ -125,3 +130,5 @@ Variables: `SEYRA_UNITY_PORT` (4100) y `SEYRA_UNITY_TIMEOUT_MS` (10000, máximo 
 
 `rename_object({ entityId, name })` renombra descendientes vivos de `Generated` (incluidos contenedores), conservando GUID, componentes, jerarquía y Transform. El nombre se recorta y debe tener 1–256 caracteres; puede repetirse porque los objetos se identifican por GUID. Rechaza la raíz `Generated`, objetos externos y eliminados. Reutiliza el historial por operación/petición y el guardado de nombres de `content_save`/`content_load`. Cubierta por el permiso existente `seyra_*: allow`.
 
+
+Phase 3 adds twelve semantic presentations and persisted local interaction through the same scene service. See [presentation contracts](PRESENTATIONS.md).

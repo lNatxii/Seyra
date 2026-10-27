@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec3ff33441eb6e14eacc03317694d850, type: 3}
+  m_Name: SeyraUITheme
+  m_EditorClassIdentifier: Seyra.Runtime::Seyra.UI.Library.SeyraUITheme
+  font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  background: {r: 0.96, g: 0.96, b: 0.93, a: 1}
+  surface: {r: 1, g: 1, b: 1, a: 1}
+  subtle: {r: 0.88, g: 0.93, b: 0.89, a: 1}
+  text: {r: 0.12, g: 0.18, b: 0.19, a: 1}
+  muted: {r: 0.29, g: 0.36, b: 0.36, a: 1}
+  primary: {r: 0.1, g: 0.34, b: 0.29, a: 1}
+  secondary: {r: 0.84, g: 0.9, b: 0.86, a: 1}
+  danger: {r: 0.65, g: 0.16, b: 0.18, a: 1}
+  border: {r: 0.32, g: 0.43, b: 0.4, a: 1}
+  focus: {r: 0.15, g: 0.48, b: 0.4, a: 1}
+  disabled: {r: 0.7, g: 0.76, b: 0.72, a: 1}
+  titleSize: 30
+  headingSize: 22
+  bodySize: 18
+  labelSize: 18
+  helpSize: 16
+  smallSpacing: 8
+  standardSpacing: 12
+  largeSpacing: 24
+  controlHeight: 48
+  iconSize: 24
+  scrollRegionHeight: 240
+  borderThickness: 1
+  focusThickness: 2

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -52,6 +53,14 @@ try {
     const changed=ok(await call('set_transform',{entityId:primitive.entityId,space:'local',scale:vector(2,3,4)}));
     assert.deepEqual(changed.transform.localScale,vector(2,3,4));assert.deepEqual(changed.components,primitive.components);
     const read=ok(await call('scene_get',{entityId:primitive.entityId}));assert.deepEqual(read.geometry,primitive.geometry);
+    const bounds=ok(await call('scene_bounds',{entityId:primitive.entityId})).bounds;
+    assert.equal(bounds.space,'world');assert.equal(bounds.kind,'aabb');
+    const reference=ok(await call('create_primitive',{primitiveType:'cube',name:'PlacementReference',parentId:'Generated',position:vector(-2,1,-3),rotation:vector(10,20,30),scale:vector(1,2,3)}));
+    const placed=ok(await call('place_relative',{entityId:primitive.entityId,referenceId:reference.entityId,direction:'above',gap:.2}));
+    assert.ok(Math.abs(placed.bounds.min.y-placed.referenceBounds.max.y-.2)<.0001);
+    assert.ok(Math.abs(placed.bounds.center.x-placed.referenceBounds.center.x)<.0001);
+    ok(await call('undo',{scope:'operation',expectedOperationId:placed.operationId}));
+    assert.deepEqual(ok(await call('scene_get',{entityId:primitive.entityId})).transform,read.transform);
     const foundPrimitive=ok(await call('scene_find',{rootId:parent.entityId,name:'Primitive_'+primitiveType,match:'exact',componentType:'MeshRenderer'}));assert.equal(foundPrimitive.total,1);
   }
   const beforeInvalid=ok(await call('scene_hierarchy',{rootId:parent.entityId})).total;
@@ -60,6 +69,27 @@ try {
     assert.ok(result.isError||!JSON.parse(result.content[0].text).success);
   }
   assert.equal(ok(await call('scene_hierarchy',{rootId:parent.entityId})).total,beforeInvalid);
+  const panelData={version:1,kind:'panel',title:'MCP panel',text:'  <b>Literal text</b>\nSecond line  ',width:.8,height:.6,fontSize:24};
+  const panel=ok(await call('create_panel',{name:'IntegrationPanel',parentId:parent.entityId,position:vector(0,1,2),rotation:vector(),scale:vector(1,1,1),panel:panelData}));
+  assert.deepEqual(panel.panel,panelData);assert.equal(panel.panelIntact,true);
+  const updatedPanel=ok(await call('update_panel',{entityId:panel.entityId,panel:{...panelData,text:'Updated panel',width:1,fontSize:28}}));
+  assert.equal(updatedPanel.panel.text,'Updated panel');assert.equal(updatedPanel.entityId,panel.entityId);
+  ok(await call('undo',{scope:'operation',expectedOperationId:updatedPanel.operationId}));
+  assert.deepEqual(ok(await call('scene_get',{entityId:panel.entityId})).panel,panelData);
+  const labelData={...panelData,kind:'label',title:'',height:.08};
+  const label=ok(await call('create_panel',{name:'IntegrationLabel',parentId:parent.entityId,position:vector(1,1,2),rotation:vector(),scale:vector(1,1,1),panel:labelData}));
+  assert.deepEqual(ok(await call('scene_get',{entityId:label.entityId})).panel,labelData);
+  assert.equal(ok(await call('scene_bounds',{entityId:panel.entityId})).bounds.kind,'aabb');
+  const examples=JSON.parse(readFileSync('test/presentation-corpus.json','utf8')).filter(x=>x.valid);
+  for(const example of examples){
+    const shown=ok(await call('ui_present',{name:example.name,parentId:parent.entityId,position:vector(0,1,2),rotation:vector(),scale:vector(1,1,1),width:.8,height:.6,presentation:example.content}));
+    assert.equal(shown.panelIntact,true);
+    assert.deepEqual(ok(await call('ui_get',{entityId:shown.entityId})).presentation,shown.presentation);
+    ok(await call('ui_close',{entityId:shown.entityId}));
+    assert.equal(ok(await call('ui_get',{entityId:shown.entityId})).interaction.visible,false);
+    ok(await call('ui_open',{entityId:shown.entityId}));
+  }
+  assert.equal(ok(await call('ui_list')).presentations.length,12);
   const request=ok(await call('request_begin',{name:'GroupedRequest'}));
   const grouped=ok(await call('create_primitive',{primitiveType:'sphere',name:'GroupedSphere',parentId:'Generated',position:vector(1,2,3),rotation:vector(),scale:vector(1,1,1)}));
   assert.equal(grouped.parentId,request.entityId);assert.equal(grouped.requestGroupId,request.entityId);
@@ -82,6 +112,8 @@ try {
   const loaded=ok(await call('content_load',{slot:'integration'}));assert.ok(loaded.nodeCount>6);
   assert.equal(ok(await call('scene_get',{entityId:grouped.entityId})).parentId,request.entityId);
   assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).appearance,styled.appearance);
+  assert.deepEqual(ok(await call('scene_get',{entityId:panel.entityId})).panel,panelData);
+  assert.deepEqual(ok(await call('scene_get',{entityId:label.entityId})).panel,labelData);
   ok(await call('undo',{scope:'operation',expectedOperationId:loaded.operationId}));
   assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).components,componentIds);
   ok(await call('undo',{scope:'operation'})); // undo restore: back to trash
@@ -90,6 +122,5 @@ try {
   assert.deepEqual(ok(await call('scene_get',{entityId:grouped.entityId})).transform.localPosition,vector(1,2,3));
   ok(await call('undo',{scope:'request'}));
   assert.equal(ok(await call('scene_find',{rootId:'Generated',name:'GroupedSphere',match:'exact'})).total,0);
-  console.log(JSON.stringify({success:true,checks:['paged hierarchy','runtime GUIDs','component GUIDs','create parent/child','duplicate names','local partial transform','world transform','reparent preserve world','reject cycle','reject stale revision','reject null and scene parents','six native primitives','native mesh dimensions and colliders','shared IDs/queries/transform','invalid primitive creates nothing','request containers','soft delete and restore','persistent IDs and hierarchy','undo load with original component IDs','operation and request undo','appearance through MCP, RGBA rejection and persistence'],runtimeId:first.runtimeId,createdParent:parent.entityId,createdChild:child.entityId},null,2));
+  console.log(JSON.stringify({success:true,checks:['paged hierarchy','runtime GUIDs','component GUIDs','create parent/child','duplicate names','local partial transform','world transform','reparent preserve world','reject cycle','reject stale revision','reject null and scene parents','six native primitives','native mesh dimensions and colliders','shared IDs/queries/transform','invalid primitive creates nothing','request containers','soft delete and restore','persistent IDs and hierarchy','undo load with original component IDs','operation and request undo','appearance through MCP, RGBA rejection and persistence','atomic panels and labels through MCP, update/undo and persistence v4','twelve presentations through MCP and visibility'],runtimeId:first.runtimeId,createdParent:parent.entityId,createdChild:child.entityId},null,2));
 } finally {await client.close();await transport.close();}
-

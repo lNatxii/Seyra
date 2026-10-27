@@ -8,6 +8,7 @@ namespace Seyra.SceneTools
     public sealed class SeyraSceneRuntime : MonoBehaviour
     {
         [SerializeField] Transform generatedRoot;
+        [SerializeField] Seyra.UI.Library.UIPrefabCatalog uiCatalog;
         [SerializeField] string bridgeUrl = "ws://127.0.0.1:4100";
         static SeyraSceneRuntime owner;
         BridgeSocketClient bridge;
@@ -22,7 +23,7 @@ namespace Seyra.SceneTools
             if(!Uri.TryCreate(bridgeUrl,UriKind.Absolute,out var uri) || uri.Scheme!="ws" || !uri.IsLoopback)
             {Debug.LogError("Seyra: this initial integration requires a local WebSocket bridge.");enabled=false;return;}
             owner=this;
-            Tools=new SceneToolService(generatedRoot);
+            Tools=new SceneToolService(generatedRoot,panelCatalog:uiCatalog);
             bridge=new BridgeSocketClient();bridge.Message+=Receive;
             bridge.Status+=status=>BridgeStatus=status;
             bridge.Start(bridgeUrl);

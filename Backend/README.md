@@ -1,6 +1,6 @@
 # Backend de Seyra
 
-Desarrollo incremental del backend y su integración con Unity. OpenCode v2 sirve el chat y administra sesiones, modelos y el [MCP de escena Unity](bridge/README.md). Incluye exploración, contenedores por petición, primitivas, Transform, eliminación recuperable, deshacer y persistencia del contenido generado. Todavía no incluye capturas ni UI generada.
+Desarrollo incremental del backend y su integración con Unity. OpenCode v2 sirve el chat y administra sesiones, modelos y el [MCP de escena Unity](bridge/README.md). Incluye exploración, contenedores por petición, primitivas, Transform, eliminación recuperable, deshacer y persistencia del contenido generado. Managed text panels and spatial labels are now available through complete contracts; see [panels and persistence v4](bridge/PANELS.md). Twelve complete semantic presentations are available; see [presentation contracts](bridge/PRESENTATIONS.md). Captures remain pending.
 
 ## Arranque
 
@@ -68,3 +68,5 @@ Validación funcional completada en el Editor el 27 de octubre de 2026 con OpenC
 La entrega 02 añade `chat-execution-server.mjs` y `ChatExecutionChecks.Run`: 15 comprobaciones de pérdida de respuestas, desconexión, carreras de cancelación, errores y duplicados contra la UI real de Unity, sin proveedor. `RealChatExecutionChecks.Run` valida con el modelo real que un objeto anterior permanece, el siguiente no se crea tras cancelar y se continúa en la misma conversación. La validación detectó que el transporte anterior podía repetir un POST en una conexión reutilizada; `JsonHttpClient` utiliza ahora `HttpClient`, sin reutilización de conexiones ni reintentos. [Evidencias y ejecución](validation/02-execution.md).
 
 npm test --prefix Backend/bridge compila y prueba contratos, igualdad de perfiles/permisos, confirmaciones, timeout sin reenvío y desconexiones. npm run test:unity --prefix Backend/bridge necesita Unity en Play Mode y un puerto MCP libre; crea y transforma contenedores temporales que desaparecen al salir. No llama a un proveedor de modelos. El archivo test-support/SceneContractChecks.cs permite comprobar directamente en el runtime duplicados, caducidad, IDs y validación sin incluir pruebas en Assets.
+
+Phase 3 adds twelve semantic presentations and persisted local interaction through the same scene service. See [presentation contracts](bridge/PRESENTATIONS.md).

@@ -1,183 +1,291 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Seyra.Networking;
+using Seyra.Chat;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Seyra.UI
 {
+    /// <summary>
+    /// Testbed UI component for OpencodeTestUI scene.
+    /// Thin UI presenter that delegates 100% of network, turn execution, cancellation,
+    /// and permission decisions to the shared OpenCodeConversationSession engine.
+    /// </summary>
     public sealed partial class OpenCodeTestChat : MonoBehaviour
     {
-        public enum TurnState { Ready, Sending, Running, WaitingForPermission, Cancelling, Completed, Cancelled, Failed, Unresolved }
+        public enum TurnState
+        {
+            Ready,
+            Sending,
+            Running,
+            WaitingForPermission,
+            Cancelling,
+            Completed,
+            Cancelled,
+            Failed,
+            Unresolved
+        }
+
+        [Header("Backend Connection")]
         [SerializeField] string serverUrl = "http://127.0.0.1:4096";
         [SerializeField] string agent = "seyra";
+
+        [Header("Composer & Controls")]
         [SerializeField] TMP_InputField input;
-        [SerializeField] UnityEngine.UI.Button sendButton;
-        [SerializeField] UnityEngine.UI.Button reconnectButton;
-        [SerializeField] UnityEngine.UI.Image connectionIndicator;
+        [SerializeField] Button sendButton;
+        [SerializeField] Button reconnectButton;
+        [SerializeField] Image connectionIndicator;
         [SerializeField] TMP_Text connectionLabel;
-        [SerializeField] UnityEngine.UI.ScrollRect conversation;
-        [SerializeField] TMP_Text messageTemplate;
+        [SerializeField] Button cancelButton;
+        [SerializeField] Button closeTurnButton;
         [SerializeField] TMP_Text executionLabel;
-        [SerializeField] UnityEngine.UI.Button cancelButton;
-        [SerializeField] UnityEngine.UI.Button closeTurnButton;
-        CancellationTokenSource lifetime;
-        JsonHttpClient http;
+
+        [Header("Conversation Scroll")]
+        [SerializeField] ScrollRect conversation;
+        [SerializeField] TMP_Text messageTemplate;
+
+        [Header("Permission Panel")]
+        [SerializeField] GameObject permissionPanel;
+        [SerializeField] TMP_Text permissionHeading;
+        [SerializeField] TMP_Text permissionDetails;
+        [SerializeField] TMP_Text permissionStatus;
+        [SerializeField] Button allowPermissionButton;
+        [SerializeField] Button rejectPermissionButton;
+        [SerializeField] ScrollRect permissionScroll;
+
+        // Core shared conversation engine
+        OpenCodeConversationSession session;
+
+        // Mirrored state fields accessed via reflection by test fixtures (ChatExecutionChecks)
+        bool connected;
         string sessionId;
-        bool sending, connecting, connected, turnUnresolved, syncing, submissionInFlight, interruptInFlight;
-        bool terminalConfirmed, sessionMissing, cancelRequested, interruptAttempted, interruptAcknowledged, unknownToolOutcome;
-        string activeUserId, pendingText, submissionBaselineId, pendingEchoKey;
-        long activeUserCreated;
-        DateTime lastProgressUtc;
-        string progressSignature;
+        bool sessionMissing;
+        string activeUserId;
+        string pendingText;
         TurnState executionState = TurnState.Ready;
         string executionDetail = "Escribe un mensaje para empezar.";
+        JObject pendingPermission;
+
         public TurnState ExecutionState => executionState;
-        bool HasTurn => activeUserId != null || pendingText != null;
-        string SessionPath => "/api/session/" + Uri.EscapeDataString(sessionId);
+        public OpenCodeConversationSession Session => session;
+
+        void Awake()
+        {
+            if (messageTemplate != null)
+                messageTemplate.gameObject.SetActive(false);
+        }
 
         void OnEnable()
         {
-            lifetime = new CancellationTokenSource();
-            http = new JsonHttpClient(serverUrl);
-            sendButton.onClick.AddListener(Send);
-            reconnectButton.onClick.AddListener(Reconnect);
-            cancelButton?.onClick.AddListener(CancelTurn);
-            closeTurnButton?.onClick.AddListener(CloseTurn);
-            input.onSubmit.AddListener(Submit);
-            messageTemplate.gameObject.SetActive(false);
-            BindPermissions();
-            SetConnected(false, "Conectando…");
-            _ = ConnectAsync(lifetime.Token);
-            _ = MonitorAsync(lifetime.Token);
+            if (session == null)
+            {
+                session = new OpenCodeConversationSession();
+            }
+
+            // Sync server configuration in case reflection modified serverUrl or sessionId
+            session.Configure(serverUrl, agent);
+            if (sessionId != session.SessionId)
+            {
+                session.SetSessionId(sessionId);
+            }
+
+            BindSessionEvents();
+            BindUIListeners();
+
+            session.Start();
+            SyncFromSession();
+            RefreshControls();
         }
 
         void OnDisable()
         {
-            sendButton.onClick.RemoveListener(Send);
-            reconnectButton.onClick.RemoveListener(Reconnect);
-            cancelButton?.onClick.RemoveListener(CancelTurn);
-            closeTurnButton?.onClick.RemoveListener(CloseTurn);
-            input.onSubmit.RemoveListener(Submit);
-            UnbindPermissions();
-            lifetime?.Cancel();
-            http?.Dispose();
-            lifetime?.Dispose();
-            // Retain session, turn identity and rendered rows across disable/re-enable.
-            if (HasTurn && !terminalConfirmed) SetState(TurnState.Unresolved, "Conexión interrumpida. Reconecta para consultar el mismo turno.");
-            connected = connecting = syncing = submissionInFlight = interruptInFlight = false;
-            ClearPermissions();
+            UnbindUIListeners();
+            UnbindSessionEvents();
+
+            session?.Stop();
+            SyncFromSession();
+            ClearPermissionsUI();
         }
 
-        void SetConnected(bool value, string label)
+        void BindUIListeners()
         {
-            connected = value;
-            connectionIndicator.color = value ? new Color(.2f, .85f, .45f) : new Color(.95f, .25f, .3f);
-            connectionLabel.text = label;
+            if (sendButton != null) sendButton.onClick.AddListener(Send);
+            if (reconnectButton != null) reconnectButton.onClick.AddListener(Reconnect);
+            if (cancelButton != null) cancelButton.onClick.AddListener(CancelTurn);
+            if (closeTurnButton != null) closeTurnButton.onClick.AddListener(CloseTurn);
+            if (allowPermissionButton != null) allowPermissionButton.onClick.AddListener(AllowPermission);
+            if (rejectPermissionButton != null) rejectPermissionButton.onClick.AddListener(RejectPermission);
+            if (input != null) input.onSubmit.AddListener(Submit);
+        }
+
+        void UnbindUIListeners()
+        {
+            if (sendButton != null) sendButton.onClick.RemoveListener(Send);
+            if (reconnectButton != null) reconnectButton.onClick.RemoveListener(Reconnect);
+            if (cancelButton != null) cancelButton.onClick.RemoveListener(CancelTurn);
+            if (closeTurnButton != null) closeTurnButton.onClick.RemoveListener(CloseTurn);
+            if (allowPermissionButton != null) allowPermissionButton.onClick.RemoveListener(AllowPermission);
+            if (rejectPermissionButton != null) rejectPermissionButton.onClick.RemoveListener(RejectPermission);
+            if (input != null) input.onSubmit.RemoveListener(Submit);
+        }
+
+        void BindSessionEvents()
+        {
+            if (session == null) return;
+            session.ConnectionChanged += OnConnectionChanged;
+            session.StateChanged += OnStateChanged;
+            session.PermissionChanged += OnPermissionChanged;
+            session.PermissionStatusChanged += OnPermissionStatusChanged;
+            session.ControlsRefreshRequested += OnControlsRefreshRequested;
+            session.MessageUpserted += OnMessageUpserted;
+            session.EchoAdopted += OnEchoAdopted;
+        }
+
+        void UnbindSessionEvents()
+        {
+            if (session == null) return;
+            session.ConnectionChanged -= OnConnectionChanged;
+            session.StateChanged -= OnStateChanged;
+            session.PermissionChanged -= OnPermissionChanged;
+            session.PermissionStatusChanged -= OnPermissionStatusChanged;
+            session.ControlsRefreshRequested -= OnControlsRefreshRequested;
+            session.MessageUpserted -= OnMessageUpserted;
+            session.EchoAdopted -= OnEchoAdopted;
+        }
+
+        void SyncFromSession()
+        {
+            if (session == null) return;
+            connected = session.IsConnected;
+            sessionId = session.SessionId;
+            sessionMissing = session.IsSessionMissing;
+            activeUserId = session.ActiveUserId;
+            pendingText = session.PendingText;
+            executionState = (TurnState)session.ExecutionState;
+            executionDetail = session.ExecutionDetail;
+            pendingPermission = session.PendingPermission;
+        }
+
+        void OnConnectionChanged(bool isConnected, string label)
+        {
+            SyncFromSession();
+            if (connectionIndicator != null)
+                connectionIndicator.color = isConnected ? new Color(0.2f, 0.85f, 0.45f) : new Color(0.95f, 0.25f, 0.3f);
+            if (connectionLabel != null)
+                connectionLabel.text = label;
             RefreshControls();
         }
 
-        void Reconnect() { if (!connecting && !submissionInFlight && !interruptInFlight) _ = ConnectAsync(lifetime.Token); }
+        void OnStateChanged(OpenCodeConversationSession.TurnState state, string detail)
+        {
+            SyncFromSession();
+            RefreshControls();
+        }
+
+        void OnPermissionChanged(JObject perm)
+        {
+            SyncFromSession();
+            UpdatePermissionUI(perm);
+            RefreshControls();
+        }
+
+        void OnPermissionStatusChanged(string statusText)
+        {
+            if (permissionStatus != null && !string.IsNullOrEmpty(statusText))
+                permissionStatus.text = statusText;
+        }
+
+        void OnControlsRefreshRequested()
+        {
+            SyncFromSession();
+            RefreshControls();
+        }
+
+        void OnEchoAdopted(string oldKey, string newKey)
+        {
+            AdoptEcho(oldKey, newKey);
+        }
+
+        void OnMessageUpserted(ChatMessageItem item)
+        {
+            UpsertMessage(item.Key, item.Role, item.Text);
+        }
+
+        void Send()
+        {
+            if (input == null || session == null) return;
+            var text = input.text.Trim();
+            if (text.Length == 0) return;
+            input.text = "";
+            _ = session.SendPromptAsync(text);
+        }
+
         void Submit(string _) => Send();
 
-        async Task ConnectAsync(CancellationToken token)
+        void Reconnect()
         {
-            connecting = true;
-            SetConnected(false, "Conectando…");
-            try
+            if (session != null)
             {
-                while (syncing) await Task.Delay(20, token);
-#if UNITY_EDITOR
-                var backend = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend"));
-                var password = Seyra.Configuration.OpenCodeEditorCredentials.ReadPassword(backend);
-#else
-                var backend = "";
-                string password = null;
-#endif
-                if (string.IsNullOrEmpty(password)) throw new InvalidOperationException("HTTP password is missing from Backend/.env.local (Editor testing only).");
-                http.SetPassword(password);
-                if (string.IsNullOrEmpty(sessionId))
-                {
-                    var agents = await http.RequestAsync("GET", "/api/agent", null, token);
-                    var profile = (agents["data"] as JArray)?.OfType<JObject>().FirstOrDefault(item => (string)item["id"] == agent);
-                    if (profile == null) throw new InvalidOperationException("OpenCode did not return the selected agent profile: " + agent);
-                    var request = new JObject {
-                        ["title"] = "Seyra · OpencodeTestUI", ["agent"] = agent,
-                        ["location"] = new JObject { ["directory"] = backend.Replace('\\', '/') }
-                    };
-                    if (profile["model"] is JObject model) request["model"] = model.DeepClone();
-                    var result = await http.RequestAsync("POST", "/api/session", request, token);
-                    sessionId = (string)result["data"]?["id"];
-                    if (string.IsNullOrEmpty(sessionId)) throw new InvalidOperationException("OpenCode did not return an API v2 session.");
-                    submittedPermissions.Clear();
-                }
-                await SyncAsync(token, true);
+                // In case serverUrl changed via reflection
+                session.Configure(serverUrl, agent);
+                session.Reconnect();
             }
-            catch (OperationCanceledException) { }
-            catch (Exception error) { if (!token.IsCancellationRequested) ConnectionFailed(error); }
-            finally { if (!token.IsCancellationRequested) { connecting = false; RefreshControls(); } }
         }
 
-        async Task MonitorAsync(CancellationToken token)
+        void CancelTurn()
         {
-            try
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    await Task.Delay(HasTurn && connected ? 500 : 3000, token);
-                    if (connecting || syncing || submissionInFlight || interruptInFlight || string.IsNullOrEmpty(sessionId)) continue;
-                    try
-                    {
-                        if (HasTurn) await SyncAsync(token);
-                        else
-                        {
-                            await http.RequestAsync("GET", SessionPath, null, token);
-                            sessionMissing = false;
-                            SetConnected(true, "Conectado · " + agent);
-                        }
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception error) { if (!token.IsCancellationRequested) ConnectionFailed(error); }
-                }
-            }
-            catch (OperationCanceledException) { }
+            if (session != null)
+                _ = session.CancelTurnAsync();
         }
 
-        async Task<List<JObject>> ReadMessagesAsync(CancellationToken token, string stopId = null)
+        void CloseTurn()
         {
-            var result = new List<JObject>();
-            string cursor = null;
-            for (var page = 0; page < 20; page++)
-            {
-                var query = cursor == null ? "?order=desc&limit=100" : "?limit=100&cursor=" + Uri.EscapeDataString(cursor);
-                var response = await http.RequestAsync("GET", SessionPath + "/message" + query, null, token);
-                var items = response["data"] as JArray ?? throw new InvalidOperationException("Invalid API v2 message list.");
-                foreach (var item in items.OfType<JObject>())
-                {
-                    result.Add(item);
-                    if (stopId != null && (string)item["id"] == stopId) { result.Reverse(); return result; }
-                }
-                var next = (string)response["cursor"]?["next"];
-                if (items.Count == 0 || string.IsNullOrEmpty(next)) { result.Reverse(); return result; }
-                if (next == cursor) throw new InvalidOperationException("Message cursor did not advance.");
-                cursor = next;
-            }
-            throw new InvalidOperationException("Conversation exceeds the 2000-message reading limit; no submission was retried.");
+            if (session != null)
+                session.CloseTurn();
         }
 
-        void ConnectionFailed(Exception error)
+        void AllowPermission()
         {
-            sessionMissing = error is OpenCodeHttpException failure && failure.StatusCode == 404;
-            SetConnected(false, sessionMissing ? "Sesión no disponible" : "Sin conexión · reconectar");
-            if (sessionMissing || (HasTurn && !terminalConfirmed)) SetState(TurnState.Unresolved,
-                sessionMissing ? "La sesión ya no está disponible. Cierra este turno para iniciar otra conversación." : "Resultado sin confirmar. Reconecta para inspeccionar la misma sesión; no se reenviará la petición.");
-            UpsertMessage("connection-error", "Sistema", error.Message);
-            RefreshControls();
+            if (session != null)
+                _ = session.ReplyPermissionAsync(true);
+        }
+
+        void RejectPermission()
+        {
+            if (session != null)
+                _ = session.ReplyPermissionAsync(false);
+        }
+
+        void ClearPermissionsUI()
+        {
+            pendingPermission = null;
+            if (permissionPanel != null)
+                permissionPanel.SetActive(false);
+        }
+
+        void UpdatePermissionUI(JObject perm)
+        {
+            if (permissionPanel == null) return;
+            permissionPanel.SetActive(perm != null);
+            if (perm == null) return;
+
+            if (permissionHeading != null)
+                permissionHeading.text = "Permiso solicitado · " + (string)perm["action"];
+
+            if (permissionDetails != null)
+                permissionDetails.text = perm.ToString(Formatting.Indented);
+
+            if (permissionStatus != null)
+                permissionStatus.text = "Permitir autoriza esta petición. Rechazar cancela también los permisos pendientes de esta sesión.";
+
+            if (permissionScroll != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                permissionScroll.verticalNormalizedPosition = 1f;
+            }
         }
     }
 }

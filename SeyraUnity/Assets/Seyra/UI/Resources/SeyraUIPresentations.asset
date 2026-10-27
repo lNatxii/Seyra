@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7a35d16c3efd374d80550cd86d0e8ad, type: 3}
+  m_Name: SeyraUIPresentations
+  m_EditorClassIdentifier: Seyra.Runtime::Seyra.UI.Presentations.UIPresentationCatalog
+  components: {fileID: 11400000, guid: 2ebb7cfecef383842b6cfd44dda8c2b4, type: 2}
+  templates:
+  - type: infoPanel
+    prefab: {fileID: 4204243321277963019, guid: 2532f55e184fb7440884d43c6896240b, type: 3}
+  - type: technicalSheet
+    prefab: {fileID: 2616266818430700311, guid: 41598ac4aef297d439a9b8c336ce6def, type: 3}
+  - type: gallery
+    prefab: {fileID: 6392449519958051787, guid: c81596a0acbc02f40ad3f6573de4218f, type: 3}
+  - type: stepGuide
+    prefab: {fileID: 8427057391200539646, guid: 00489f26d2f91324685efe14b2f5491b, type: 3}
+  - type: documentViewer
+    prefab: {fileID: 2202963533443375559, guid: 3c9fa0c847e06504baea87ed576da403, type: 3}
+  - type: comparison
+    prefab: {fileID: 7680609958628769662, guid: 572703c3823a044479c1f5ce22f4ff53, type: 3}
+  - type: checklist
+    prefab: {fileID: 4753056176698911112, guid: 9bb4027b6b4281b4ebf1c5372237be4b, type: 3}
+  - type: diagnostic
+    prefab: {fileID: 6899388575980520186, guid: 02853b08cb00337488ab4885349b16e6, type: 3}
+  - type: choiceSelector
+    prefab: {fileID: 2786735441248037230, guid: 6ce07e3df75d6f940b4d292c04e9cb2b, type: 3}
+  - type: parameterForm
+    prefab: {fileID: 6464966590758105029, guid: b77b3a96d4e5ab045be22ce96efd6419, type: 3}
+  - type: dataView
+    prefab: {fileID: 6423235779415289974, guid: 1a8467734cd590f41b0600feea98862a, type: 3}
+  - type: workPlan
+    prefab: {fileID: 1593213026234348311, guid: 21cfa791c7da16f4d833d00cff3697ce, type: 3}
+  media: []

@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","set_transform","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
 
         void InitializeLifecycle(string directory)
         {
@@ -57,6 +57,7 @@ namespace Seyra.SceneTools
             {
                 var t=stack.Pop();if(t==trash)continue;
                 yield return t;
+                if(t.GetComponent<ManagedPanel>()!=null)continue;
                 for(int i=t.childCount-1;i>=0;i--)stack.Push(t.GetChild(i));
             }
         }
@@ -82,21 +83,27 @@ namespace Seyra.SceneTools
             public AppearanceStyle? Style;
             public Color Color;
             public string AppearanceSignature;
+            public PanelContent Panel;
+            public string PanelSignature;
+            public JObject Presentation,Interaction;
             public static ObjectState Capture(GameObject go)
             {
                 var t=go.transform;var record=go.GetComponent<GeneratedObject>();
                 return new ObjectState{Object=go,Parent=t.parent,Sibling=t.GetSiblingIndex(),Name=go.name,Tag=go.tag,Layer=go.layer,
                     Position=t.localPosition,Rotation=t.localRotation,Scale=t.localScale,Active=go.activeSelf,
                     EntityId=record!=null?record.EntityId:null,Kind=record!=null?record.Kind:null,Shape=record!=null?record.PrimitiveType:null,GroupId=record!=null?record.RequestGroupId:null,
-                    Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature};
+                    Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
+                    Panel=go.GetComponent<ManagedPanel>()?.Content,PanelSignature=go.GetComponent<ManagedPanel>()?.StateSignature,
+                    Presentation=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().Presentation.ToJson():null,
+                    Interaction=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().InteractionState:null};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature;
+                Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && PanelSignature==other.PanelSignature;
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
             }
-            public void Apply()
+            public void Apply(bool restoreInteraction=false)
             {
                 var t=Object.transform;
                 if(t.parent!=Parent)t.SetParent(Parent,false);
@@ -108,6 +115,16 @@ namespace Seyra.SceneTools
                 {
                     var appearance=Object.GetComponent<ManagedAppearance>();
                     if(appearance.Style!=Style.Value || !appearance.Color.Equals(Color))appearance.SetAppearance(Style.Value,Color);
+                }
+                if(Panel!=null)
+                {
+                    var panel=Object.GetComponent<ManagedPanel>();
+                    if(panel==null)throw new InvalidOperationException("Cannot restore a destroyed panel component.");
+                    if(Presentation!=null)
+                    {
+                        if(restoreInteraction || !JToken.DeepEquals(panel.Presentation.ToJson(),Presentation))panel.ApplyPresentation(PresentationContent.Parse(Presentation),Interaction);
+                    }
+                    else if(!JToken.DeepEquals(panel.Content.ToJson(),Panel.ToJson()))panel.Apply(Panel);
                 }
             }
         }
@@ -133,7 +150,7 @@ namespace Seyra.SceneTools
             foreach(var go in snapshot.Content.Concat(externals??externalTargets).Where(g=>g!=null).Distinct())
             {
                 var state=ObjectState.Capture(go);
-                if(lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state))state=previous;
+                if(state.Presentation==null && lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state))state=previous;
                 snapshot.States[go]=state;
             }
             lastCapture=snapshot;return snapshot;
@@ -147,11 +164,12 @@ namespace Seyra.SceneTools
         }
         void MoveToTrash(GameObject go)
         {
+            RequirePanelRoot(go);
             if(go==generated.gameObject || go.transform==trash || !go.transform.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be deleted; the root and trash container are protected.");
             deletedOrigins[go]=ObjectState.Capture(go);
             go.SetActive(false);go.transform.SetParent(trash,false);
         }
-        void ApplySnapshot(Snapshot target)
+        void ApplySnapshot(Snapshot target,HashSet<GameObject> restoreInteractions=null)
         {
             foreach(var state in target.States.Values)state.Validate();
             var extras=LiveContent().Select(t=>t.gameObject).Where(g=>!target.Content.Contains(g)).ToHashSet();
@@ -162,7 +180,7 @@ namespace Seyra.SceneTools
             {
                 var ready=pending.Where(s=>s.Parent==null || !target.States.ContainsKey(s.Parent.gameObject) || applied.Contains(s.Parent.gameObject)).ToArray();
                 if(ready.Length==0)throw new InvalidOperationException("History contains a cyclic hierarchy.");
-                foreach(var state in ready){state.Apply();applied.Add(state.Object);pending.Remove(state);}
+                foreach(var state in ready){state.Apply(restoreInteractions?.Contains(state.Object)==true);applied.Add(state.Object);pending.Remove(state);}
             }
             foreach(var group in target.States.Values.GroupBy(s=>s.Parent))foreach(var state in group.OrderBy(s=>s.Sibling))state.Object.transform.SetSiblingIndex(state.Sibling);
             foreach(var state in target.States.Values)state.Object.SetActive(state.Active);
@@ -216,6 +234,10 @@ namespace Seyra.SceneTools
                 case "restore_object":
                     Keys(args,new[]{"entityId"});var restored=Find(args["entityId"],true);
                     if(!IsDeleted(restored)||!deletedOrigins.TryGetValue(restored,out var origin))throw new ArgumentException("This object has no recoverable deletion in this runtime.");
+                    var recovering=restored.GetComponentsInChildren<ManagedPanel>(true).Where(p=>p.IsPresentation).ToArray();
+                    var livePresentations=LiveContent().Select(t=>t.GetComponent<ManagedPanel>()).Where(p=>p!=null&&p.IsPresentation).ToArray();
+                    if(livePresentations.Length+recovering.Length>16 || recovering.Any(p=>livePresentations.Any(q=>p.Presentation.Data.id==q.Presentation.Data.id)))
+                        throw new ArgumentException("Restoration would exceed the presentation limit or duplicate a content ID.");
                     origin.Validate();
                     if(origin.Parent==null||IsDeleted(origin.Parent.gameObject))throw new InvalidOperationException("Restore the original parent first.");
                     origin.Apply();restored.transform.SetSiblingIndex(origin.Sibling);restored.SetActive(origin.Active);Reindex();return Inspect(restored);
@@ -256,7 +278,9 @@ namespace Seyra.SceneTools
             }
             RequireCurrent(expected);
             var current=Capture(expected.States.Keys.Where(g=>!expected.Content.Contains(g)));
-            try{ApplySnapshot(target);}catch{try{ApplySnapshot(current);}catch{throw new SceneRollbackException();}throw;}
+            var replacements=history.Skip(start).Where(h=>h.Tool=="ui_update").Select(h=>h.EntityId).ToHashSet();
+            var restoreInteractions=target.States.Values.Where(s=>s.Presentation!=null && replacements.Contains(s.EntityId)).Select(s=>s.Object).ToHashSet();
+            try{ApplySnapshot(target,restoreInteractions);}catch{try{ApplySnapshot(current,restoreInteractions);}catch{throw new SceneRollbackException();}throw;}
             var undone=history.Skip(start).Select(h=>h.Id).ToArray();history.RemoveRange(start,history.Count-start);
             return new JObject{["undoneOperationIds"]=new JArray(undone),["requestGroupId"]=latest.GroupId,["remainingOperations"]=history.Count};
         }

@@ -1,0 +1,256 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f54c2bef8c8994f9f663960f18f45a, type: 3}
+  m_Name: SeyraUIPrefabCatalog
+  m_EditorClassIdentifier: Seyra.Runtime::Seyra.UI.Library.UIPrefabCatalog
+  defaultTheme: {fileID: 11400000, guid: 2ad3e4e700fa26048b7ee9fdf9822c9a, type: 2}
+  windowPrefab: {fileID: 2472376815922572917, guid: 45c0ee7e7a8ded840ac7c58855967b7a, type: 3}
+  metaThemes:
+  - {fileID: 11400000, guid: 4b2fdc959511e154cb98df0433028c9b, type: 2}
+  - {fileID: 11400000, guid: 6d200bf68ab316d46be5cbf2afb3e24e, type: 2}
+  entries:
+  - id: container
+    label: UIContainer
+    kind: 0
+    prefab: {fileID: 4788251320005750927, guid: ca6c4bf7d2899724fae0335c4a4a119f, type: 3}
+  - id: row
+    label: UIRow
+    kind: 1
+    prefab: {fileID: 3835520529533476018, guid: 3914103cc84a50b4bb2c3ca5bf71b33e, type: 3}
+  - id: column
+    label: UIColumn
+    kind: 2
+    prefab: {fileID: 8836424536122433305, guid: fb03009c00fba314f850d1ec5a8776e9, type: 3}
+  - id: text
+    label: UIText
+    kind: 3
+    prefab: {fileID: 1138448309419351021, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
+  - id: button
+    label: UIButton
+    kind: 4
+    prefab: {fileID: 6652317435220175324, guid: c66f17d6fbefd9b44a4667e474a491a6, type: 3}
+  - id: button.primary
+    label: UIButtonPrimary
+    kind: 4
+    prefab: {fileID: 4728072099521140026, guid: edb70675cc9778649b2a9e5033fdd8a4, type: 3}
+  - id: button.secondary
+    label: UIButtonSecondary
+    kind: 4
+    prefab: {fileID: 7937477244201451280, guid: 99d9c4b429edd04429714ffbf5f44418, type: 3}
+  - id: button.danger
+    label: UIButtonDanger
+    kind: 4
+    prefab: {fileID: 2210199641528624021, guid: e50c48810d5c2e3419feddd423f51acd, type: 3}
+  - id: panel
+    label: UIPanel
+    kind: 5
+    prefab: {fileID: 2510320676108004029, guid: 51c6b859813b4764eb2b49b0e364d36c, type: 3}
+  - id: panel.titled
+    label: UITitledPanel
+    kind: 5
+    prefab: {fileID: 8841531225096743410, guid: 550deed246aebfd4c9bf3f91a1c7bbf3, type: 3}
+  - id: panel.confirmation
+    label: UIConfirmationPanel
+    kind: 6
+    prefab: {fileID: 5823636223065409805, guid: 3be3d606419a37d409f698f8c69cbf59, type: 3}
+  - id: input
+    label: UIInputField
+    kind: 7
+    prefab: {fileID: 1798149313207097851, guid: 67f68dad13a99e747a2c002e04ba955d, type: 3}
+  - id: input.growing
+    label: UIInputFieldGrowing
+    kind: 7
+    prefab: {fileID: 2288249570421576810, guid: e2c93bf1de0bd96418b38dc17f063842, type: 3}
+  - id: dropdown
+    label: UIDropdown
+    kind: 8
+    prefab: {fileID: 3628849499709564365, guid: 880e0913d23970345b2f037141d90f52, type: 3}
+  - id: toggle
+    label: UIToggle
+    kind: 9
+    prefab: {fileID: 6825747701797850896, guid: 434a75350d90ba64da02f4c200e25dcb, type: 3}
+  - id: slider
+    label: UISlider
+    kind: 10
+    prefab: {fileID: 1270285214921180266, guid: 30ca4f891978f924ab052420d3e39891, type: 3}
+  - id: foldout
+    label: UIFoldout
+    kind: 11
+    prefab: {fileID: 6950358486608485558, guid: 637e1822d1469744eb6741906438408c, type: 3}
+  - id: scroll
+    label: UIScrollView
+    kind: 12
+    prefab: {fileID: 4355808890842619344, guid: 5c7e8612b1004a2488d0a0f3c9346bff, type: 3}
+  - id: list.item
+    label: UIListItem
+    kind: 13
+    prefab: {fileID: 2130808317647496472, guid: 031d816cc40565c409df9adc8b44f89c, type: 3}
+  - id: catalog.gallery
+    label: UIComponentGallery
+    kind: 14
+    prefab: {fileID: 140184323941295733, guid: e8fe3317c80095f4583fcbd926db727b, type: 3}
+  - id: meta.Button.UnityUIButtonBased.BorderlessButton_IconAndLabel_UnityUIButton
+    label: BorderlessButton_IconAndLabel_UnityUIButton
+    kind: 15
+    prefab: {fileID: 8046116837390756153, guid: abce30a9cdfe4c94d807e69d718db55a, type: 3}
+  - id: meta.Button.UnityUIButtonBased.DestructiveButton_IconAndLabel_UnityUIButton
+    label: DestructiveButton_IconAndLabel_UnityUIButton
+    kind: 15
+    prefab: {fileID: 5475183150643663114, guid: 7b4b3ab309753d842ba0a79751aa1fb8, type: 3}
+  - id: meta.Button.UnityUIButtonBased.PrimaryButton_IconAndLabel_UnityUIButton
+    label: PrimaryButton_IconAndLabel_UnityUIButton
+    kind: 15
+    prefab: {fileID: 243424268127923124, guid: 708bb04189b8488418aa725e7f94bbe8, type: 3}
+  - id: meta.Button.UnityUIButtonBased.SecondaryButton_IconAndLabel_UnityUIButton
+    label: SecondaryButton_IconAndLabel_UnityUIButton
+    kind: 15
+    prefab: {fileID: 8427117777238694044, guid: b9b87f4caa5968745bb0a1ee2a51f575, type: 3}
+  - id: meta.Button.UnityUIButtonBased.TextTileButton_IconAndLabel_Regular_UnityUIButton
+    label: TextTileButton_IconAndLabel_Regular_UnityUIButton
+    kind: 15
+    prefab: {fileID: 2241387638278579712, guid: 5f24ca91b38a6704f8f00ddbe45c0a48, type: 3}
+  - id: meta.Button.UnityUIToggleBased.BorderlessButton_IconAndLabel
+    label: BorderlessButton_IconAndLabel
+    kind: 15
+    prefab: {fileID: 8046116837390756153, guid: c8e2992a313c49d449f074c59c12f6ad, type: 3}
+  - id: meta.Button.UnityUIToggleBased.BorderlessButton_IconAndLabel_LeftAligned
+    label: BorderlessButton_IconAndLabel_LeftAligned
+    kind: 15
+    prefab: {fileID: 5915430824641424548, guid: 9751b51ddd005974bb2afb20cc27e4f5, type: 3}
+  - id: meta.Button.UnityUIToggleBased.ButtonShelf_IconAndLabel_Toggle
+    label: ButtonShelf_IconAndLabel_Toggle
+    kind: 15
+    prefab: {fileID: 7922623383524267024, guid: 040567cd4431b484e9999e28a102d366, type: 3}
+  - id: meta.Button.UnityUIToggleBased.DestructiveButton_IconAndLabel
+    label: DestructiveButton_IconAndLabel
+    kind: 15
+    prefab: {fileID: 5475183150643663114, guid: 1afe17518a14213478afccad59687b1c, type: 3}
+  - id: meta.Button.UnityUIToggleBased.DropDownListButton_IconAndLabel_Toggle
+    label: DropDownListButton_IconAndLabel_Toggle
+    kind: 15
+    prefab: {fileID: 558185252244138612, guid: 41f0c6b657dffc944900710127356b17, type: 3}
+  - id: meta.Button.UnityUIToggleBased.DropDownListButton_IconAndLabel2Lines_Toggle
+    label: DropDownListButton_IconAndLabel2Lines_Toggle
+    kind: 15
+    prefab: {fileID: 1844495039869889002, guid: dc435eb8d4d471346940a9d5f8d1b352, type: 3}
+  - id: meta.Button.UnityUIToggleBased.DropDownListButton_ImageAndLabel2Lines_Toggle
+    label: DropDownListButton_ImageAndLabel2Lines_Toggle
+    kind: 15
+    prefab: {fileID: 7777113696798764252, guid: 423bf33fbc8fd9b48825b90bb911969c, type: 3}
+  - id: meta.Button.UnityUIToggleBased.PrimaryButton_IconAndLabel
+    label: PrimaryButton_IconAndLabel
+    kind: 15
+    prefab: {fileID: 243424268127923124, guid: f4ae769ba4a46d84c9e04c6914423ca2, type: 3}
+  - id: meta.Button.UnityUIToggleBased.SecondaryButton_IconAndLabel
+    label: SecondaryButton_IconAndLabel
+    kind: 15
+    prefab: {fileID: 8427117777238694044, guid: 292035910f8781541aeb438db140bd72, type: 3}
+  - id: meta.Button.UnityUIToggleBased.TextTileButton_IconAndLabel_Regular
+    label: TextTileButton_IconAndLabel_Regular
+    kind: 15
+    prefab: {fileID: 2241387638278579712, guid: 90ae27b2ef005bc479d956c3d244f591, type: 3}
+  - id: meta.Button.UnityUIToggleBased.TextTileButton_IconAndLabel_Toggle
+    label: TextTileButton_IconAndLabel_Toggle
+    kind: 15
+    prefab: {fileID: 4102898763052618297, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
+  - id: meta.Button.UnityUIToggleBased.ToggleButton_Checkbox
+    label: ToggleButton_Checkbox
+    kind: 15
+    prefab: {fileID: 746620542841046277, guid: 6cd57a5c754c63047822347680b4bbd2, type: 3}
+  - id: meta.Button.UnityUIToggleBased.ToggleButton_Radio
+    label: ToggleButton_Radio
+    kind: 15
+    prefab: {fileID: 236114000944626438, guid: 9e34356aa4bacdc45805c0d16862fc4b, type: 3}
+  - id: meta.Button.UnityUIToggleBased.ToggleButton_Switch
+    label: ToggleButton_Switch
+    kind: 15
+    prefab: {fileID: 6244658300373328758, guid: c1fa15e93b3d0324ebb8093dc8db35b9, type: 3}
+  - id: meta.ContextMenu.ContextMenu1LineTextOnly
+    label: ContextMenu1LineTextOnly
+    kind: 15
+    prefab: {fileID: 1468399655226140729, guid: 7c4ef00a644a9ed41a7a0248b8444b82, type: 3}
+  - id: meta.ContextMenu.ContextMenuIconAnd1LineText
+    label: ContextMenuIconAnd1LineText
+    kind: 15
+    prefab: {fileID: 5206445760869725915, guid: f5afee37ea736084481e54ff6620d9e5, type: 3}
+  - id: meta.ContextMenu.ContextMenuIconAnd2LineText
+    label: ContextMenuIconAnd2LineText
+    kind: 15
+    prefab: {fileID: 930338842576465984, guid: 0634c2c686f2e05429f5b680e69380be, type: 3}
+  - id: meta.Dialog.Dialog1Button_IconAndText
+    label: Dialog1Button_IconAndText
+    kind: 15
+    prefab: {fileID: 2896105198602318834, guid: d1fbb9de4e73aff46a9f589420c2ad34, type: 3}
+  - id: meta.Dialog.Dialog1Button_TextOnly
+    label: Dialog1Button_TextOnly
+    kind: 15
+    prefab: {fileID: 1319408030103220417, guid: ee824579eadf66544a0c3913fec1debf, type: 3}
+  - id: meta.Dialog.Dialog2Button_IconAndText
+    label: Dialog2Button_IconAndText
+    kind: 15
+    prefab: {fileID: 7112654649254327182, guid: f727782be5090c644bbd8d9c1aee79c8, type: 3}
+  - id: meta.Dialog.Dialog2Button_ImageVideoAndText
+    label: Dialog2Button_ImageVideoAndText
+    kind: 15
+    prefab: {fileID: 4298166796836279053, guid: 9cde343ca5e21f542982ff876a7bd479, type: 3}
+  - id: meta.Dialog.Dialog2Button_TextOnly
+    label: Dialog2Button_TextOnly
+    kind: 15
+    prefab: {fileID: 9153064733881456275, guid: 5a98624edf56c594d8d93c3402245e80, type: 3}
+  - id: meta.DropDown.DropDown1LineTextOnly
+    label: DropDown1LineTextOnly
+    kind: 15
+    prefab: {fileID: 2837034783756666044, guid: 489d4be4aa493224a81def86c2f706b4, type: 3}
+  - id: meta.DropDown.DropDownIconAnd1LineText
+    label: DropDownIconAnd1LineText
+    kind: 15
+    prefab: {fileID: 4998204609446060958, guid: baff30a35e969d445a7525cace3be1e4, type: 3}
+  - id: meta.DropDown.DropDownIconAnd2LineText
+    label: DropDownIconAnd2LineText
+    kind: 15
+    prefab: {fileID: 4681862825224447075, guid: 7119a9d21d80c3743bd47bf6d0aa2b8b, type: 3}
+  - id: meta.Slider.LargeSlider
+    label: LargeSlider
+    kind: 15
+    prefab: {fileID: 8101560521718533716, guid: 4872c0fe39dda7941a7bc85fa2c9af16, type: 3}
+  - id: meta.Slider.LargeSlider_LabelsAndIcons
+    label: LargeSlider_LabelsAndIcons
+    kind: 15
+    prefab: {fileID: 3634712878193884071, guid: 26f4ebef46557d443aa5faf2a32711c2, type: 3}
+  - id: meta.Slider.MediumSlider
+    label: MediumSlider
+    kind: 15
+    prefab: {fileID: 9107191726271971607, guid: 60baedd9cb4e7b644b0cd0c793d8bc7a, type: 3}
+  - id: meta.Slider.MediumSliderWithLabelsAndIcons
+    label: MediumSliderWithLabelsAndIcons
+    kind: 15
+    prefab: {fileID: 4245258490321066056, guid: 21c4ef6c5c33bfd4f90f7b2201d9c029, type: 3}
+  - id: meta.Slider.SmallSlider
+    label: SmallSlider
+    kind: 15
+    prefab: {fileID: 792053442815964158, guid: 78b41175092d74a4c80ef9713c38b24a, type: 3}
+  - id: meta.Slider.SmallSlider_LabelsAndIcons
+    label: SmallSlider_LabelsAndIcons
+    kind: 15
+    prefab: {fileID: 5898953282668774849, guid: ab9e0a62c7bd05742b82217187604b90, type: 3}
+  - id: meta.TextInputField.SearchBar
+    label: SearchBar
+    kind: 15
+    prefab: {fileID: 1121483479912025239, guid: 5ddd833ecd00ce04f8de4e62992cab33, type: 3}
+  - id: meta.TextInputField.TextInputField
+    label: TextInputField
+    kind: 15
+    prefab: {fileID: 4455134864908159571, guid: ac2e09824bbe6da42bff68e86401d411, type: 3}
+  - id: meta.Tooltip.Tooltip
+    label: Tooltip
+    kind: 15
+    prefab: {fileID: 9018196962972663214, guid: 51ba61fa774ccd14fb1f3743d17109a4, type: 3}

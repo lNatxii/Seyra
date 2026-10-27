@@ -10,7 +10,7 @@ The scene MCP exposes `set_appearance` (OpenCode: `seyra_set_appearance`). The e
 }
 ```
 
-`scene_get` and the mutation result return `appearance: { style, color }`. All four channels are required, finite sRGB values in [0,1]. The schema and Unity independently reject unknown styles, extra fields, missing channels and invalid alpha. The mutation requires a live managed primitive below Generated, not an external renderer, container, root or deleted object.
+`scene_get` and the mutation result return `appearance: { style, color }` and `appearanceIntact`. A false integrity flag means the stored managed values no longer describe an unmodified supported material. All four channels are required, finite sRGB values in [0,1]. The schema and Unity independently reject unknown styles, extra fields, missing channels and invalid alpha. The mutation requires a live managed primitive below Generated, not an external renderer, container, root or deleted object.
 
 | style | Shader | Alpha | Lighting |
 | --- | --- | --- | --- |
@@ -52,3 +52,9 @@ unity command script run --file C:\Proyectos\Seyra\Backend\bridge\test-support\R
 `AppearanceChecks` uses an isolated generated root and temporary slots. `RunUnityIntegration` exercises the actual MCP stdio/WebSocket/runtime circuit, including appearance and persistence, on port 4101.
 
 Exit Play Mode before `AppearanceAssets.BuildAndroidShaders`. That fixture builds a strict Android shader asset bundle in `.utmp/appearance-android` using the project's configured graphics APIs; it does not install a player or validate device rendering. `AppearanceAssets.CreateMaterials` recreates missing material assets without overwriting existing ones.
+
+## Panel persistence compatibility
+
+New scene saves use format v4, which retains this appearance contract and reads v1/v2/v3 files. Panels and labels use a separate semantic content field and do not accept set_appearance. See [panels and format v4](PANELS.md).
+
+Phase 3 adds twelve semantic presentations and persisted local interaction through the same scene service. See [presentation contracts](PRESENTATIONS.md).

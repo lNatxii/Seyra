@@ -1,0 +1,207 @@
+using Seyra.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace Seyra.Voice
+{
+    /// <summary>
+    /// Push-to-talk button for XR: hold while speaking, releases to transcribe and submit to chat.
+    /// Uses native Meta Voice SDK dictation.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public sealed class PushToTalkButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+    {
+        [SerializeField] SeyraSpatialChatWindow chat;
+        [SerializeField] VoiceDictation dictation;
+        [SerializeField] TMP_Text label;
+        [SerializeField] Image background;
+        [SerializeField] Color idleColor = new Color(0.22f, 0.28f, 0.38f, 1f);
+        [SerializeField] Color listeningColor = new Color(0.85f, 0.25f, 0.25f, 1f);
+        [SerializeField] Color processingColor = new Color(0.85f, 0.65f, 0.15f, 1f);
+        [SerializeField] Color unavailableColor = new Color(0.20f, 0.22f, 0.25f, 0.6f);
+
+        bool pressed;
+        string notice = "";
+
+        public VoiceDictation Dictation => dictation;
+        public bool IsPressed => pressed;
+
+        public void Bind(SeyraSpatialChatWindow chatWindow, VoiceDictation voiceDictation)
+        {
+            if (dictation != null) UnbindEvents();
+            chat = chatWindow;
+            dictation = voiceDictation;
+            if (dictation != null && isActiveAndEnabled)
+            {
+                BindEvents();
+                Refresh();
+            }
+        }
+
+        void Awake()
+        {
+            if (chat == null) chat = GetComponentInParent<SeyraSpatialChatWindow>();
+            if (dictation == null) dictation = GetComponentInParent<VoiceDictation>();
+            if (background == null) background = GetComponent<Image>();
+        }
+
+        void OnEnable()
+        {
+            BindEvents();
+            Refresh();
+        }
+
+        void OnDisable()
+        {
+            pressed = false;
+            if (dictation != null && dictation.Busy) dictation.Cancel();
+            UnbindEvents();
+        }
+
+        void BindEvents()
+        {
+            if (dictation == null) return;
+            dictation.Changed += Refresh;
+            dictation.Final += OnFinalTranscription;
+            dictation.Failed += OnDictationFailed;
+            dictation.Partial += OnPartialTranscription;
+        }
+
+        void UnbindEvents()
+        {
+            if (dictation == null) return;
+            dictation.Changed -= Refresh;
+            dictation.Final -= OnFinalTranscription;
+            dictation.Failed -= OnDictationFailed;
+            dictation.Partial -= OnPartialTranscription;
+        }
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (pressed || (eventData != null && eventData.button != PointerEventData.InputButton.Left)) return;
+            StartDictation();
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            if (!pressed || (eventData != null && eventData.button != PointerEventData.InputButton.Left)) return;
+            StopDictation();
+        }
+
+        public void SimulatePress(bool down)
+        {
+            if (down) StartDictation();
+            else StopDictation();
+        }
+
+        void StartDictation()
+        {
+            notice = "";
+            if (dictation == null)
+            {
+                notice = "No se ha configurado el servicio de dictado.";
+                chat?.SetVoiceHint(notice);
+                Refresh();
+                return;
+            }
+
+            if (!dictation.Available || dictation.Busy || (chat != null && !chat.CanSend))
+            {
+                Refresh();
+                return;
+            }
+
+            pressed = true;
+            dictation.Begin();
+            Refresh();
+        }
+
+        void StopDictation()
+        {
+            pressed = false;
+            if (dictation != null)
+                dictation.End();
+            Refresh();
+        }
+
+        void OnPartialTranscription(string text)
+        {
+            if (chat != null)
+            {
+                chat.SetTranscription(text);
+                chat.SetVoiceHint(VoiceDictation.ListeningText);
+            }
+        }
+
+        void OnFinalTranscription(string text)
+        {
+            if (chat != null)
+            {
+                chat.SetTranscription(text);
+                if (chat.Submit(text))
+                {
+                    chat.SetTranscription("");
+                    notice = "Mensaje enviado · Mantén pulsado para hablar";
+                }
+                else
+                {
+                    notice = chat.IsConnected
+                        ? "Transcripción sin enviar · Espera a que termine el turno"
+                        : "Transcripción sin enviar · Conecta con OpenCode para enviar";
+                }
+                chat.SetVoiceHint(notice);
+            }
+            Refresh();
+        }
+
+        void OnDictationFailed(string message)
+        {
+            notice = "Voz: " + message;
+            chat?.SetVoiceHint(notice);
+            Refresh();
+        }
+
+        void Refresh()
+        {
+            if (dictation != null && dictation.Busy)
+            {
+                chat?.SetTranscription(dictation.Transcription);
+                chat?.SetVoiceHint(dictation.Status);
+            }
+
+            if (background != null)
+            {
+                if (dictation == null || !dictation.Available)
+                    background.color = unavailableColor;
+                else if (dictation.Listening)
+                    background.color = listeningColor;
+                else if (dictation.Busy)
+                    background.color = processingColor;
+                else
+                    background.color = idleColor;
+            }
+
+            if (label != null)
+            {
+                if (dictation == null || !dictation.Available)
+                    label.text = "Mic";
+                else if (dictation.Listening)
+                    label.text = "Escuchando…";
+                else if (dictation.Busy)
+                    label.text = "Transcribiendo…";
+                else
+                    label.text = "Hablar";
+            }
+        }
+
+        void OnApplicationFocus(bool focused)
+        {
+            if (focused || !pressed) return;
+            pressed = false;
+            dictation?.Cancel();
+            Refresh();
+        }
+    }
+}
