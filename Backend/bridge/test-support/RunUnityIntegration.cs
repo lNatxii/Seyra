@@ -10,7 +10,9 @@ using UnityEngine;
 // Isolates test IDs, objects and WebSocket from an already-running chat/runtime.
 public static class RunUnityIntegration
 {
-    public static async Task<string> Run()
+    public static Task<string> Run()=>RunCore(false,"node");
+    public static Task<string> RunRoom(string nodeExecutable="node")=>RunCore(true,nodeExecutable);
+    static async Task<string> RunCore(bool withRoom,string nodeExecutable)
     {
         if(!Application.isPlaying)throw new InvalidOperationException("Run in Play Mode.");
         var runtime=UnityEngine.Object.FindFirstObjectByType<SeyraSceneRuntime>();
@@ -31,11 +33,24 @@ public static class RunUnityIntegration
         EditorApplication.update+=Pump;
         bridge.Start("ws://127.0.0.1:4101");
         var directory=Path.GetFullPath(Path.Combine(Application.dataPath,"../../Backend/bridge"));
-        var start=new ProcessStartInfo("node","test-unity.mjs") {WorkingDirectory=directory,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+        var start=new ProcessStartInfo(nodeExecutable,"test-unity.mjs") {WorkingDirectory=directory,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
         start.EnvironmentVariables["SEYRA_UNITY_PORT"]="4101";
         Process process=null;
+        GameObject testHead=null;
+        var roomContext=UnityEngine.Object.FindFirstObjectByType<Seyra.Spatial.RoomContext>();
+        var originalViewer=roomContext!=null?roomContext.Viewer:null;
         try
         {
+            if(withRoom)
+            {
+                if(roomContext==null)throw new InvalidOperationException("Configure room support first.");
+                Application.runInBackground=true;
+                testHead=new GameObject("__IntegrationRoomViewer");testHead.transform.position=new Vector3(0,1.5f,0);
+                var roomPrefab=AssetDatabase.LoadAssetAtPath<GameObject>("Packages/com.meta.xr.mrutilitykit/Core/Rooms/Prefabs/Office/Office00.prefab");
+                await roomContext.LoadTestRoomAsync(roomPrefab,testHead.transform);
+                if(roomContext.Snapshot.State!=Seyra.Spatial.RoomState.Ready)throw new Exception(roomContext.Diagnostic);
+                start.EnvironmentVariables["SEYRA_TEST_ROOM"]="1";
+            }
             process=Process.Start(start);
             var output=process.StandardOutput.ReadToEndAsync();
             var errors=process.StandardError.ReadToEndAsync();
@@ -53,6 +68,7 @@ public static class RunUnityIntegration
         {
             EditorApplication.update-=Pump;
             if(process!=null){if(!process.HasExited)process.Kill();process.Dispose();}
+            if(testHead!=null){roomContext.Configure(Meta.XR.MRUtilityKit.MRUK.Instance,originalViewer);UnityEngine.Object.DestroyImmediate(testHead);}
             UnityEngine.Object.DestroyImmediate(root);
             if(Directory.Exists(storage)){foreach(var file in Directory.EnumerateFiles(storage))File.Delete(file);Directory.Delete(storage);}
         }

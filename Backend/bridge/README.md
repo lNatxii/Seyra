@@ -6,6 +6,7 @@ OpenCode inicia `node dist/index.js` por stdio. El bridge escucha un único runt
 | --- | --- |
 | `scene_hierarchy` | Jerarquía completa de escenas cargadas, incluidos inactivos y DontDestroyOnLoad. |
 | `scene_find` | Búsqueda por nombre, ruta y/o tipo de componente. |
+| `room_get` / `room_objects` | Captured room state and bounded inventory; [spatial contract](SPATIAL.md). |
 | `scene_get` | Identidad, Transform y componentes paginados con sus GUID. |
 | `create_gameobject` | GameObject vacío con padre y Transform local explícitos. |
 | `create_primitive` | Cubo, esfera, cápsula, cilindro, plano o quad con el mismo contrato de creación. |
@@ -22,7 +23,7 @@ En OpenCode se exponen con prefijo `seyra_`, cubierto por `seyra_*: allow`, sin 
 
 ## Identidad y jerarquía
 
-Dimensiones y colocación relativa: `scene_bounds` consulta la envolvente global del subárbol completo; `place_relative` coloca contenido gestionado con separación explícita sobre los seis ejes globales. Incluye contenedores y rectángulos de UI world space, con historial y persistencia de la pose. [Contrato y pruebas](BOUNDS.md).
+Dimensiones y colocación relativa: `scene_bounds` consulta la envolvente global del subárbol completo; `place_relative` coloca contenido gestionado con separación explícita sobre los seis ejes globales. Incluye contenedores y rectángulos de UI world space, con historial y persistencia de la pose. [Contrato y pruebas](BOUNDS.md). Optional room/viewer frames and orientation follow [SPATIAL.md](SPATIAL.md).
 
 `GeneratedObject` identifica los objetos gestionados con un GUID y su procedencia (vacío, primitiva o contenedor de petición). Su `entityId` se conserva al renombrar, reubicar, eliminar recuperablemente, restaurar y guardar/cargar. Para conservarlo entre ejecuciones hay que guardar y cargar un slot; no hay autoguardado ni carga automática. Los objetos externos y los `componentId` siguen teniendo identidad de runtime. `runtimeId` cambia al reiniciar el servicio; al cargar se reconstruyen componentes con nuevos IDs. No son GUID de assets ni IDs persistentes de Editor. Los nombres/rutas pueden repetirse; las búsquedas devuelven cada candidato.
 

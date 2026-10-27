@@ -18,7 +18,22 @@ test('schema, agent permissions and parent contract', async()=>{
   assert.deepEqual(Object.keys(config.agents),['seyra','seyra_deepseek']);
   const {model,...deepseek}=config.agents.seyra_deepseek;
   assert.equal(model,'opencode/deepseek-v4.1-flash-free');assert.deepEqual(deepseek,config.agents.seyra);
-  assert.deepEqual(config.agents.seyra.permissions,[{action:'*',resource:'*',effect:'ask'},{action:'seyra_*',resource:'*',effect:'allow'},{action:'websearch',resource:'*',effect:'allow'},{action:'grep',resource:'*',effect:'allow'},{action:'glob',resource:'*',effect:'allow'},{action:'read',resource:'*',effect:'allow'}]);
+  const permissions=config.agents.seyra.permissions;
+  assert.deepEqual(permissions,[
+    {action:'*',resource:'*',effect:'deny'},
+    {action:'seyra_*',resource:'*',effect:'allow'},
+    {action:'websearch',resource:'*',effect:'allow'},
+    {action:'webfetch',resource:'*',effect:'allow'},
+    {action:'read',resource:'*',effect:'allow'},
+    {action:'grep',resource:'*',effect:'allow'},
+    {action:'read',resource:'*.env',effect:'deny'},
+    {action:'read',resource:'*.env.*',effect:'deny'},
+    {action:'grep',resource:'*.env',effect:'deny'},
+    {action:'grep',resource:'*.env.*',effect:'deny'},
+    {action:'external_directory',resource:'{env:USERPROFILE}/.local/share/opencode/tool-output/*',effect:'allow'}
+  ]);
+  assert.deepEqual(permissions[0],{action:'*',resource:'*',effect:'deny'});
+  assert.equal(permissions.some(rule=>rule.effect==='ask'),false);
   const schema=tools.find(t=>t.name==='create_gameobject').schema;
   const args={name:'Box',parentId:'Generated',position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0},scale:{x:1,y:1,z:1}};
   for(const invalid of [null,'null','NULL','', '   '])assert.equal(schema.safeParse({...args,parentId:invalid}).success,false);

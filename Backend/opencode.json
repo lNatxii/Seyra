@@ -29,7 +29,7 @@
         {
           "action": "*",
           "resource": "*",
-          "effect": "ask"
+          "effect": "deny"
         },
         {
           "action": "seyra_*",
@@ -42,18 +42,43 @@
           "effect": "allow"
         },
         {
-          "action": "grep",
-          "resource": "*",
-          "effect": "allow"
-        },
-        {
-          "action": "glob",
+          "action": "webfetch",
           "resource": "*",
           "effect": "allow"
         },
         {
           "action": "read",
           "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "external_directory",
+          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
           "effect": "allow"
         }
       ],
@@ -66,7 +91,7 @@
         {
           "action": "*",
           "resource": "*",
-          "effect": "ask"
+          "effect": "deny"
         },
         {
           "action": "seyra_*",
@@ -79,18 +104,43 @@
           "effect": "allow"
         },
         {
-          "action": "grep",
-          "resource": "*",
-          "effect": "allow"
-        },
-        {
-          "action": "glob",
+          "action": "webfetch",
           "resource": "*",
           "effect": "allow"
         },
         {
           "action": "read",
           "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "external_directory",
+          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
           "effect": "allow"
         }
       ],

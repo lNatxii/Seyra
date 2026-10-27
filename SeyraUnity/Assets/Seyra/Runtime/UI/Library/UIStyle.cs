@@ -89,7 +89,8 @@ namespace Seyra.UI.Library
                     originalSurfaceMaterial = null; controlsSurfaceMaterial = false;
                 }
                 if (meta != null && surfaceRole != UISurfaceRole.None)
-                    image.color = surfaceRole == UISurfaceRole.Subtle ? meta.sectionPlateColor : meta.backplateColor;
+                    image.color = surfaceRole == UISurfaceRole.Subtle || surfaceRole == UISurfaceRole.Field
+                        ? meta.sectionPlateColor : meta.backplateColor;
             }
             if (selectable != null && surfaceRole != UISurfaceRole.None)
             {

@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Seyra.Voice
 {
     /// <summary>
-    /// Push-to-talk button for XR: hold while speaking, releases to transcribe and submit to chat.
+    /// Push-to-talk button for XR: hold while speaking, releases to transcribe into a chat draft.
     /// Uses native Meta Voice SDK dictation.
     /// </summary>
     [DisallowMultipleComponent]
@@ -57,6 +57,7 @@ namespace Seyra.Voice
         {
             pressed = false;
             if (dictation != null && dictation.Busy) dictation.Cancel();
+            chat?.CancelDictationPreview();
             UnbindEvents();
         }
 
@@ -107,14 +108,16 @@ namespace Seyra.Voice
                 return;
             }
 
-            if (!dictation.Available || dictation.Busy || (chat != null && !chat.CanSend))
+            if (!dictation.Available || dictation.Busy)
             {
                 Refresh();
                 return;
             }
 
             pressed = true;
+            chat?.BeginDictationPreview();
             dictation.Begin();
+            if (!dictation.Busy) chat?.CancelDictationPreview();
             Refresh();
         }
 
@@ -130,7 +133,7 @@ namespace Seyra.Voice
         {
             if (chat != null)
             {
-                chat.SetTranscription(text);
+                chat.UpdateDictationPreview(text);
                 chat.SetVoiceHint(VoiceDictation.ListeningText);
             }
         }
@@ -139,18 +142,12 @@ namespace Seyra.Voice
         {
             if (chat != null)
             {
-                chat.SetTranscription(text);
-                if (chat.Submit(text))
-                {
-                    chat.SetTranscription("");
-                    notice = "Mensaje enviado · Mantén pulsado para hablar";
-                }
-                else
-                {
-                    notice = chat.IsConnected
-                        ? "Transcripción sin enviar · Espera a que termine el turno"
-                        : "Transcripción sin enviar · Conecta con OpenCode para enviar";
-                }
+                chat.CommitDictation(text);
+                notice = "Revisa el texto y pulsa Enviar";
+                if (!chat.CanSend)
+                    notice += chat.IsConnected
+                        ? " · Enviar estará disponible al terminar el turno"
+                        : " · Conecta con OpenCode para enviar";
                 chat.SetVoiceHint(notice);
             }
             Refresh();
@@ -158,16 +155,22 @@ namespace Seyra.Voice
 
         void OnDictationFailed(string message)
         {
+            chat?.CancelDictationPreview();
             notice = "Voz: " + message;
             chat?.SetVoiceHint(notice);
             Refresh();
+        }
+
+        void Update()
+        {
+            // Empty results and service cancellation have no Final event.
+            if (dictation != null && !dictation.Busy) chat?.CancelDictationPreview();
         }
 
         void Refresh()
         {
             if (dictation != null && dictation.Busy)
             {
-                chat?.SetTranscription(dictation.Transcription);
                 chat?.SetVoiceHint(dictation.Status);
             }
 
@@ -198,9 +201,10 @@ namespace Seyra.Voice
 
         void OnApplicationFocus(bool focused)
         {
-            if (focused || !pressed) return;
+            if (focused) return;
             pressed = false;
             dictation?.Cancel();
+            chat?.CancelDictationPreview();
             Refresh();
         }
     }

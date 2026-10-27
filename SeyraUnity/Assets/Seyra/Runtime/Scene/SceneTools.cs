@@ -22,7 +22,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
@@ -57,13 +57,14 @@ namespace Seyra.SceneTools
                     throw new InvalidOperationException("Expired command: it was not executed. Inspect the state before continuing.");
                 if (!Application.isPlaying) throw new InvalidOperationException("Only available in Play Mode.");
                 if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Mutation limit reached; restart Play Mode.");
+                ProtectRoomMutation(tool,args);
                 response["data"] = ExecuteRecorded(tool,args);
                 response["success"] = true;
             }
             catch (Exception error)
             {
                 response["success"] = false;
-                response["error"] = new JObject { ["code"] = error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+                response["error"] = new JObject { ["code"] = error is RoomToolException roomError ? roomError.Code : error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
             }
             var result = response.ToString(Formatting.None);
             if (!queries.Contains(tool) && !completed.ContainsKey(requestId) && completed.Count < 4096) completed[requestId] = (signature,result);
@@ -115,6 +116,7 @@ namespace Seyra.SceneTools
             return new JObject { ["entityId"]=Id(go), ["name"]=go.name, ["path"]=Path(t), ["sceneId"]=SceneId(go.scene),
                 ["parentId"]=t.parent!=null ? Id(t.parent.gameObject) : SceneId(go.scene), ["depth"]=depth,
                 ["siblingIndex"]=t.GetSiblingIndex(), ["childCount"]=t.Cast<Transform>().Count(c=>c!=trash), ["activeSelf"]=go.activeSelf,
+                ["physical"]=PhysicalNode(go),["readOnly"]=PhysicalNode(go),["physicalId"]=go.GetComponent<Meta.XR.MRUtilityKit.MRUKAnchor>() is Meta.XR.MRUtilityKit.MRUKAnchor anchor ? "physical:"+anchor.Anchor.Uuid : null,
                 ["managed"]=record!=null,["requestGroupId"]=record==null?null:record.RequestGroupId,["deleted"]=IsDeleted(go),
                 ["activeInHierarchy"]=go.activeInHierarchy, ["tag"]=go.tag, ["layer"]=go.layer };
         }
@@ -268,6 +270,8 @@ namespace Seyra.SceneTools
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
             if(tool=="create_panel")return CreatePanel(args);
             if(tool=="update_panel")return UpdatePanel(args);
+            if(tool=="room_get")return RoomInfo(args);
+            if(tool=="room_objects")return RoomObjects(args);
             if(tool=="scene_bounds")return GetBounds(args);
             if(tool=="place_relative")return PlaceRelative(args);
             if(tool=="scene_hierarchy" || tool=="scene_find") return Hierarchy(args,tool=="scene_find");

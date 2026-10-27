@@ -42,6 +42,16 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** ninguna. Es el siguiente trabajo recomendado.
 
+### 01b. Superficie de herramientas cerrada para los perfiles Seyra
+
+**Estado:** Completed · Pendiente de revisión. Lista blanca validada con OpenCode real en ambos perfiles mediante GLM, lectura env denegada y salida truncada permitida con excepción acotada. Recorrido Allende completado en Unity sin execute, question ni permisos. Repetición con modelo DeepSeek pendiente por HTTP 429 de cuota. [Implementación y evidencias](Progress/Completed/01b-agent-tool-allowlist.md).
+
+**Entrega:** los perfiles `seyra` y `seyra_deepseek` pasan a lista blanca con `* deny` como primera regla: solo ven `seyra_*`, `websearch`, `webfetch` y `read`/`grep` para salidas truncadas, con `*.env` y `*.env.*` denegados. Desaparecen para el asistente el Code Mode (`execute`), los MCP heredados de la configuración global (`metavr`), `shell`, `question` y las skills.
+
+**Aceptación:** `execute` no está disponible con el servidor real; un archivo `*.env.*` no se puede leer; el recorrido real «libros de Isabel Allende» se completa sin `execute`, `question` ni peticiones de permiso; ambos perfiles conservan permisos idénticos.
+
+**Dependencias:** 01, 02.
+
 ### 02. Estado de ejecución, cancelación y continuidad del chat
 
 **Estado:** completado en el Editor el 27 de octubre de 2026. [Implementación, límites y pruebas](Progress/Completed/02-execution.md).
@@ -108,7 +118,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06b. Compositor por voz: dictado a borrador y envío explícito
 
-**Estado:** diseño listo. [Diseño](Progress/InProgress/06b-voice-draft-composer.md).
+**Estado:** Completed · Pendiente de revisión. Compositor de solo voz con borrador de solo lectura y envío explícito, validado en el Editor el 27 de octubre de 2026: 11 grupos de chat espacial y 15 de regresión aprobados. Prueba manual con micrófono del PC confirmada por el usuario el 27 de octubre de 2026: al dictar dos veces antes de enviar se utiliza el segundo dictado. Pendiente la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06b-voice-draft-composer.md).
 
 **Entrega:** el compositor del chat espacial pasa a ser solo voz: la transcripción queda como borrador de solo lectura y se envía con Enviar. Sin envío automático tras dictar ni botón de borrar.
 
@@ -118,13 +128,23 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06c. Seguimiento perezoso del menú espacial
 
-**Estado:** diseño listo. [Diseño](Progress/InProgress/06c-menu-lazy-follow.md).
+**Estado:** Completed · Pendiente de revisión. Implementación validada en el Editor y funcionamiento manual confirmado por el usuario el 27 de octubre de 2026. Pendientes la validación física en visor (07) y la revisión del ajuste de amortiguación y su límite temporal. [Implementación, validación y limitaciones](Progress/Completed/06c-menu-lazy-follow.md).
 
 **Entrega:** componente de lazy follow propio para el menú (el SDK 207.0.1 no trae uno): zona cómoda bajo la mirada, movimiento amortiguado, respeto del agarre y de la posición elegida al soltar, y "Reubicar" que coloca chat y menú.
 
 **Aceptación:** el menú vuelve a su sitio tras girar o desplazarse, no se mueve con giros breves ni mientras se agarra; el chat no se mueve solo.
 
 **Dependencias:** 06. Base del seguimiento de 22d.
+
+### 06d. Ocultar el menú espacial cuando el chat está a la vista
+
+**Estado:** Completed · Pendiente de revisión. Validado en el Editor el 27 de octubre de 2026: 4 comprobaciones de visibilidad, 12 grupos de seguimiento y 11 de chat aprobados. Pendientes la prueba manual del usuario con Meta XR Simulator y la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06d-menu-hide-when-chat-visible.md).
+
+**Entrega:** el menú con seguimiento perezoso se oculta mientras el chat abierto está en la zona central de la vista y reaparece en su pose de reposo al apartar la mirada o cerrar el chat. Histéresis y retardos para evitar parpadeo; el seguimiento de 06c sigue activo mientras está oculto. El menú en la mano queda descartado en esta iteración.
+
+**Aceptación:** con el chat delante, el menú no se ve ni bloquea rayos hacia el chat; al girar o mirar al suelo reaparece en menos de 0,5 s; al cerrar el chat aparece de inmediato; mirar el borde del chat no lo hace parpadear.
+
+**Dependencias:** 06c. Se implementa en secuencia con 22c/22d (mismos prefabs y escena).
 
 ### 07. Conexión y ejecución verificadas en Quest
 
@@ -156,7 +176,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** diseño listo; pendiente de implementación por partes (22a contexto e inventario de la habitación, 22b colocación validada, 22c acople al soltar ventanas, 22d seguimiento del chat). [Diseño](Progress/InProgress/22-room-spatial-placement.md).
+**Estado:** 22a implementada y validada en Editor · Pendiente de revisión: contexto e inventario MRUK, referencias físicas de solo lectura, bounds y colocación relativa en marcos world/viewer/reference con orientación y deshacer. 570 comprobaciones de habitación, 5.165 de regresión de bounds y recorrido MCP real aprobados. Pendientes 22b colocación validada, 22c acople al soltar ventanas y 22d seguimiento del chat; validación física pendiente de 07. [Diseño](Progress/InProgress/22-room-spatial-placement.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
@@ -273,6 +293,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 - Una feature que modifica contenido generado debe declarar su comportamiento ante deshacer, eliminación y guardado/carga antes de cerrarse.
 - Confirmar el resultado del runtime antes de anunciar éxito. Los timeouts y desconexiones no autorizan a repetir mutaciones.
 - Mantener `seyra_*: allow`; el panel atiende permisos que solicite OpenCode, sin introducir aprobaciones nuevas en bridge o runtime. No atribuir bloqueos a un plan o proveedor sin comprobarlos.
+- Los perfiles Seyra usan lista blanca con `* deny` como primera regla. Ninguna herramienta heredada de la configuración global llega al asistente; añadir una herramienta no `seyra_*` es una decisión explícita que actualiza `opencode.json`, su test y el README del backend.
 - Mantener la equivalencia de capacidades y permisos entre perfiles existentes. La incorporación de Muse Spark requiere decidir explícitamente la configuración de proveedor/perfil.
 - UI con layouts, referencias serializadas y recursos compartidos. Reutilizar la biblioteca visual conservando sus referencias serializadas; mantener un único circuito de herramientas, historial y persistencia.
 - Pruebas técnicas en cada entrega y validación en dispositivo para funciones XR. Medir latencia, volumen de datos y recursos sobre casos de uso concretos; los objetivos cuantitativos se fijan con la primera medición, no con cifras inventadas.

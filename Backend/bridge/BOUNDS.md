@@ -1,5 +1,9 @@
 # World bounds and relative placement
 
+Optional physical references, `frame` and `orient` are documented in
+[SPATIAL.md](SPATIAL.md). The world-axis contract below remains the default;
+without those optional arguments existing calls keep their behavior.
+
 `scene_bounds({entityId})` queries a live object's entire subtree. It returns
 `entityId`, `runtimeId` and `bounds: {space:"world", kind:"aabb", center, size, min, max}`.
 Vectors use `{x,y,z}`. Dimensions and gaps use Unity world units (metres under the

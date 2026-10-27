@@ -101,6 +101,20 @@ namespace Seyra.Editor
                 var spatialChat = chatGo.GetComponent<SeyraSpatialChatWindow>();
                 var chatXrWindow = chatGo.GetComponent<UIXRWindow>();
                 var spatialMenu = menuGo.GetComponent<SeyraSpatialMenu>();
+                var follow = menuGo.GetComponent<SeyraLazyFollow>();
+                var visibility = menuGo.GetComponent<SeyraMenuVisibility>();
+                if (visibility != null)
+                {
+                    visibility.ChatWindow = chatXrWindow;
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(visibility);
+                }
+                if (follow != null)
+                {
+                    var serializedFollow = new SerializedObject(follow);
+                    serializedFollow.FindProperty("head").objectReferenceValue = SeyraLazyFollow.ResolveHead();
+                    serializedFollow.ApplyModifiedProperties();
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(follow);
+                }
                 if (spatialMenu != null)
                 {
                     var serializedMenu = new SerializedObject(spatialMenu);
@@ -170,7 +184,7 @@ namespace Seyra.Editor
             bannerLayout.spacing = 10;
             bannerLayout.childAlignment = TextAnchor.MiddleLeft;
 
-            var execLabel = CreateText(banner.transform, "ExecutionLabel", "<b>Listo</b> · Escribe un mensaje para empezar.", 15, FontStyles.Normal, new Color(0.85f, 0.9f, 0.95f), font);
+            var execLabel = CreateText(banner.transform, "ExecutionLabel", "<b>Listo</b> · Dicta un mensaje para empezar.", 15, FontStyles.Normal, new Color(0.85f, 0.9f, 0.95f), font);
             execLabel.GetComponent<LayoutElement>().flexibleWidth = 1;
 
             var cancelBtn = CreateButton(banner.transform, "CancelTurnButton", "Cancelar", 95, 34, new Color(0.42f, 0.18f, 0.15f), font, 14);
@@ -216,16 +230,33 @@ namespace Seyra.Editor
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // 5. Composer Row with Voice Push-to-Talk
-            var composer = CreateRow(content, "ComposerRow", 52);
+            var composer = CreateRow(content, "ComposerRow", 96);
             var compLayout = composer.GetComponent<HorizontalLayoutGroup>();
             compLayout.spacing = 8;
             compLayout.childAlignment = TextAnchor.MiddleLeft;
 
-            var inputObj = CreateInputField(composer.transform, "MessageInput", "Escribe o mantén Hablar para dictar…", font);
-            inputObj.GetComponent<LayoutElement>().flexibleWidth = 1;
-            var inputField = inputObj.GetComponent<TMP_InputField>();
+            var draftField = new GameObject("DraftField", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            draftField.transform.SetParent(composer.transform, false);
+            var draftSize = draftField.GetComponent<LayoutElement>();
+            draftSize.flexibleWidth = 1;
+            draftSize.minWidth = 220;
+            draftSize.minHeight = draftSize.preferredHeight = 96;
+            var draftScroll = CreateScrollView(draftField.transform, "DraftScroll", 0);
+            var draftRect = (RectTransform)draftScroll.transform;
+            draftRect.anchorMin = Vector2.zero;
+            draftRect.anchorMax = Vector2.one;
+            draftRect.offsetMin = new Vector2(16, 8);
+            draftRect.offsetMax = new Vector2(-16, -8);
+            var draftLayout = draftScroll.content.gameObject.AddComponent<VerticalLayoutGroup>();
+            draftLayout.childControlWidth = draftLayout.childControlHeight = true;
+            draftLayout.childForceExpandWidth = true;
+            draftLayout.childForceExpandHeight = false;
+            draftScroll.content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            var draftText = CreateText(draftScroll.content, "DraftText", "Mantén pulsado Hablar para dictar", 20, FontStyles.Normal, Color.white, font);
+            draftText.richText = false;
+            draftText.alignment = TextAlignmentOptions.TopLeft;
+            draftText.raycastTarget = false;
 
-            var clearBtn = CreateButton(composer.transform, "ClearButton", "✕", 36, 42, new Color(0.25f, 0.28f, 0.32f), font, 16);
             var voiceBtn = CreateButton(composer.transform, "PushToTalkButton", "Hablar", 110, 42, new Color(0.22f, 0.28f, 0.38f), font, 15);
             var sendBtn = CreateButton(composer.transform, "SendButton", "Enviar", 88, 42, new Color(0.12f, 0.48f, 0.35f), font, 16);
 
@@ -271,9 +302,9 @@ namespace Seyra.Editor
             serializedChat.FindProperty("conversationScroll").objectReferenceValue = convScroll;
             serializedChat.FindProperty("messagesContainer").objectReferenceValue = messagesContainer;
 
-            serializedChat.FindProperty("inputField").objectReferenceValue = inputField;
+            serializedChat.FindProperty("draftText").objectReferenceValue = draftText;
+            serializedChat.FindProperty("draftScroll").objectReferenceValue = draftScroll;
             serializedChat.FindProperty("sendButton").objectReferenceValue = sendBtn;
-            serializedChat.FindProperty("clearInputButton").objectReferenceValue = clearBtn;
             serializedChat.FindProperty("composerHintLabel").objectReferenceValue = voiceHintLabel;
 
             serializedChat.FindProperty("voiceDictation").objectReferenceValue = voiceDictation;
@@ -331,8 +362,30 @@ namespace Seyra.Editor
             var voiceBtn = CreateButton(controlsRow.transform, "VoiceButton", "🎙 Dictar", 120, 40, new Color(0.22f, 0.28f, 0.38f), font, 15);
             voiceBtn.GetComponent<LayoutElement>().flexibleWidth = 1;
 
+            var follow = menuGo.AddComponent<SeyraLazyFollow>();
+            var serializedFollow = new SerializedObject(follow);
+            serializedFollow.FindProperty("grabFrame").objectReferenceValue = xrWindow.GrabFrame;
+            serializedFollow.ApplyModifiedProperties();
+            var visibility = menuGo.AddComponent<SeyraMenuVisibility>();
+            var serializedVisibility = new SerializedObject(visibility);
+            serializedVisibility.FindProperty("follow").objectReferenceValue = follow;
+            var parts = serializedVisibility.FindProperty("visualParts");
+            parts.arraySize = menuGo.transform.childCount;
+            for (int i = 0; i < parts.arraySize; i++)
+                parts.GetArrayElementAtIndex(i).objectReferenceValue = menuGo.transform.GetChild(i).gameObject;
+            var behaviours = serializedVisibility.FindProperty("visualBehaviours");
+            var interaction = new Behaviour[] {
+                menuGo.GetComponent<Oculus.Interaction.PointableCanvas>(),
+                menuGo.GetComponent<Oculus.Interaction.RayInteractable>(),
+                menuGo.GetComponent<Oculus.Interaction.PokeInteractable>()
+            };
+            behaviours.arraySize = interaction.Length;
+            for (int i = 0; i < interaction.Length; i++)
+                behaviours.GetArrayElementAtIndex(i).objectReferenceValue = interaction[i];
+            serializedVisibility.ApplyModifiedProperties();
             var spatialMenu = menuGo.AddComponent<SeyraSpatialMenu>();
             var serializedMenu = new SerializedObject(spatialMenu);
+            serializedMenu.FindProperty("follow").objectReferenceValue = follow;
             serializedMenu.FindProperty("toggleChatButton").objectReferenceValue = toggleChatBtn;
             serializedMenu.FindProperty("toggleChatLabel").objectReferenceValue = toggleChatLabel;
             serializedMenu.FindProperty("recenterButton").objectReferenceValue = recenterBtn;
@@ -479,60 +532,5 @@ namespace Seyra.Editor
             return scroll;
         }
 
-        static GameObject CreateInputField(Transform parent, string name, string placeholder, TMP_FontAsset font)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(TMP_InputField), typeof(LayoutElement));
-            go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.color = new Color(0.08f, 0.10f, 0.12f, 0.9f);
-
-            var le = go.GetComponent<LayoutElement>();
-            le.preferredHeight = 44;
-
-            var textArea = new GameObject("TextArea", typeof(RectTransform), typeof(RectMask2D));
-            textArea.transform.SetParent(go.transform, false);
-            var taRect = (RectTransform)textArea.transform;
-            taRect.anchorMin = Vector2.zero;
-            taRect.anchorMax = Vector2.one;
-            taRect.offsetMin = new Vector2(10, 4);
-            taRect.offsetMax = new Vector2(-10, -4);
-
-            var phObj = new GameObject("Placeholder", typeof(RectTransform), typeof(TextMeshProUGUI));
-            phObj.transform.SetParent(textArea.transform, false);
-            var phRect = (RectTransform)phObj.transform;
-            phRect.anchorMin = Vector2.zero;
-            phRect.anchorMax = Vector2.one;
-            phRect.offsetMin = phRect.offsetMax = Vector2.zero;
-            var phText = phObj.GetComponent<TextMeshProUGUI>();
-            phText.text = placeholder;
-            phText.font = font;
-            phText.fontSize = 16;
-            phText.fontStyle = FontStyles.Italic;
-            phText.color = new Color(0.55f, 0.60f, 0.65f);
-            phText.alignment = TextAlignmentOptions.MidlineLeft;
-
-            var txtObj = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
-            txtObj.transform.SetParent(textArea.transform, false);
-            var txtRect = (RectTransform)txtObj.transform;
-            txtRect.anchorMin = Vector2.zero;
-            txtRect.anchorMax = Vector2.one;
-            txtRect.offsetMin = txtRect.offsetMax = Vector2.zero;
-            var textComp = txtObj.GetComponent<TextMeshProUGUI>();
-            textComp.font = font;
-            textComp.fontSize = 17;
-            textComp.color = Color.white;
-            textComp.alignment = TextAlignmentOptions.MidlineLeft;
-
-            var field = go.GetComponent<TMP_InputField>();
-            field.textViewport = taRect;
-            field.textComponent = textComp;
-            field.placeholder = phText;
-            field.fontAsset = font;
-            field.lineType = TMP_InputField.LineType.SingleLine;
-            field.characterLimit = 1000;
-            field.interactable = true;
-
-            return go;
-        }
     }
 }

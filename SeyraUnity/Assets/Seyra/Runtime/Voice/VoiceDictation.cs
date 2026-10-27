@@ -281,7 +281,7 @@ namespace Seyra.Voice
         void Stopped()
         {
             if (!accepting) return;
-            SetStatus(listening ? "Grabación detenida · Suelta para enviar" : Processing, Available);
+            SetStatus(listening ? "Grabación detenida · Suelta para terminar" : Processing, Available);
         }
 
         void Partially(string transcription)
@@ -300,7 +300,7 @@ namespace Seyra.Voice
             Transcription = finalText;
             Changed?.Invoke();
             if (listening)
-                SetStatus("Dictado terminado · Suelta para enviar", Available);
+                SetStatus("Dictado terminado · Suelta para terminar", Available);
             else
                 PublishFinal();
         }

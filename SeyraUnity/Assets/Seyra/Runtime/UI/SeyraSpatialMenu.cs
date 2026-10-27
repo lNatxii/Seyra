@@ -17,6 +17,7 @@ namespace Seyra.UI
         [Header("Target Spatial Chat")]
         [SerializeField] SeyraSpatialChatWindow chatWindow;
         [SerializeField] UIXRWindow chatXrWindow;
+        [SerializeField] SeyraLazyFollow follow;
 
         [Header("Controls")]
         [SerializeField] Button toggleChatButton;
@@ -49,6 +50,7 @@ namespace Seyra.UI
 
         void Awake()
         {
+            if (follow == null) follow = GetComponent<SeyraLazyFollow>();
             if (toggleChatButton != null) toggleChatButton.onClick.AddListener(OnToggleChatClicked);
             if (recenterButton != null) recenterButton.onClick.AddListener(OnRecenterClicked);
             if (voiceActionButton != null) voiceActionButton.onClick.AddListener(OnVoiceActionClicked);
@@ -99,21 +101,22 @@ namespace Seyra.UI
 
         public void OnRecenterClicked()
         {
+            if (follow == null) follow = GetComponent<SeyraLazyFollow>();
+            var head = SeyraLazyFollow.ResolveHead(follow != null ? follow.Head : null);
+            if (head == null || !float.IsFinite(head.position.sqrMagnitude)) return;
+            if (follow != null)
+            {
+                follow.ResetOffset();
+                follow.SnapToTarget();
+            }
             var target = chatXrWindow != null ? chatXrWindow.transform : (chatWindow != null ? chatWindow.transform : null);
             if (target == null) return;
 
-            var cam = Camera.main;
-            if (cam == null) cam = FindFirstObjectByType<Camera>();
-            if (cam == null) return;
-
             // Compute forward vector projected onto the horizontal plane to keep window upright
-            var forward = cam.transform.forward;
-            forward.y = 0;
-            if (forward.sqrMagnitude < 0.001f) forward = cam.transform.up;
-            forward.Normalize();
+            var forward = Quaternion.Euler(0, head.eulerAngles.y, 0) * Vector3.forward;
 
-            var newPos = cam.transform.position + forward * defaultDistance;
-            newPos.y = cam.transform.position.y + heightOffset;
+            var newPos = head.position + forward * defaultDistance;
+            newPos.y = head.position.y + heightOffset;
 
             target.position = newPos;
             target.rotation = Quaternion.LookRotation(forward, Vector3.up);

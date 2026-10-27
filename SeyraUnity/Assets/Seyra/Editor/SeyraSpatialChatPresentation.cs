@@ -27,12 +27,13 @@ namespace Seyra.Editor
             {
                 var role = text.name == "Title" || text.name == "MenuTitle" ? UITextRole.Heading :
                     text.name == "VoiceHintLabel" || text.name == "PermissionStatus" ? UITextRole.Help : UITextRole.Body;
-                var ink = text.name.Contains("Status") || text.name.Contains("Hint") || text.name == "ConnectionLabel" || text.name == "Placeholder"
+                var ink = text.name.Contains("Status") || text.name.Contains("Hint") || text.name == "ConnectionLabel" || text.name == "DraftText"
                     ? UIInkRole.Muted : UIInkRole.Text;
                 Get<UIStyle>(text.gameObject).Configure(theme, role, ink);
                 text.raycastTarget = false;
                 text.overflowMode = TextOverflowModes.Ellipsis;
                 text.enableWordWrapping = true;
+                if (text.name == "DraftText") text.overflowMode = TextOverflowModes.Overflow;
                 if (role == UITextRole.Heading)
                 {
                     var size = Get<UnityEngine.UI.LayoutElement>(text.gameObject);
@@ -50,7 +51,7 @@ namespace Seyra.Editor
                 Get<UIStyle>(button.gameObject).Configure(theme, surface: danger ? UISurfaceRole.Danger : UISurfaceRole.Primary);
                 var size = Get<UnityEngine.UI.LayoutElement>(button.gameObject);
                 size.minHeight = size.preferredHeight = theme.controlHeight;
-                bool compact = button.name == "ClearButton" || button.name == "CloseWindowButton";
+                bool compact = button.name == "CloseWindowButton";
                 size.minWidth = size.preferredWidth = compact ? 48 : button.name == "AllowButton" ? 216 :
                     button.name == "PushToTalkButton" ? 196 : button.name == "ReconnectButton" ? 160 :
                     button.name == "ToggleChatButton" ? 192 : 152;
@@ -101,16 +102,12 @@ namespace Seyra.Editor
                         padding: image.name == "PermissionPanel" ? UISpacing.Large : UISpacing.Standard, spacing: UISpacing.Small);
                     image.raycastTarget = false;
                 }
-                if (image.name == "MessageInput")
+                if (image.name == "DraftField")
                 {
                     Round(image, surface.material, 24);
-                    Get<UIStyle>(image.gameObject).Configure(theme, surface: UISurfaceRole.Field, size: UISizeRole.Control);
+                    Get<UIStyle>(image.gameObject).Configure(theme, surface: UISurfaceRole.Field);
                     image.GetComponent<UnityEngine.UI.LayoutElement>().minWidth = 220;
-                    image.GetComponent<TMP_InputField>().targetGraphic = image;
-                    var viewport = image.GetComponent<TMP_InputField>().textViewport;
-                    viewport.offsetMin = new Vector2(16, 8);
-                    viewport.offsetMax = new Vector2(-16, -8);
-                    ((TMP_Text)image.GetComponent<TMP_InputField>().placeholder).text = "Escribe un mensaje…";
+                    image.raycastTarget = true;
                 }
             }
 
@@ -122,7 +119,7 @@ namespace Seyra.Editor
                 row.childAlignment = TextAnchor.MiddleLeft;
                 row.spacing = theme.smallSpacing;
             }
-            SetHeight(root, "ComposerRow", 48);
+            SetHeight(root, "ComposerRow", 96);
             SetHeight(root, "ControlsRow", 48);
             SetHeight(root, "ExecutionBanner", 80);
             SetHeight(root, "PermissionPanel", 256);

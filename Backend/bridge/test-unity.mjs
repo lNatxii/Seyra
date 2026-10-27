@@ -13,16 +13,17 @@ function ok(result){assert.equal(result.success,true,JSON.stringify(result));ret
 const vector=(x=0,y=0,z=0)=>({x,y,z});
 try {
   await client.connect(transport);
+  const hierarchyPageSize=process.env.SEYRA_TEST_ROOM==='1'?500:2;
   let hierarchy;
   for(let i=0;i<12;i++){
-    hierarchy=await call('scene_hierarchy',{limit:2});
+    hierarchy=await call('scene_hierarchy',{limit:hierarchyPageSize});
     if(hierarchy.success)break;
     assert.equal(hierarchy.error.code,'UNITY_NOT_CONNECTED',JSON.stringify(hierarchy));
     await new Promise(r=>setTimeout(r,500));
   }
   const first=ok(hierarchy);assert.ok(first.runtimeId);assert.ok(first.generatedRootId);
   let nodes=[...first.nodes],offset=first.nextOffset;
-  while(offset!==null){const page=ok(await call('scene_hierarchy',{offset,limit:2,expectedRevision:first.revision}));nodes.push(...page.nodes);offset=page.nextOffset;}
+  while(offset!==null){const page=ok(await call('scene_hierarchy',{offset,limit:hierarchyPageSize,expectedRevision:first.revision}));nodes.push(...page.nodes);offset=page.nextOffset;}
   assert.equal(nodes.length,first.total);assert.equal(new Set(nodes.map(n=>n.entityId)).size,nodes.length);assert.ok(nodes.every(n=>typeof n.parentId==='string'));
   const generated=ok(await call('scene_get',{entityId:'Generated',componentLimit:1}));assert.equal(generated.entityId,first.generatedRootId);assert.equal(generated.components[0].type,'UnityEngine.Transform');assert.ok(generated.components[0].componentId.startsWith('cmp_'));
   const name='MCP_Test_'+Date.now();
@@ -62,6 +63,27 @@ try {
     ok(await call('undo',{scope:'operation',expectedOperationId:placed.operationId}));
     assert.deepEqual(ok(await call('scene_get',{entityId:primitive.entityId})).transform,read.transform);
     const foundPrimitive=ok(await call('scene_find',{rootId:parent.entityId,name:'Primitive_'+primitiveType,match:'exact',componentType:'MeshRenderer'}));assert.equal(foundPrimitive.total,1);
+  }
+  if(process.env.SEYRA_TEST_ROOM==='1') {
+    const room=ok(await call('room_get'));assert.equal(room.state,'Ready');assert.equal(room.simulated,true);assert.equal(room.geometryKnownOnly,true);
+    let inventory=[],pageOffset=0;
+    do {const page=ok(await call('room_objects',{offset:pageOffset,limit:2}));assert.equal(page.roomRevision,room.roomRevision);inventory.push(...page.objects);pageOffset=page.nextOffset;} while(pageOffset!==null);
+    assert.ok(inventory.some(o=>o.kind==='wall'));assert.ok(inventory.some(o=>o.kind==='object'));
+    const table=inventory.find(o=>o.kind==='tabletop');assert.ok(table);
+    const cube=ok(await call('create_primitive',{name:'RoomCube',primitiveType:'cube',parentId:parent.entityId,position:vector(),rotation:vector(),scale:vector(.1,.1,.1)}));
+    const placed=ok(await call('place_relative',{entityId:cube.entityId,referenceId:table.physicalId,direction:'above',gap:0}));
+    assert.ok(Math.abs(placed.bounds.min.y-placed.referenceBounds.max.y)<.0001);assert.equal(placed.simulated,true);
+    ok(await call('undo',{scope:'operation',expectedOperationId:placed.operationId}));
+    assert.deepEqual(ok(await call('scene_get',{entityId:cube.entityId})).transform,cube.transform);
+    assert.equal((await call('set_transform',{entityId:table.physicalId,space:'world',position:vector()})).error.code,'ROOM_READ_ONLY');
+    const wall=inventory.find(o=>o.kind==='wall');
+    const bounds=ok(await call('scene_bounds',{entityId:wall.physicalId,frame:'reference'}));assert.equal(bounds.bounds.kind,'frame_aligned_box');
+    const panel=ok(await call('create_panel',{name:'RoomPanel',parentId:parent.entityId,position:vector(0,1,2),rotation:vector(),scale:vector(1,1,1),panel:{version:1,kind:'panel',title:'Room orientation',text:'Readable side faces into the room',width:.8,height:.6,fontSize:24}}));
+    const mounted=ok(await call('place_relative',{entityId:panel.entityId,referenceId:wall.physicalId,direction:'front',gap:.03,frame:'reference',orient:'match_reference'}));
+    assert.ok(Math.abs(mounted.bounds.min.z-mounted.referenceBounds.max.z-.03)<.0001);assert.equal(mounted.panelIntact,true);
+    ok(await call('undo',{scope:'operation',expectedOperationId:mounted.operationId}));
+    assert.deepEqual(ok(await call('scene_get',{entityId:panel.entityId})).transform,panel.transform);
+    console.log(JSON.stringify({roomIntegration:true,references:inventory.length,roomRevision:room.roomRevision,checks:['captured inventory','physical bounds','table placement','wall panel orientation','undo','read-only MCP rejection']}));
   }
   const beforeInvalid=ok(await call('scene_hierarchy',{rootId:parent.entityId})).total;
   for(const invalid of [{primitiveType:'torus'},{parentId:null},{parentId:first.scenes[0].sceneId},{position:vector(Number.MAX_VALUE,0,0)}]){

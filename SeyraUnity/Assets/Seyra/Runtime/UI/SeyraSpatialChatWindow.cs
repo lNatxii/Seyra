@@ -15,7 +15,7 @@ namespace Seyra.UI
 {
     /// <summary>
     /// Spatial conversation window for XR, presenting chat history, turn status,
-    /// server permissions, activity rows, and text/voice input via Meta SDK Voice-to-Text.
+    /// server permissions, activity rows, and voice draft composition via Meta SDK Voice-to-Text.
     /// Operates inside a UIXRWindow and retains its session when hidden.
     /// </summary>
     public sealed class SeyraSpatialChatWindow : MonoBehaviour
@@ -55,9 +55,9 @@ namespace Seyra.UI
         [SerializeField] Material messageSurfaceMaterial;
 
         [Header("Composer & Controls")]
-        [SerializeField] TMP_InputField inputField;
+        [SerializeField] TMP_Text draftText;
+        [SerializeField] ScrollRect draftScroll;
         [SerializeField] Button sendButton;
-        [SerializeField] Button clearInputButton;
         [SerializeField] TMP_Text composerHintLabel;
 
         [Header("Voice Dictation & Push-to-Talk")]
@@ -70,7 +70,12 @@ namespace Seyra.UI
         float lastRuntimeCheck;
 
         public OpenCodeConversationSession Session => session;
-        public TMP_InputField InputField => inputField;
+        string draft = "";
+        string draftBeforeDictation = "";
+        string previewText = "";
+        bool draftScrollPending;
+        public string Draft => draft;
+        public bool IsDictating { get; private set; }
         public VoiceDictation Dictation => voiceDictation;
         public PushToTalkButton PushToTalk => pushToTalkButton;
         public bool IsConnected => session != null && session.IsConnected;
@@ -88,13 +93,66 @@ namespace Seyra.UI
             }
         }
 
-        public void SetTranscription(string text)
+        public void BeginDictationPreview()
         {
-            if (inputField != null)
+            if (IsDictating) return;
+            draftBeforeDictation = draft;
+            previewText = draft;
+            IsDictating = true;
+            RefreshDraft();
+        }
+
+        public void UpdateDictationPreview(string text)
+        {
+            if (!IsDictating) return;
+            previewText = text ?? "";
+            RefreshDraft();
+        }
+
+        public void CommitDictation(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) { CancelDictationPreview(); return; }
+            draft = text.Trim();
+            IsDictating = false;
+            RefreshDraft();
+        }
+
+        public void CancelDictationPreview()
+        {
+            if (!IsDictating) return;
+            draft = draftBeforeDictation;
+            IsDictating = false;
+            RefreshDraft();
+        }
+
+        public bool SendDraft()
+        {
+            if (IsDictating || !Submit(draft)) return false;
+            draft = "";
+            RefreshDraft();
+            return true;
+        }
+
+        void RefreshDraft()
+        {
+            var text = IsDictating ? previewText : draft;
+            if (draftText != null)
             {
-                inputField.text = text ?? "";
-                RefreshSendButtonState();
+                draftText.text = string.IsNullOrEmpty(text) ? "Mantén pulsado Hablar para dictar" : text;
+                var style = draftText.GetComponent<UIStyle>();
+                if (style != null) style.InkRole = IsDictating || string.IsNullOrEmpty(text) ? UIInkRole.Muted : UIInkRole.Text;
             }
+            draftScrollPending = true;
+            RefreshSendButtonState();
+        }
+
+        void LateUpdate()
+        {
+            if (!draftScrollPending || draftScroll == null) return;
+            draftScrollPending = false;
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(draftScroll.content);
+            draftScroll.verticalNormalizedPosition = 0f;
         }
 
         public void SetVoiceHint(string hint)
@@ -110,7 +168,6 @@ namespace Seyra.UI
             if (session == null || !session.CanSend) return false;
             var trimmed = text?.Trim();
             if (string.IsNullOrEmpty(trimmed)) return false;
-            if (inputField != null) inputField.text = "";
             RefreshSendButtonState();
             _ = session.SendPromptAsync(trimmed);
             return true;
@@ -121,17 +178,10 @@ namespace Seyra.UI
             if (reconnectButton != null) reconnectButton.onClick.AddListener(OnReconnectClicked);
             if (closeWindowButton != null) closeWindowButton.onClick.AddListener(OnCloseWindowClicked);
             if (sendButton != null) sendButton.onClick.AddListener(OnSendClicked);
-            if (clearInputButton != null) clearInputButton.onClick.AddListener(OnClearInputClicked);
             if (cancelButton != null) cancelButton.onClick.AddListener(OnCancelClicked);
             if (closeTurnButton != null) closeTurnButton.onClick.AddListener(OnCloseTurnClicked);
             if (allowPermissionButton != null) allowPermissionButton.onClick.AddListener(OnAllowPermissionClicked);
             if (rejectPermissionButton != null) rejectPermissionButton.onClick.AddListener(OnRejectPermissionClicked);
-
-            if (inputField != null)
-            {
-                inputField.onSubmit.AddListener(_ => OnSendClicked());
-                inputField.onValueChanged.AddListener(_ => RefreshSendButtonState());
-            }
 
             if (voiceDictation == null) voiceDictation = GetComponentInChildren<VoiceDictation>();
             if (pushToTalkButton == null) pushToTalkButton = GetComponentInChildren<PushToTalkButton>();
@@ -152,6 +202,7 @@ namespace Seyra.UI
             }
             RefreshControls();
             RefreshRuntimeStatus();
+            RefreshDraft();
             ScrollToBottom();
         }
 
@@ -299,8 +350,8 @@ namespace Seyra.UI
         void RefreshSendButtonState()
         {
             if (sendButton == null) return;
-            var hasText = !string.IsNullOrWhiteSpace(inputField != null ? inputField.text : "");
-            var canSend = session != null && session.CanSend && hasText;
+            var hasText = !string.IsNullOrWhiteSpace(draft);
+            var canSend = session != null && session.CanSend && hasText && !IsDictating;
             sendButton.interactable = canSend;
         }
 
@@ -391,7 +442,7 @@ namespace Seyra.UI
             var roleObj = new GameObject("Role", typeof(RectTransform), typeof(TextMeshProUGUI));
             roleObj.transform.SetParent(bubble.transform, false);
             var roleText = roleObj.GetComponent<TextMeshProUGUI>();
-            roleText.font = theme != null ? theme.font : inputField.textComponent.font;
+            roleText.font = theme != null ? theme.font : draftText != null ? draftText.font : TMP_Settings.defaultFontAsset;
             roleText.fontSize = theme != null ? theme.labelSize : 18;
             roleText.fontStyle = FontStyles.Bold;
             roleText.color = theme != null ? (isError ? theme.danger : theme.primary) : new Color(.1f, .34f, .29f);
@@ -448,21 +499,7 @@ namespace Seyra.UI
         // Actions
         void OnSendClicked()
         {
-            if (inputField == null || session == null || !session.CanSend) return;
-            var text = inputField.text.Trim();
-            if (string.IsNullOrEmpty(text)) return;
-            inputField.text = "";
-            RefreshSendButtonState();
-            _ = session.SendPromptAsync(text);
-        }
-
-        void OnClearInputClicked()
-        {
-            if (inputField != null)
-            {
-                inputField.text = "";
-                RefreshSendButtonState();
-            }
+            SendDraft();
         }
 
         void OnReconnectClicked()

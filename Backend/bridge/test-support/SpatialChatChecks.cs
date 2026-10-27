@@ -39,6 +39,21 @@ public static class SpatialChatChecks
 
     public static async Task<string> Run()
     {
+        var visibility = UnityEngine.Object.FindFirstObjectByType<SeyraMenuVisibility>();
+        bool autoHide = visibility != null && visibility.AutoHide;
+        try
+        {
+            if (visibility != null) visibility.AutoHide = false;
+            return await RunChecks();
+        }
+        finally
+        {
+            if (visibility != null) visibility.AutoHide = autoHide;
+        }
+    }
+
+    static async Task<string> RunChecks()
+    {
         Check(Application.isPlaying, "Play Mode is required for SpatialChatChecks.");
 
         chat = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
@@ -69,17 +84,15 @@ public static class SpatialChatChecks
         Check(menuXr.GrabFrame != null, "SpatialMenu must have UIMetaGrabFrame.");
         checks.Add("hierarchy, grab frame, millimeter canvas, and non-generated application isolation");
 
-        // 2. Prefab Button Wiring & Clear Button Check
-        var input = chat.InputField;
-        Check(input != null, "InputField is required on chat window.");
-        var clearBtn = Get<Button>(chat, "clearInputButton");
-        Check(clearBtn != null, "ClearInputButton is required.");
-
-        input.text = "Mensaje de prueba para borrar";
-        Check(input.text == "Mensaje de prueba para borrar", "Input text was not set.");
-        clearBtn.onClick.Invoke();
-        Check(input.text == "", "ClearInputButton onClick did not clear the input.");
-        checks.Add("prefab button connections and input field clearing");
+        // 2. Read-only draft composer structure
+        Check(chat.GetComponentsInChildren<TMP_InputField>(true).Length == 0, "Spatial composer must not contain an input field.");
+        var draftText = Get<TMP_Text>(chat, "draftText");
+        var sendBtn = Get<Button>(chat, "sendButton");
+        Check(draftText != null && draftText.name == "DraftText" && !draftText.richText, "Literal DraftText is required.");
+        Check(Get<ScrollRect>(chat, "draftScroll") != null, "Draft scroll is required.");
+        Check(!chat.GetComponentsInChildren<Transform>(true).Any(t => t.name == "ClearButton"), "ClearButton must not exist.");
+        Check(sendBtn != null && !sendBtn.interactable && chat.Draft == "", "Empty draft must disable Send.");
+        checks.Add("draft composer structure");
 
         // 3. Unified Environment Credentials Check
         Check(!string.IsNullOrEmpty(SeyraEnvironmentCredentials.OpenCodeServerPassword), "OpenCode password should be readable from .env.local.");
@@ -100,39 +113,82 @@ public static class SpatialChatChecks
 
         // 5. Connect against fixture (port 4202)
         fixture = new JsonHttpClient("http://127.0.0.1:4202");
-        chat.Session.Stop();
-        chat.Session.Configure("http://127.0.0.1:4202", "seyra");
-        chat.Session.Start();
+        chat.Session.Dispose();
+        var fixtureSession = new OpenCodeConversationSession();
+        fixtureSession.Configure("http://127.0.0.1:4202", "seyra");
+        chat.BindSession(fixtureSession);
+        fixtureSession.Start();
 
         await Wait(() => chat.Session.IsConnected, "Fixture connection");
         var session = chat.Session.SessionId;
         Check(!string.IsNullOrEmpty(session), "Session ID is null or empty.");
         checks.Add("fixture connection and v2 session creation");
 
-        // 6. Push-to-Talk Press Simulation and Voice Transcription Flow
-        Check(chat.CanSend, "Chat must be ready to send after fixture connection.");
+        // 6. Voice results remain drafts until the explicit Send action
+        Check(chat.CanSend, "Chat must be ready after fixture connection.");
+        var messageCount = chat.Session.Messages.Count;
+        chat.BeginDictationPreview();
+        chat.UpdateDictationPreview("Crear un");
+        Check(draftText.text == "Crear un" && chat.Draft == "" && !sendBtn.interactable, "Partial text must remain a preview.");
+        dictation.SimulateTranscriptionResult("complete");
+        Check(chat.Draft == "complete" && !chat.IsDictating && sendBtn.interactable, "Final transcription must commit a sendable draft.");
+        Check(chat.Session.Messages.Count == messageCount, "Dictation must not send a message.");
+        chat.BeginDictationPreview();
+        chat.UpdateDictationPreview("discarded");
+        Check(!chat.SendDraft(), "Send must reject an active preview.");
+        chat.CancelDictationPreview();
+        Check(chat.Draft == "complete" && draftText.text == "complete", "Cancellation must restore the previous draft.");
+        chat.BeginDictationPreview();
+        dictation.SimulateTranscriptionResult("   ");
+        await Wait(() => !chat.IsDictating, "Empty final preview restoration");
+        Check(chat.Draft == "complete" && draftText.text == "complete", "Empty final must preserve the previous draft.");
+        chat.BeginDictationPreview();
+        typeof(PushToTalkButton).GetMethod("OnDictationFailed", Flags).Invoke(ptt, new object[] { "Fixture failure" });
+        Check(chat.Draft == "complete" && !chat.IsDictating, "Voice failure must preserve the draft.");
+        chat.BeginDictationPreview();
+        typeof(PushToTalkButton).GetMethod("OnApplicationFocus", Flags).Invoke(ptt, new object[] { false });
+        Check(chat.Draft == "complete" && !chat.IsDictating, "Focus loss must restore the draft.");
+        sendBtn.onClick.Invoke();
+        sendBtn.onClick.Invoke();
+        await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Draft turn completion");
+        Check(chat.Session.Messages.Count(m => m.Role == "Tú" && m.Text == "complete") == 1, "Send must submit exactly once.");
+        Check(chat.Draft == "" && !sendBtn.interactable, "Successful send must clear the draft.");
+        Check(chat.Submit("hold"), "Programmatic turn submission failed.");
+        await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Running, "Running turn");
         ptt.SimulatePress(true);
-        Check(ptt.IsPressed, "PushToTalkButton press simulation failed.");
+        Check(ptt.IsPressed && chat.IsDictating, "Dictation must start during a running turn.");
+        dictation.SimulateTranscriptionResult("next draft");
         ptt.SimulatePress(false);
-        Check(!ptt.IsPressed, "PushToTalkButton release simulation failed.");
-
-        // Simulate live transcription updates
-        chat.SetTranscription("Crear un cilindro verde");
-        Check(input.text == "Crear un cilindro verde", "SetTranscription did not update input field: " + input.text);
-        input.text = "";
-
-        // Voice submit
-        bool submitted = chat.Submit("complete");
-        Check(submitted, "Submit failed while chat was ready.");
-        await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Voice turn completion");
-        Check(chat.Session.Messages.Any(m => m.Role == "Tú" && m.Text == "complete"), "Voice submitted prompt missing in messages.");
-        checks.Add("Push-to-Talk press/release, live transcription display, and voice prompt submission");
+        Check(chat.Draft == "next draft" && !sendBtn.interactable, "Running turn must retain a blocked draft.");
+        await fixture.RequestAsync("POST", "/test/control", new JObject { ["finish"] = true, ["session"] = session }, CancellationToken.None);
+        await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Held turn completion");
+        Check(sendBtn.interactable && chat.Draft == "next draft", "Finishing a turn must enable Send without changing the draft.");
+        chat.Session.Stop();
+        Check(!chat.Submit("rejected") && !chat.SendDraft() && chat.Draft == "next draft", "Disconnected sends must preserve the draft.");
+        chat.Session.Start();
+        await Wait(() => chat.CanSend, "Reconnect after rejected send");
+        chat.CommitDictation("first dictation");
+        chat.BeginDictationPreview();
+        dictation.SimulateTranscriptionResult("replacement");
+        Check(chat.Draft == "replacement", "A new final must replace the previous draft.");
+        var draftScroll = Get<ScrollRect>(chat, "draftScroll");
+        chat.CommitDictation(string.Join("\n", Enumerable.Repeat("Literal <b>draft</b> text", 12)));
+        await Task.Delay(100);
+        Canvas.ForceUpdateCanvases();
+        Check(draftScroll.content.rect.height > draftScroll.viewport.rect.height, "Long drafts must overflow into a scrollable region.");
+        Check(draftScroll.verticalNormalizedPosition < 0.01f, "Draft updates must scroll to the end.");
+        Check(!draftText.richText && draftText.text.Contains("<b>draft</b>"), "Draft markup must remain literal.");
+        var field = draftScroll.transform.parent.GetComponent<Image>();
+        var fieldStyle = field.GetComponent<UIStyle>();
+        Check(fieldStyle != null && fieldStyle.InkRole == UIInkRole.Text, "Draft field must retain its shared style.");
+        Check(draftText.color != field.color, "Draft text must be distinguishable from its field.");
+        chat.CommitDictation("replacement");
+        checks.Add("voice to draft without auto-send, failure restoration, duplicate send prevention, busy turns and disconnected sends");
 
         // 7. Real Button-Driven Turn Submission & Permission Flow
-        input.text = "permission";
-        var sendBtn = Get<Button>(chat, "sendButton");
+        chat.CommitDictation("permission");
         Check(sendBtn != null, "Send button not found.");
-        Check(sendBtn.interactable, "Send button not interactable after typing.");
+        Check(sendBtn.interactable, "Send button not interactable after committing a draft.");
         sendBtn.onClick.Invoke();
 
         Check(chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Sending ||
@@ -154,7 +210,7 @@ public static class SpatialChatChecks
         checks.Add("real send button click, permission panel display, allow once, tool summary and turn completion");
 
         // 8. Real Button-Driven Cancellation & Explicit Turn Closure
-        input.text = "cancel_permission";
+        chat.CommitDictation("cancel_permission");
         sendBtn.onClick.Invoke();
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.WaitingForPermission, "WaitingForPermission for cancel");
 

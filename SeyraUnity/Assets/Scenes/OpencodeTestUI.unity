@@ -1919,13 +1919,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d9317daae0adc94badde07c4403a979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Seyra.UI.OpenCodeTestChat
-  permissionPanel: {fileID: 860078593}
-  permissionHeading: {fileID: 1072164725}
-  permissionDetails: {fileID: 1325697050}
-  permissionStatus: {fileID: 1533583073}
-  allowPermissionButton: {fileID: 2025269631}
-  rejectPermissionButton: {fileID: 161965933}
-  permissionScroll: {fileID: 1414037986}
   serverUrl: http://127.0.0.1:4096
   agent: seyra_deepseek
   input: {fileID: 1889891577}
@@ -1933,11 +1926,18 @@ MonoBehaviour:
   reconnectButton: {fileID: 1412192599}
   connectionIndicator: {fileID: 1795050527}
   connectionLabel: {fileID: 1711594520}
-  conversation: {fileID: 870838823}
-  messageTemplate: {fileID: 11194895}
-  executionLabel: {fileID: 1156888204}
   cancelButton: {fileID: 2139398799}
   closeTurnButton: {fileID: 669512201}
+  executionLabel: {fileID: 1156888204}
+  conversation: {fileID: 870838823}
+  messageTemplate: {fileID: 11194895}
+  permissionPanel: {fileID: 860078593}
+  permissionHeading: {fileID: 1072164725}
+  permissionDetails: {fileID: 1325697050}
+  permissionStatus: {fileID: 1533583073}
+  allowPermissionButton: {fileID: 2025269631}
+  rejectPermissionButton: {fileID: 161965933}
+  permissionScroll: {fileID: 1414037986}
 --- !u!114 &692615735
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2436,6 +2436,52 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: 1
   m_LayoutPriority: 1
+--- !u!1 &1013735974
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1013735976}
+  - component: {fileID: 1013735975}
+  m_Layer: 0
+  m_Name: SeyraRoom
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1013735975
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1013735974}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15bdf127b03384b4eb9ec53d72658109, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Seyra.Spatial.RoomContext
+  roomProvider: {fileID: 1671202280}
+  viewer: {fileID: 0}
+--- !u!4 &1013735976
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1013735974}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1072164721
 GameObject:
   m_ObjectHideFlags: 0
@@ -4290,6 +4336,99 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1617247335}
   m_CullTransparentMesh: 1
+--- !u!1 &1671202279
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1671202281}
+  - component: {fileID: 1671202280}
+  m_Layer: 0
+  m_Name: MRUK
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1671202280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1671202279}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de27d7f2f20024e18898941292d6c164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: meta.xr.mrutilitykit::Meta.XR.MRUtilityKit.MRUK
+  <SceneLoadedEvent>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  <RoomCreatedEvent>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  <RoomUpdatedEvent>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  <RoomRemovedEvent>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  EnableWorldLock: 1
+  TrackingSpaceOffset:
+    e00: 1
+    e01: 0
+    e02: 0
+    e03: 0
+    e10: 0
+    e11: 1
+    e12: 0
+    e13: 0
+    e20: 0
+    e21: 0
+    e22: 1
+    e23: 0
+    e30: 0
+    e31: 0
+    e32: 0
+    e33: 1
+  SceneSettings:
+    <TrackerConfiguration>k__BackingField:
+      <KeyboardTrackingEnabled>k__BackingField: 0
+      <QRCodeTrackingEnabled>k__BackingField: 0
+    <TrackableAdded>k__BackingField:
+      m_PersistentCalls:
+        m_Calls: []
+    <TrackableRemoved>k__BackingField:
+      m_PersistentCalls:
+        m_Calls: []
+    DataSource: 0
+    RoomIndex: -1
+    RoomPrefabs: []
+    SceneJsons: []
+    LoadSceneOnStartup: 0
+    EnableHighFidelityScene: 0
+    SeatWidth: 0.6
+    SceneJson: 
+  _immersiveSceneDebuggerPrefab: {fileID: 0}
+--- !u!4 &1671202281
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1671202279}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1695251699
 GameObject:
   m_ObjectHideFlags: 0
@@ -5717,3 +5856,5 @@ SceneRoots:
   - {fileID: 1324897472}
   - {fileID: 174422901}
   - {fileID: 1238717006}
+  - {fileID: 1671202281}
+  - {fileID: 1013735976}
