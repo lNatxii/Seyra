@@ -14,13 +14,14 @@ cd Backend
 
 start.ps1 carga .env.local como datos, compila el bridge y arranca OpenCode en http://127.0.0.1:4096. OpenCode inicia el bridge por stdio; Unity conecta por WebSocket a localhost:4100. No arranques el bridge por separado durante el uso normal. Reinicia OpenCode tras modificar catálogo/configuración y reconecta el chat para crear una sesión nueva.
 
-.env.local está excluido de Git y requiere HELMCODE_API_KEY y OPENCODE_SERVER_PASSWORD. La contraseña HTTP es distinta de la clave de Helmcode. El script fija también OPENCODE_PASSWORD al mismo valor, evitando discrepancias con variables heredadas. No copies credenciales a Assets ni las publiques.
+.env.local está excluido de Git y requiere META_API_KEY (Meta Model API, dev.meta.ai) y OPENCODE_SERVER_PASSWORD. Añade tú la clave al archivo local del PC. Si solo existe MODEL_API_KEY, start.ps1 la copia a META_API_KEY en el proceso. HELMCODE_API_KEY es opcional: sin ella el script avisa y seyra_glm no funciona. La contraseña HTTP es distinta de las claves de proveedores. El script fija también OPENCODE_PASSWORD al mismo valor, evitando discrepancias con variables heredadas. No copies credenciales a Assets ni las publiques.
 
 La opción ./start.ps1 -Port 4097 cambia solo el puerto HTTP: no permite ejecutar dos bridges en 4100. Si existe otra instancia/servicio OpenCode, detén esa instancia antes de iniciar la nueva o configura otro puerto WebSocket en ambos extremos. Al mover el repo actualiza command y cwd del MCP en opencode.json.
 
 ## Perfiles y permisos
 
-- seyra hereda helmcode/glm5.3-flash, autenticado por HELMCODE_API_KEY.
+- seyra hereda meta/muse-spark-1.3 (Muse Spark) mediante Meta Model API, autenticado por META_API_KEY. Se declara el proveedor Responses explícitamente porque el catálogo integrado de opencode2 2.1.1 no lo expone en este entorno. Se conserva el esfuerzo de razonamiento por defecto, sin modo Contributor.
+- seyra_glm usa helmcode/glm5.3-flash, autenticado por HELMCODE_API_KEY.
 - seyra_deepseek usa opencode/deepseek-v4.1-flash-free.
 - seyra_zai usa zai-coding-plan/glm-5.3-flash, autenticado con `opencode auth login` (Z.AI Coding Plan); la credencial queda en el almacén de OpenCode, no en .env.local.
 
