@@ -166,6 +166,8 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 08. Muse Spark como proveedor utilizable
 
+**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Muse Spark configurado mediante proveedor Meta Responses explícito; GLM conservado en seyra_glm. Compilación y 8/9 pruebas correctas; transporte pendiente por EACCES local. Recorrido real pendiente de confirmar credenciales, sin acceso al .env.local real. [Implementación, desviaciones y validación](Progress/Completed/08-muse-spark.md).
+
 **Entrega:** integrar Muse Spark mediante Meta Model API, preferentemente como proveedor de OpenCode si su versión y la API lo permiten. Conservar schemas, executors y bridge. Si falta soporte, resolver primero esa compatibilidad con una prueba pequeña antes de crear otra arquitectura de agentes.
 
 **Aceptación:** acceso real a la API y modelo configurado explícitamente; conversación y llamadas estructuradas completan el mismo recorrido de 01; errores de autenticación, cuota y proveedor se muestran sin duplicar acciones; claves solo en backend. No crear variantes de perfil que difieran accidentalmente en permisos o capacidades.
