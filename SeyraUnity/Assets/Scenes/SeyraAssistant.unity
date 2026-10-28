@@ -930,7 +930,7 @@ PrefabInstance:
     - target: {fileID: 8633360299152221884, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: _targetTransform
       value: 
-      objectReference: {fileID: 1828261590}
+      objectReference: {fileID: 1299929504}
     - target: {fileID: 8935746757312222646, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: m_overflowMode
       value: 3
@@ -1212,7 +1212,7 @@ PrefabInstance:
     - target: {fileID: 1811205817645875357, guid: 29133c08aaa985d4eaff055fb116aa0c, type: 3}
       propertyPath: _targetTransform
       value: 
-      objectReference: {fileID: 1828261590}
+      objectReference: {fileID: 1622244720}
     - target: {fileID: 1830379771791594331, guid: 29133c08aaa985d4eaff055fb116aa0c, type: 3}
       propertyPath: m_fontColor32.rgba
       value: 3003121663

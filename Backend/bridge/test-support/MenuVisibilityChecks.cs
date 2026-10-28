@@ -58,6 +58,12 @@ public static class MenuVisibilityChecks
             fake.transform.rotation = Quaternion.identity;
             await Wait(.6f);
             Check(visibility.State == SeyraMenuVisibility.VisibilityState.Hidden, "Menu must hide again before closing chat.");
+            chat.transform.position=new Vector3(0,1.6f,3);
+            await Wait(.6f);
+            Check(visibility.State==SeyraMenuVisibility.VisibilityState.Shown && parts.All(p=>p.activeSelf),
+                "A centered chat at three meters must show the menu.");
+            chat.transform.position=new Vector3(0,1.35f,1.25f);
+            await Wait(.6f);
             chat.Close();
             int closedFrame = Time.frameCount;
             while (Time.frameCount <= closedFrame) await Task.Delay(1);
@@ -78,8 +84,8 @@ public static class MenuVisibilityChecks
             menu.transform.rotation == menuPose.rotation && chat.transform.position == chatPose.position &&
             chat.transform.rotation == chatPose.rotation && chat.gameObject.activeSelf == chatActive,
             "Checks must restore the original scene state.");
-        return JsonConvert.SerializeObject(new { passed = 4, checks = new[] {
+        return JsonConvert.SerializeObject(new { passed = 5, checks = new[] {
             "chat in view hides parts and keeps root active", "60 degree turn restores menu",
-            "closing chat shows menu next frame", "scene state restored" } }, Formatting.Indented);
+            "centered chat at three meters shows menu", "closing chat shows menu next frame", "scene state restored" } }, Formatting.Indented);
     }
 }

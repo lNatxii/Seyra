@@ -39,8 +39,8 @@ public static class LazyFollowChecks
         var chat = menu.ChatXrWindow;
         Check(chat != null && chat.GetComponent<SeyraLazyFollow>() == null, "Chat must remain stationary.");
         var originalHead = follow.Head;
-        // 22d routes the application menu through SpatialFollowController. Isolate the
-        // legacy component and recenter path while testing its shared implementation.
+        // Isolate the chat controller and fallback recenter path while testing the
+        // menu follower shared implementation.
         var spatialField = typeof(SeyraSpatialMenu).GetField("spatialFollow", BindingFlags.Instance | BindingFlags.NonPublic);
         var spatial = (Seyra.Spatial.SpatialFollowController)spatialField.GetValue(menu);
         bool spatialEnabled = spatial != null && spatial.enabled, followEnabled = follow.enabled;

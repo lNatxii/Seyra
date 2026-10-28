@@ -16,7 +16,7 @@ namespace Seyra.UI
         [SerializeField] Behaviour[] visualBehaviours;
         [SerializeField] float enterHalfYaw = 30, enterHalfPitch = 25;
         [SerializeField] float exitHalfYaw = 40, exitHalfPitch = 33;
-        [SerializeField] float maxChatDistance = 4, minFacingDot = .2f;
+        [SerializeField] float maxChatDistance = 2.1f, minFacingDot = .2f;
         [SerializeField] float hideDelay = .30f, showDelay = .45f;
         readonly Vector3[] corners = new Vector3[4];
         float conditionTime;

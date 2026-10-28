@@ -36,7 +36,14 @@ namespace Seyra.Editor
                 return button;
             }
             Reference(menu,"followButton",Button("FollowButton","Seguirme"));Reference(menu,"scanRoomButton",Button("ScanRoomButton","Escanear habitación"));
-            var legacy=root.GetComponent<SeyraLazyFollow>();if(legacy!=null)legacy.enabled=false;
+            window.GrabFrame?.Grabbable?.InjectOptionalTargetTransform(root.transform);
+            var legacy=root.GetComponent<SeyraLazyFollow>();if(legacy!=null)legacy.enabled=true;
+            var visibility=root.GetComponent<SeyraMenuVisibility>();
+            if(visibility!=null)
+            {
+                var serialized=new SerializedObject(visibility);serialized.FindProperty("maxChatDistance").floatValue=2.1f;
+                serialized.ApplyModifiedPropertiesWithoutUndo();EditorUtility.SetDirty(visibility);
+            }
             var summary=root.GetComponentsInChildren<TMP_Text>(true).First(t=>t.name=="StatusSummary");
             var summarySize=summary.GetComponent<LayoutElement>()??summary.gameObject.AddComponent<LayoutElement>();summarySize.minWidth=0;summarySize.preferredWidth=360;summarySize.flexibleWidth=1;
             var header=summary.transform.parent.GetComponent<LayoutElement>();if(header!=null)header.minHeight=header.preferredHeight=80;
@@ -60,9 +67,15 @@ namespace Seyra.Editor
             foreach(var window in new[]{chat.GetComponent<UIXRWindow>(),menu.GetComponent<UIXRWindow>()})
             {
                 var grab=window.GrabFrame?.Grabbable;if(grab==null)continue;
-                grab.InjectOptionalTargetTransform(app.transform);EditorUtility.SetDirty(grab);PrefabUtility.RecordPrefabInstancePropertyModifications(grab);
+                grab.InjectOptionalTargetTransform(window.transform);EditorUtility.SetDirty(grab);PrefabUtility.RecordPrefabInstancePropertyModifications(grab);
             }
-            var legacy=menu.GetComponent<SeyraLazyFollow>();if(legacy!=null){legacy.enabled=false;PrefabUtility.RecordPrefabInstancePropertyModifications(legacy);}
+            var legacy=menu.GetComponent<SeyraLazyFollow>();if(legacy!=null){legacy.enabled=true;EditorUtility.SetDirty(legacy);PrefabUtility.RecordPrefabInstancePropertyModifications(legacy);}
+            var visibility=menu.GetComponent<SeyraMenuVisibility>();
+            if(visibility!=null)
+            {
+                var serialized=new SerializedObject(visibility);serialized.FindProperty("maxChatDistance").floatValue=2.1f;
+                serialized.ApplyModifiedPropertiesWithoutUndo();PrefabUtility.RecordPrefabInstancePropertyModifications(visibility);
+            }
             PrefabUtility.RecordPrefabInstancePropertyModifications(menu);
             EditorSceneManager.MarkSceneDirty(scene);
         }
