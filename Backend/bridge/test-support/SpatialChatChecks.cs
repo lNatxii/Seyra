@@ -37,25 +37,12 @@ public static class SpatialChatChecks
         }
     }
 
-    public static async Task<string> Run()
-    {
-        var visibility = UnityEngine.Object.FindFirstObjectByType<SeyraMenuVisibility>();
-        bool autoHide = visibility != null && visibility.AutoHide;
-        try
-        {
-            if (visibility != null) visibility.AutoHide = false;
-            return await RunChecks();
-        }
-        finally
-        {
-            if (visibility != null) visibility.AutoHide = autoHide;
-        }
-    }
+    public static Task<string> Run() => RunChecks();
 
     public static async Task<string> RunRecenter()
     {
         var currentChat=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
-        var currentMenu=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>();
+        var currentMenu=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         var controller=currentChat.GetComponentInParent<Seyra.Spatial.SpatialFollowController>();
         var anchor=controller!=null?controller.transform:currentChat.transform;
         var oldAnchor=new Pose(anchor.position,anchor.rotation);
@@ -72,7 +59,7 @@ public static class SpatialChatChecks
                 controller.UseTestTracking(true);
             }
             anchor.position=new Vector3(8,10,8);
-            var button=Get<Button>(currentMenu,"recenterButton");Check(button!=null,"RecenterButton missing.");button.onClick.Invoke();
+            var button=Get<Button>(currentMenu,"bringChatButton");Check(button!=null,"BringChatButton missing.");button.onClick.Invoke();
             var head=SeyraLazyFollow.ResolveHead();
             Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the group near the explicit viewer.");
             return "Planner-driven group recenter passed.";
@@ -91,7 +78,7 @@ public static class SpatialChatChecks
         Check(Application.isPlaying, "Play Mode is required for SpatialChatChecks.");
 
         chat = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
-        menu = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>();
+        menu = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         Check(chat != null, "SeyraSpatialChatWindow not found in active scene.");
         Check(menu != null, "SeyraSpatialMenu not found in active scene.");
 

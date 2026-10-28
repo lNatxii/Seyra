@@ -66,13 +66,15 @@ namespace Seyra.UI
         }
         public void OnBringChatClicked()
         {
-            OpenChat();
             if (spatialFollow == null) bringChatStatus = "Seguimiento suspendido";
             else
             {
                 spatialFollow.ResumeFollow();
                 spatialFollow.Recenter(out bringChatStatus);
             }
+            // Recenter checks interaction before opening a closed chat. Opening first
+            // would treat the scroll handler's OnDisable timestamp as recent input.
+            OpenChat();
             RefreshUI();
         }
         public void OnVoiceActionClicked()

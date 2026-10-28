@@ -26,6 +26,22 @@ namespace Seyra.UI
         HandMenuGate gate;
         Pose lastPalm;
         readonly Vector3[] corners = new Vector3[4];
+#if UNITY_EDITOR
+        bool testController;
+        public void UseTestControllerTracking(Transform viewer, Transform anchor)
+        { testController = true; head = viewer; leftControllerAnchor = anchor; handMode = controllerShown = false; gate.Reset(); }
+#endif
+
+        bool HandConnected
+        {
+            get
+            {
+#if UNITY_EDITOR
+                if (testController) return false;
+#endif
+                return hand != null && hand.IsConnected;
+            }
+        }
 
         public bool IsVisible => window != null && window.gameObject.activeSelf;
 
@@ -76,7 +92,7 @@ namespace Seyra.UI
 
         public void ToggleMenu()
         {
-            if (hand != null && hand.IsConnected) return;
+            if (HandConnected) return;
             controllerShown = !controllerShown;
             UpdatePose(0);
         }
@@ -103,7 +119,7 @@ namespace Seyra.UI
         void UpdatePose(float dt)
         {
             ResolveReferences();
-            bool connected = hand != null && hand.IsConnected;
+            bool connected = HandConnected;
             if (connected != handMode) { handMode = connected; controllerShown = false; gate.Reset(); }
             bool shown = false;
             Pose pose = Pose.identity;
