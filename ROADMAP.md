@@ -148,9 +148,9 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06e. Menú de mano
 
-**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Menú de mano de 0,15 × 0,18 m validado en Editor: 5 grupos específicos y regresiones de seguimiento/colocación aprobados. Binding QuestButtons/Menu verificado con dos pulsaciones OpenXR en el simulador tras habilitar perfiles Touch Pro/Plus; mano izquierda asignada explícitamente. Validación física en 07. [Implementación y límites](Progress/Completed/06e-hand-menu.md).
+**Estado:** Completed · Revisada (28 de octubre de 2026). Menú de mano en la izquierda (palma o botón de menú del mando, acción QuestButtons/Menu): una fila de tres botones de icono (Chat, Voz, Traer chat) de unos 0,15 × 0,08 m. El escaneo de habitación sale del menú: la habitación debe estar escaneada antes de abrir Seyra. HandMenuChecks (5) y SpatialFollowChecks (12) aprobados en Editor. Validación física en 07. [Implementación y revisión](Progress/Completed/06e-hand-menu.md).
 
-**Entrega:** el menú del asistente pasa a la mano izquierda: aparece al mostrar la palma o con el botón de menú del mando izquierdo (acción de Input System asignable en el inspector). Rejilla 2 × 2 compacta (Chat, Voz, Traer chat, Habitación) con línea de estado; cada botón da una respuesta visible. Sustituye el dock con seguimiento de 06c/06d para el menú.
+**Entrega:** el menú del asistente pasa a la mano izquierda: aparece al mostrar la palma o con el botón de menú del mando izquierdo (acción de Input System asignable en el inspector). Fila compacta de tres botones de icono (Chat, Voz, Traer chat) con línea de estado; cada botón da una respuesta visible. Sustituye el dock con seguimiento de 06c/06d para el menú.
 
 **Aceptación:** el menú aparece junto a la mano en menos de 0,3 s y desaparece sin parpadeo; mide entre 0,13 y 0,17 m de ancho; "Traer chat" coloca el chat delante o explica por qué no puede; el menú no reserva espacio ni bloquea la colocación.
 
