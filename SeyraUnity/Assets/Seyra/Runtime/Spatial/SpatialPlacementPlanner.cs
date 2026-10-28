@@ -54,10 +54,7 @@ namespace Seyra.Spatial
                     var candidate=new SpatialCandidate{Destination=destination,PhysicalId=id,Scale=scale,Box=box,Pose=new Pose(box.Center-rotation*(request.Content.center*scale),rotation)};
                     string reason=ValidatePose(room,request,candidate,view,reserved);
                     if(reason!=null){if(result.Rejected.Count<40)result.Rejected.Add((id,reason));continue;}
-                    float orientation=(1-candidate.Yaw/90)*(1-candidate.Elevation/90);
-                    float distance=1-Mathf.Clamp01(Mathf.Max(SpatialPlacementSettings.PreferredMin-candidate.Distance,candidate.Distance-SpatialPlacementSettings.PreferredMax)/SpatialPlacementSettings.PreferredMin);
-                    float readability=request.Readable?Mathf.Clamp01(candidate.AngularHeight/SpatialPlacementSettings.MinReadingAngle)*(1-candidate.Yaw/90):1;
-                    candidate.Score=.30f*orientation+.20f*distance+.20f*readability+.15f*scale+.15f*(request.PreviousSupport==id?1:0);
+                    candidate.Score=Score(request,candidate);
                     if(result.Best==null||candidate.Score>result.Best.Score+.000001f||Mathf.Abs(candidate.Score-result.Best.Score)<.000001f&&string.CompareOrdinal(id,result.Best.PhysicalId)<0)result.Best=candidate;
                 }
             }
@@ -94,6 +91,13 @@ namespace Seyra.Spatial
             if(fallback)Air();
             result.Reason=result.Best==null?"No compatible placement was found.":!result.PhysicalValidation?"Air placement without physical room validation.":fallback?"No suitable support; air fallback checked only against captured geometry.":"Compatible with captured geometry; moved or new furniture is unknown.";
             return result;
+        }
+        internal static float Score(SpatialPlacementRequest request,SpatialCandidate candidate)
+        {
+            float orientation=(1-candidate.Yaw/90)*(1-candidate.Elevation/90);
+            float distance=1-Mathf.Clamp01(Mathf.Max(SpatialPlacementSettings.PreferredMin-candidate.Distance,candidate.Distance-SpatialPlacementSettings.PreferredMax)/SpatialPlacementSettings.PreferredMin);
+            float readability=request.Readable?Mathf.Clamp01(candidate.AngularHeight/SpatialPlacementSettings.MinReadingAngle)*(1-candidate.Yaw/90):1;
+            return .30f*orientation+.20f*distance+.20f*readability+.15f*candidate.Scale+.15f*(request.PreviousSupport==candidate.PhysicalId?1:0);
         }
         static float minComponent(this Vector3 v)=>Mathf.Min(v.x,Mathf.Min(v.y,v.z));
         public static SpatialCandidate Snap(RoomSnapshot room,SpatialPlacementRequest request,Pose current,Pose view,IEnumerable<SpatialBox> reservations)

@@ -23,6 +23,7 @@ public static class LayoutChecks
         JObject Call(string tool,JObject args)=>JObject.Parse(service.Dispatch(new JObject{["version"]=1,["type"]="tool_request",["requestId"]=Guid.NewGuid().ToString(),["tool"]=tool,["arguments"]=args,["deadlineUtc"]=DateTimeOffset.UtcNow.AddMinutes(2).ToString("O")}.ToString()));
         JObject Ok(string tool,JObject args){var response=Call(tool,args);Check((bool)response["success"],response.ToString());return(JObject)response["data"];}
         GameObject Owned(string id)=>root.GetComponentsInChildren<GeneratedObject>().First(r=>r.EntityId==id).gameObject;
+        var context=Object.FindFirstObjectByType<RoomContext>();var oldViewer=context.Viewer;GameObject testHead=null;
         try
         {
             var items=new JArray(Enumerable.Range(0,6).Select(i=>new JObject{["name"]="Book "+i,["panel"]=new JObject{["version"]=1,["kind"]="panel",["title"]="Book "+i,["text"]="Summary",["fontSize"]=24}}));
@@ -46,8 +47,28 @@ public static class LayoutChecks
             Ok("undo",new JObject{["scope"]="operation"});
             Ok("undo",new JObject{["scope"]="request"});
             Check(!root.GetComponentsInChildren<SeyraLayoutGroup>().Any(),"Request undo retained a live layout.");
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+            testHead=new GameObject("__LayoutRoomViewer");testHead.transform.position=new Vector3(0,1.6f,0);
+            await context.LoadTestRoomAsync(AssetDatabase.LoadAssetAtPath<GameObject>("Packages/com.meta.xr.mrutilitykit/Core/Rooms/Prefabs/Bedroom/Bedroom00.prefab"),testHead.transform);
+            Check(context.Snapshot.State==RoomState.Ready,context.Diagnostic);
+            var room=context.Snapshot;var floor=room.Surfaces.First(s=>s.Kind=="floor");
+            testHead.transform.position=floor.Corners.Aggregate(Vector3.zero,(sum,p)=>sum+p)/floor.Corners.Length+Vector3.up*1.6f;
+            var wallSpec=new JObject{["layout"]="wall",["count"]=8,["itemSize"]=new JObject{["width"]=.24,["height"]=.65}};
+            // Face the closest wall's center from the floor center for a reproducible working view.
+            var wall=room.Surfaces.Where(s=>s.Kind=="wall").OrderBy(s=>Vector3.Distance(s.Pose.position,testHead.transform.position)).First();
+            testHead.transform.rotation=SpatialGeometry.Yaw(wall.Pose.position-testHead.transform.position);
+            var wallItems=new JArray(Enumerable.Range(0,8).Select(i=>new JObject{["name"]="Wall book "+i,["panel"]=new JObject{["version"]=1,["kind"]="panel",["title"]="Book",["text"]="Summary",["fontSize"]=24}}));
+            var wallCreated=Ok("layout_create",new JObject{["name"]="Wall books",["layout"]="wall",["itemSize"]=wallSpec["itemSize"].DeepClone(),["items"]=wallItems});
+            foreach(var entry in wallCreated["items"])
+            {
+                string cardId=(string)entry["entityId"];var box=SpatialPlacementService.CurrentBox(Owned(cardId).transform);
+                Check(!room.Surfaces.Where(s=>s.Kind=="opening").Any(s=>SpatialCollision.Intersects(box,s))&&!room.Objects.Any(o=>SpatialCollision.Intersects(box,o.Box)),"Wall card intersects opening or furniture.");
+                Check((string)Ok("scene_get",new JObject{["entityId"]=cardId})["spatial"]["surface"]=="wall","Wall reservation missing.");
+            }
+            Ok("undo",new JObject{["scope"]="request"});
+            Check(!root.GetComponentsInChildren<SeyraLayoutGroup>().Any(),"Wall request undo retained layout.");
             return "Layout basic checks passed: "+checks;
         }
-        finally{Object.DestroyImmediate(root);if(Directory.Exists(storage))Directory.Delete(storage,true);var unload=UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);while(!unload.isDone)await Task.Delay(10);}
+        finally{if(testHead!=null){context.Configure(Object.FindFirstObjectByType<Meta.XR.MRUtilityKit.MRUK>(),oldViewer);Object.DestroyImmediate(testHead);}Object.DestroyImmediate(root);if(Directory.Exists(storage))Directory.Delete(storage,true);var unload=UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);while(!unload.isDone)await Task.Delay(10);}
     }
 }

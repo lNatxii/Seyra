@@ -188,7 +188,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 23. Layouts espaciales para colecciones
 
-**Estado:** 23a Completed · Revisada (28 de octubre de 2026). Corregidos los tres cambios de revisión: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de chat. Compilación y LayoutChecks aprobados (16 comprobaciones); ChatExecutionChecks con el fixture corregido: 15 grupos aprobados en una única ejecución. Layouts flotantes y persistencia 5 implementados; 23b/23c y validación física pendientes. [Diseño](Progress/InProgress/23-spatial-layouts.md).
+**Estado:** 23b Completed · Pendiente de revisión (28 de octubre de 2026): wall/surface, reservas y persistencia 5 implementados; validación básica aprobada (1303 de layouts puros, 44 de integración, 15 de planificación, 50 de colocación, 689 de habitación y 9 pruebas npm). 23a Completed · Revisada (28 de octubre de 2026). Corregidos los tres cambios de revisión: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de chat. Compilación y LayoutChecks aprobados (16 comprobaciones); ChatExecutionChecks con el fixture corregido: 15 grupos aprobados en una única ejecución. Layouts flotantes y persistencia 5 implementados; 23c y validación física pendientes. [Diseño](Progress/Completed/23-spatial-layouts.md).
 
 **Orden:** 23a después de 22b; 23b después de 23a; 23c (prompt) al cerrar 23a, con la parte de pared tras 23b.
 
