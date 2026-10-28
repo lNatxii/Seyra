@@ -93,7 +93,7 @@ namespace Seyra.SceneTools
             ["id"] = t.GetInstanceID(), ["parent"] = t == transform ? 0 : t.parent.GetInstanceID(),
             ["name"] = t == transform ? "" : t.name, ["layer"] = t == transform ? 0 : t.gameObject.layer, ["tag"] = t == transform ? "" : t.tag,
             // ISDK creates these transient interaction helpers in Start; they are not authored content.
-            ["components"] = new JArray(t.GetComponents<Component>().Where(c => !(c is GeneratedObject) &&
+            ["components"] = new JArray(t.GetComponents<Component>().Where(c => !(c is GeneratedObject) && !(c is Seyra.Spatial.SeyraBillboard) &&
                 !(c is Oculus.Interaction.InteractableTriggerBroadcaster) && !(c is Oculus.Interaction.MoveTowardsTargetProvider))
                 .Select(c => c == null ? 0 : c.GetInstanceID())) })).ToString(Newtonsoft.Json.Formatting.None);
 

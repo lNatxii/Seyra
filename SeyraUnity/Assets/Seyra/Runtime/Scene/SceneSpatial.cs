@@ -33,6 +33,7 @@ namespace Seyra.SceneTools
             Keys(args,new[]{"entityId","destination"},apply?new[]{"physicalId","allowAirFallback","minScale","expectedRoomRevision"}:new[]{"physicalId","allowAirFallback","minScale"});
             var go=Find(args["entityId"]);var root=go.transform;RequirePanelRoot(go);
             if(root==generated||!root.IsChildOf(generated)||go.GetComponent<GeneratedObject>()==null)throw new ArgumentException("Spatial placement requires a managed descendant of Generated.");
+            if(apply)DrivenTransform.Require(root,DrivenChannels.Position|DrivenChannels.Rotation);
             if(root.GetComponentsInChildren<Seyra.UI.Library.UIMetaGrabFrame>(true).Any(f=>f.IsGrabbed))throw new RoomToolException("OBJECT_MANIPULATED","Release the content before placing it.");
             for(var parent=root.parent;parent!=null;parent=parent.parent)
             {var scale=parent.localScale;if(scale.x<=0||Mathf.Abs(scale.x-scale.y)>.00001f||Mathf.Abs(scale.x-scale.z)>.00001f)throw new ArgumentException("Spatial placement requires positive uniform ancestor scales.");}

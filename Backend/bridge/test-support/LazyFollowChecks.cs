@@ -39,6 +39,11 @@ public static class LazyFollowChecks
         var chat = menu.ChatXrWindow;
         Check(chat != null && chat.GetComponent<SeyraLazyFollow>() == null, "Chat must remain stationary.");
         var originalHead = follow.Head;
+        // 22d routes the application menu through SpatialFollowController. Isolate the
+        // legacy component and recenter path while testing its shared implementation.
+        var spatialField = typeof(SeyraSpatialMenu).GetField("spatialFollow", BindingFlags.Instance | BindingFlags.NonPublic);
+        var spatial = (Seyra.Spatial.SpatialFollowController)spatialField.GetValue(menu);
+        bool spatialEnabled = spatial != null && spatial.enabled, followEnabled = follow.enabled;
         var visibility = menu.GetComponent<SeyraMenuVisibility>();
         bool autoHide = visibility != null && visibility.AutoHide;
         var originalMenuPose = new Pose(menu.transform.position, menu.transform.rotation);
@@ -48,6 +53,9 @@ public static class LazyFollowChecks
         var results = new List<string>();
         try
         {
+            if (spatial != null) spatial.enabled = false;
+            spatialField.SetValue(menu, null);
+            follow.enabled = true;
             if (visibility != null) visibility.AutoHide = false;
             fake.transform.position = new Vector3(0, 1.6f, 0);
             follow.Head = fake.transform;
@@ -188,6 +196,9 @@ public static class LazyFollowChecks
             chat.gameObject.SetActive(chatActive);
             if (visibility != null) visibility.AutoHide = autoHide;
             UnityEngine.Object.Destroy(fake);
+            follow.enabled = followEnabled;
+            spatialField.SetValue(menu, spatial);
+            if (spatial != null) spatial.enabled = spatialEnabled;
         }
     }
 }

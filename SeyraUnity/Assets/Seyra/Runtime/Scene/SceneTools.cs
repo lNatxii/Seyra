@@ -22,7 +22,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "layout_plan", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
@@ -65,7 +65,8 @@ namespace Seyra.SceneTools
             catch (Exception error)
             {
                 response["success"] = false;
-                response["error"] = new JObject { ["code"] = error is RoomToolException roomError ? roomError.Code : error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+                response["error"] = new JObject { ["code"] = error is LayoutToolException layoutError ? layoutError.Code : error.Message.StartsWith("LAYOUT_BEHAVIOR_INVALID:",StringComparison.Ordinal) ? "LAYOUT_BEHAVIOR_INVALID" : error.Message.StartsWith("LAYOUT_SIZE_INVALID:",StringComparison.Ordinal) ? "LAYOUT_SIZE_INVALID" : error is RoomToolException roomError ? roomError.Code : error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+                if(error is LayoutToolException layoutFailure && layoutFailure.Details!=null)foreach(var detail in layoutFailure.Details.Properties())response["error"][detail.Name]=detail.Value.DeepClone();
             }
             var result = response.ToString(Formatting.None);
             if (!queries.Contains(tool) && !completed.ContainsKey(requestId) && completed.Count < 4096) completed[requestId] = (signature,result);
@@ -191,6 +192,7 @@ namespace Seyra.SceneTools
             var node=Node(go,0); var t=go.transform;
             int depth=0; for(var p=t.parent;p!=null;p=p.parent)depth++;
             node["depth"]=depth; node["runtimeId"]=RuntimeId;
+            var layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification;if(layout!=null)node["layout"]=layout;
             var spatial=SpatialState(go);if(spatial!=null)node["spatial"]=spatial;
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
             var appearance=go.GetComponent<ManagedAppearance>();
@@ -269,6 +271,7 @@ namespace Seyra.SceneTools
         }
         JObject Execute(string tool,JObject args)
         {
+            if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
             if(tool=="create_panel")return CreatePanel(args);
             if(tool=="update_panel")return UpdatePanel(args);
@@ -298,6 +301,7 @@ namespace Seyra.SceneTools
                 RequirePanelRoot(go);
                 if(space!="local" && space!="world")throw new ArgumentException("space must be local or world.");
                 Vector3? pos=args["position"]==null?null:ReadVector(args["position"]), rot=args["rotation"]==null?null:ReadVector(args["rotation"]), scale=args["scale"]==null?null:ReadVector(args["scale"]);
+                DrivenTransform.Require(t,(pos.HasValue?DrivenChannels.Position:DrivenChannels.None)|(rot.HasValue?DrivenChannels.Rotation:DrivenChannels.None));
                 if(space=="world" && (pos.HasValue || rot.HasValue)) Invertible(t.parent);
                 var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
                 try

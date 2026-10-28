@@ -39,6 +39,7 @@ namespace Seyra.SceneTools
             foreach(var c in go.GetComponents<Component>())
             {
                 if(c==null){result.Add("missing");continue;}
+                if(c is Seyra.Spatial.SeyraLayoutGroup || c is Seyra.Spatial.SeyraBillboard || c is Seyra.UI.SeyraLazyFollow)continue;
                 var value=new JObject{["type"]=c.GetType().FullName,["instance"]=c.GetInstanceID(),["enabled"]=Enabled(c)};
                 if(c is MeshFilter filter)value["mesh"]=filter.sharedMesh!=null?filter.sharedMesh.GetInstanceID():0;
                 if(c is Renderer renderer)
@@ -79,14 +80,15 @@ namespace Seyra.SceneTools
             if(!Regex.IsMatch(slot,"^[A-Za-z0-9_-]{1,64}$"))throw new ArgumentException("slot only accepts ASCII letters, digits, hyphens and underscores (1..64).");
             return System.IO.Path.Combine(storageDirectory,slot+".json");
         }
+        static JToken PersistentLayout(GameObject go) { var spec=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification; if(spec==null)return JValue.CreateNull(); spec.Remove("targets"); return spec; }
         JObject PersistNode(Transform t)
         {
             var record=t.GetComponent<GeneratedObject>();
             if(record==null)throw new InvalidOperationException("Cannot save "+t.name+": the object is not managed by Seyra.");
             var allowed=record.Kind=="primitive"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(MeshFilter),typeof(MeshRenderer),typeof(ManagedAppearance),typeof(BoxCollider),typeof(SphereCollider),typeof(CapsuleCollider),typeof(MeshCollider)}:
                 record.Kind=="panel"||record.Kind=="presentation"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(ManagedPanel)}:new[]{typeof(Transform),typeof(GeneratedObject)};
-            if(t.GetComponents<Component>().Any(c=>c==null||!allowed.Contains(c.GetType())) || ComponentConfiguration(t.gameObject)!=record.OriginalComponents)
-                throw new InvalidOperationException("Cannot save "+t.name+": modified components, mesh, material or native parameters are not supported by format v4. The file was not overwritten.");
+            if(t.GetComponents<Component>().Any(c=>c==null||!allowed.Contains(c.GetType()) && !(c is Seyra.Spatial.SeyraLayoutGroup) && !(c is Seyra.Spatial.SeyraBillboard) && !(c is Seyra.UI.SeyraLazyFollow)) || ComponentConfiguration(t.gameObject)!=record.OriginalComponents)
+                throw new InvalidOperationException("Cannot save "+t.name+": modified components, mesh, material or native parameters are not supported by format v5. The file was not overwritten.");
             var appearance=t.GetComponent<ManagedAppearance>();
             if(record.Kind=="primitive" && (appearance==null || !appearance.IsIntact()))throw new InvalidOperationException("Cannot save externally modified appearance.");
             var panel=t.GetComponent<ManagedPanel>();
@@ -102,7 +104,7 @@ namespace Seyra.SceneTools
                 ["appearance"]=appearance==null?JValue.CreateNull():AppearanceJson(appearance),
                 ["panel"]=panel==null||panel.IsPresentation?JValue.CreateNull():panel.Content.ToJson(),
                 ["presentation"]=panel?.IsPresentation==true?new JObject{["content"]=panel.Presentation.ToJson(),["state"]=panel.InteractionState}:JValue.CreateNull(),
-                ["activeSelf"]=t.gameObject.activeSelf,["layer"]=t.gameObject.layer,["tag"]=t.gameObject.tag};
+                ["layout"]=PersistentLayout(t.gameObject),["activeSelf"]=t.gameObject.activeSelf,["layer"]=t.gameObject.layer,["tag"]=t.gameObject.tag};
         }
         JObject SaveContent(JObject args)
         {
@@ -111,7 +113,7 @@ namespace Seyra.SceneTools
             var content=LiveContent().ToArray();if(content.Length>ContentLimit)throw new InvalidOperationException("Too many objects to save.");
             var root=PersistNode(generated);
             var nodes=new JArray(content.Where(t=>t!=generated).Select(PersistNode));
-            var document=new JObject{["version"]=4,["savedAtUtc"]=DateTimeOffset.UtcNow.ToString("O"),["root"]=root,["nodes"]=nodes};
+            var document=new JObject{["version"]=5,["savedAtUtc"]=DateTimeOffset.UtcNow.ToString("O"),["root"]=root,["nodes"]=nodes};
             var bytes=new UTF8Encoding(false,true).GetBytes(document.ToString(Formatting.Indented));
             if(bytes.Length>FileLimit)throw new InvalidOperationException("Saved content exceeds 5 MiB.");
             Directory.CreateDirectory(storageDirectory);
@@ -122,7 +124,7 @@ namespace Seyra.SceneTools
                 ReplaceAtomically(temporary,path);
             }
             finally{if(File.Exists(temporary))File.Delete(temporary);}
-            return new JObject{["slot"]=Text(args,"slot"),["saved"]=true,["nodeCount"]=nodes.Count,["version"]=4};
+            return new JObject{["slot"]=Text(args,"slot"),["saved"]=true,["nodeCount"]=nodes.Count,["version"]=5};
         }
         static void ReplaceAtomically(string temporary,string destination)
         {
@@ -158,20 +160,20 @@ namespace Seyra.SceneTools
             public Color Color=Color.white;
             public PanelContent Panel;
             public PresentationContent Presentation;
-            public JObject Interaction;
+            public JObject Interaction,Layout;
         }
         SavedNode ParseSaved(JToken token,bool root,int version)
         {
             var a=token as JObject??throw new ArgumentException("Invalid saved node.");
-            Keys(a,new[]{"entityId","kind","primitiveType","requestGroupId","name","parentId","siblingIndex","position","rotation","scale","activeSelf","layer","tag"},version==4?new[]{"appearance","panel","presentation"}:version==3?new[]{"appearance","panel"}:version==2?new[]{"appearance"}:Array.Empty<string>());
+            Keys(a,new[]{"entityId","kind","primitiveType","requestGroupId","name","parentId","siblingIndex","position","rotation","scale","activeSelf","layer","tag"},version==5?new[]{"appearance","panel","presentation","layout"}:version>=4?new[]{"appearance","panel","presentation"}:version==3?new[]{"appearance","panel"}:version==2?new[]{"appearance"}:Array.Empty<string>());
             if(version>=2 && a["appearance"]==null)throw new ArgumentException("Missing saved appearance.");
             if(version>=3 && a["panel"]==null)throw new ArgumentException("Missing saved panel field.");
-            if(version==4 && a["presentation"]==null)throw new ArgumentException("Missing saved presentation field.");
+            if(version>=4 && a["presentation"]==null)throw new ArgumentException("Missing saved presentation field.");
             var node=new SavedNode{Id=PersistentId(a["entityId"]),Kind=Text(a,"kind"),Name=String(a["name"],256),Parent=String(a["parentId"],128),
                 Sibling=Int(a,"siblingIndex",0,0,1000000),Layer=Int(a,"layer",0,0,31),Tag=String(a["tag"],256),Position=ReadVector(a["position"]),Scale=ReadVector(a["scale"]),Rotation=ReadQuaternion(a["rotation"]),Active=Bool(a,"activeSelf")};
             if(a["primitiveType"].Type!=JTokenType.Null){node.Shape=Text(a,"primitiveType");Primitive(node.Shape);}
             if(a["requestGroupId"].Type!=JTokenType.Null)node.Group=PersistentId(a["requestGroupId"]);
-            if(root ? node.Kind!="root"||node.Parent!="Generated"||node.Group!=null : node.Kind!="empty"&&node.Kind!="request"&&node.Kind!="primitive"&&!(version>=3&&node.Kind=="panel")&&!(version==4&&node.Kind=="presentation"))throw new ArgumentException("Invalid saved node type.");
+            if(root ? node.Kind!="root"||node.Parent!="Generated"||node.Group!=null : node.Kind!="empty"&&node.Kind!="request"&&node.Kind!="primitive"&&!(version>=3&&node.Kind=="panel")&&!(version>=4&&node.Kind=="presentation"))throw new ArgumentException("Invalid saved node type.");
             if((node.Kind=="primitive")!=(node.Shape!=null))throw new ArgumentException("Saved geometry does not match the node type.");
             if(version>=2)
             {
@@ -188,7 +190,7 @@ namespace Seyra.SceneTools
                 if(node.Kind=="panel")node.Panel=PanelContent.Parse(a["panel"]);
                 else if(a["panel"].Type!=JTokenType.Null)throw new ArgumentException("Only panel nodes support saved panel content.");
             }
-            if(version==4)
+            if(version>=4)
             {
                 if(node.Kind=="presentation")
                 {
@@ -199,6 +201,9 @@ namespace Seyra.SceneTools
                 }
                 else if(a["presentation"].Type!=JTokenType.Null)throw new ArgumentException("Only presentation nodes support presentation content.");
             }
+            if(version==5 && a["layout"]?.Type==JTokenType.Object)
+            { if(root || node.Kind!="empty" && node.Kind!="request")throw new ArgumentException("Only containers support layouts."); node.Layout=(JObject)a["layout"].DeepClone(); Keys(node.Layout,new[]{"layout","behavior","itemSize","gap","params"},new[]{"centerSize"}); }
+            else if(version==5 && a["layout"]!=null && a["layout"].Type!=JTokenType.Null)throw new ArgumentException("Invalid saved layout.");
             return node;
         }
         JObject LoadContent(JObject args)
@@ -214,7 +219,7 @@ namespace Seyra.SceneTools
                 while(reader.Read())throw new ArgumentException("Unexpected trailing content in the file.");
             }
             Keys(document,new[]{"version","savedAtUtc","root","nodes"});
-            if(document["version"].Type!=JTokenType.Integer||((int)document["version"]<1||(int)document["version"]>4))throw new ArgumentException("Unsupported persistence version.");
+            if(document["version"].Type!=JTokenType.Integer||((int)document["version"]<1||(int)document["version"]>5))throw new ArgumentException("Unsupported persistence version.");
             var version=(int)document["version"];
             var root=ParseSaved(document["root"],true,version);
             var array=document["nodes"] as JArray??throw new ArgumentException("Invalid node list.");
@@ -260,6 +265,9 @@ namespace Seyra.SceneTools
                     foreach(var node in ready){var t=created[node.Id].transform;t.SetParent(node.Parent=="Generated"?stage.transform:created[node.Parent].transform,false);Check(t);ordered.Add(node);remaining.Remove(node);}
                     if(ready.Length==0)throw new ArgumentException("The hierarchy cannot be reconstructed.");
                 }
+                foreach(var node in nodes.Where(n=>n.Layout!=null))
+                {var children=nodes.Where(n=>n.Parent==node.Id).ToArray();var normalized=Seyra.Spatial.LayoutPlanner.Normalize(node.Layout,children.Length);if(children.Any(n=>n.Panel==null&&n.Presentation==null))throw new ArgumentException("Layout children must be cards.");node.Layout=normalized;}
+                if(nodes.Count(n=>(string)n.Layout?["behavior"]=="lazy_follow")>1)throw new ArgumentException("Only one following layout is allowed.");
                 foreach(var child in generated.Cast<Transform>().Where(t=>t!=trash).ToArray())MoveToTrash(child.gameObject);
                 generated.GetComponent<GeneratedObject>().Initialize(root.Id,"root",null,null);
                 generated.localPosition=root.Position;generated.localRotation=root.Rotation;generated.localScale=root.Scale;
@@ -267,6 +275,7 @@ namespace Seyra.SceneTools
                 foreach(var node in ordered.Where(n=>n.Parent=="Generated"))created[node.Id].transform.SetParent(generated,false);
                 foreach(var group in nodes.GroupBy(n=>n.Parent))foreach(var node in group.OrderBy(n=>n.Sibling))created[node.Id].transform.SetSiblingIndex(node.Sibling);
                 foreach(var node in nodes){Check(created[node.Id].transform);created[node.Id].SetActive(node.Active);}
+                foreach(var node in nodes.Where(n=>n.Layout!=null))RestoreLayout(created[node.Id],node.Layout);
                 Check(generated);generated.gameObject.SetActive(root.Active);Reindex();
                 return new JObject{["slot"]=Text(args,"slot"),["loaded"]=true,["nodeCount"]=nodes.Length,["entityId"]=Id(generated.gameObject),["historyReset"]=false};
             }
