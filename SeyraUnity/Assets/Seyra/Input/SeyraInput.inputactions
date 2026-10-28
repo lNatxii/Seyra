@@ -1,0 +1,22 @@
+{
+    "name": "SeyraInput",
+    "maps": [
+        {
+            "name": "Menu",
+            "id": "082a4fd9-8fea-4ca8-89d6-2185c23cc69a",
+            "actions": [
+                {
+                    "name": "ToggleMenu",
+                    "type": "Button",
+                    "id": "14de900e-2c83-4325-a29b-47b2847d2e26",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": []
+        }
+    ],
+    "controlSchemes": []
+}
