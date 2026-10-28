@@ -156,7 +156,8 @@ namespace Seyra.Spatial
             if(!simulated&&roomProvider.EnableWorldLock&&!roomProvider.IsWorldLockActive){Publish(RoomState.Suspended,"Waiting for room localization and World Lock.");return;}
             if(!dirty&&currentRoom==selected&&(Snapshot.State==RoomState.Ready||Snapshot.State==RoomState.Error))return;
             currentRoom=selected;dirty=false;SubscribeRooms();
-            try{Snapshot=RoomSnapshotBuilder.Build(selected,++revision,simulated);Diagnostic=simulated?"Explicitly simulated captured geometry.":"Captured geometry only; moved furniture is unknown.";Changed?.Invoke(Snapshot);}
+            try{Snapshot=RoomSnapshotBuilder.Build(selected,++revision,simulated);Diagnostic=(simulated?"Explicitly simulated captured geometry.":"Captured geometry only; moved furniture is unknown.")+
+                (Snapshot.SkippedAnchors>0?" Skipped "+Snapshot.SkippedAnchors+" invalid anchor(s) with singular or sheared transforms.":"");Changed?.Invoke(Snapshot);}
             catch(Exception error){Publish(RoomState.Error,error.Message);}
         }
         void Publish(RoomState state,string diagnostic)

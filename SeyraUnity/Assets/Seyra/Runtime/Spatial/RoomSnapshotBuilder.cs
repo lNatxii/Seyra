@@ -11,7 +11,7 @@ namespace Seyra.Spatial
     {
         public static RoomSnapshot Build(MRUKRoom room,long revision,bool simulated)
         {
-            var surfaces=new List<PhysicalSurface>();var objects=new List<PhysicalObject>();
+            var surfaces=new List<PhysicalSurface>();var objects=new List<PhysicalObject>();int skipped=0;
             float floor=room.FloorAnchors.Count>0?room.FloorAnchors.Min(a=>a.transform.position.y):0;
             foreach(var anchor in room.Anchors.OrderBy(a=>a.Anchor.Uuid))
             {
@@ -25,9 +25,10 @@ namespace Seyra.Spatial
                     // MRUK 207 planes use local XY, normal +Z. Volumes may use +Z vertically;
                     // derive all dimensions from transformed corners and select the vertical box axis.
                     var axes=new[]{matrix.MultiplyVector(Vector3.right),matrix.MultiplyVector(Vector3.up),matrix.MultiplyVector(Vector3.forward)};
-                    if(axes.Any(a=>a.sqrMagnitude<1e-10f))throw new ArgumentException("Physical volume has a singular transform.");
-                    if(Mathf.Abs(Vector3.Dot(axes[0].normalized,axes[1].normalized))>0.0001f || Mathf.Abs(Vector3.Dot(axes[0].normalized,axes[2].normalized))>0.0001f || Mathf.Abs(Vector3.Dot(axes[1].normalized,axes[2].normalized))>0.0001f)
-                        throw new ArgumentException("Physical volume has unsupported shear.");
+                    // A singular or sheared volume cannot form an oriented box; skip the whole anchor and keep the room.
+                    if(axes.Any(a=>a.sqrMagnitude<1e-10f) || Mathf.Abs(Vector3.Dot(axes[0].normalized,axes[1].normalized))>0.0001f ||
+                        Mathf.Abs(Vector3.Dot(axes[0].normalized,axes[2].normalized))>0.0001f || Mathf.Abs(Vector3.Dot(axes[1].normalized,axes[2].normalized))>0.0001f)
+                    {skipped++;continue;}
                     var rotation=Quaternion.LookRotation(axes[2],axes[1]);
                     var projected=SpatialGeometry.Project(points,rotation);
                     Vector3? facing=anchor.HasAnyLabel(Labels.COUCH|Labels.BED|Labels.SCREEN)?room.GetFacingDirection(anchor):null;
@@ -58,7 +59,7 @@ namespace Seyra.Spatial
                 var polygon2=boundary.Select(p=>inverse*(matrix.MultiplyPoint3x4(new Vector3(p.x,p.y,0))-origin)).Select(p=>new Vector2(p.x,p.y));
                 surfaces.Add(new PhysicalSurface(id,kind,labels,new Pose(origin,orientation),polygon2));
             }
-            return new RoomSnapshot(revision,"room:"+room.Anchor.Uuid,simulated,RoomState.Ready,surfaces,objects);
+            return new RoomSnapshot(revision,"room:"+room.Anchor.Uuid,simulated,RoomState.Ready,surfaces,objects,skipped);
         }
     }
 }

@@ -138,8 +138,11 @@ Door/window frames are openings. Invisible walls and global mesh are excluded.
 Every other volume is furniture/obstacle geometry. Table/storage tops select the
 box axis closest to world up; normal must be within 20 degrees. Storage must be
 0.4..1.3 m above the captured floor. Beds and couches never become tabletops.
-Boxes use transformed corners; unsupported shear/singular or non-finite geometry
-fails the snapshot instead of producing misleading dimensions.
+Boxes use transformed corners. A volume anchor with a singular or sheared
+transform is skipped as a whole (box, tabletop and plane) instead of producing
+misleading dimensions; the rest of the room stays `Ready` and `room_get.reason`
+ends with `Skipped <n> invalid anchor(s) with singular or sheared transforms.`
+Other geometry errors still fail the snapshot.
 
 ## Bounds and relative placement
 

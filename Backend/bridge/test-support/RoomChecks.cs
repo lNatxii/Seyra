@@ -139,6 +139,19 @@ public static class RoomChecks
                 for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
                 Require(context.Snapshot.State==RoomState.Ready&&context.Snapshot.Revision>oldSnapshot.Revision,"Invalidated room did not rebuild.");
                 Require(oldSnapshot.Surfaces.Count>0,"Published snapshots must remain immutable.");
+                if(previousId==null)
+                {
+                    var broken=room.Anchors.First(a=>a.VolumeBounds.HasValue&&!a.HasAnyLabel(MRUKAnchor.SceneLabels.GLOBAL_MESH|MRUKAnchor.SceneLabels.INVISIBLE_WALL_FACE));
+                    var brokenId="physical:"+broken.Anchor.Uuid;var healthy=context.Snapshot;var oldScale=broken.transform.localScale;
+                    broken.transform.localScale=new Vector3(oldScale.x,0,oldScale.z);room.AnchorUpdatedEvent.Invoke(broken);
+                    for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
+                    var partial=context.Snapshot;
+                    Require(partial.State==RoomState.Ready&&partial.SkippedAnchors==1&&partial.Objects.Count==healthy.Objects.Count-1&&partial.Objects.All(o=>o.PhysicalId!=brokenId)&&partial.Surfaces.Count==healthy.Surfaces.Count(s=>s.PhysicalId!=brokenId),"A singular anchor must be skipped without invalidating the room.");
+                    Require(((string)Ok("room_get")["reason"]).Contains("Skipped 1 invalid anchor"),"room_get.reason must report skipped anchors.");
+                    broken.transform.localScale=oldScale;room.AnchorUpdatedEvent.Invoke(broken);
+                    for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
+                    Require(context.Snapshot.SkippedAnchors==0&&context.Snapshot.Objects.Count==healthy.Objects.Count&&!context.Diagnostic.Contains("Skipped"),"A restored anchor must return to the snapshot.");
+                }
                 if(previousId!=null)Require((string)Call("scene_bounds",new JObject{["entityId"]=previousId})["error"]["code"]=="ROOM_REFERENCE_STALE","Old room reference accepted.");
                 previousId=physical;
                 evidence.Add(new JObject{["prefab"]=path,["surfaces"]=snapshot.Surfaces.Count,["volumes"]=snapshot.Objects.Count,["tabletops"]=snapshot.Surfaces.Count(s=>s.Kind=="tabletop"),["revision"]=snapshot.Revision,["loadMilliseconds"]=loadTimer.ElapsedMilliseconds,["inventoryBytes"]=System.Text.Encoding.UTF8.GetByteCount(Ok("room_objects",new JObject{["limit"]=64}).ToString(Newtonsoft.Json.Formatting.None)),

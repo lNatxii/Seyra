@@ -43,8 +43,9 @@ namespace Seyra.Spatial
         public RoomState State { get; }
         public IReadOnlyList<PhysicalSurface> Surfaces { get; }
         public IReadOnlyList<PhysicalObject> Objects { get; }
-        public RoomSnapshot(long revision,string roomId,bool simulated,RoomState state,IEnumerable<PhysicalSurface> surfaces=null,IEnumerable<PhysicalObject> objects=null)
-        { Revision=revision;RoomId=roomId;Simulated=simulated;State=state;
+        public int SkippedAnchors { get; }
+        public RoomSnapshot(long revision,string roomId,bool simulated,RoomState state,IEnumerable<PhysicalSurface> surfaces=null,IEnumerable<PhysicalObject> objects=null,int skippedAnchors=0)
+        { Revision=revision;RoomId=roomId;Simulated=simulated;State=state;SkippedAnchors=skippedAnchors;
           Surfaces=Array.AsReadOnly((surfaces??Array.Empty<PhysicalSurface>()).ToArray());Objects=Array.AsReadOnly((objects??Array.Empty<PhysicalObject>()).ToArray()); }
     }
     public static class SpatialGeometry
