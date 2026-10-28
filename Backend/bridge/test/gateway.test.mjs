@@ -13,7 +13,7 @@ import { createGateway } from '../dist/gateway.js';
 
 test('gateway authenticates, restricts proxy routes and relays polling results', async () => {
   const root = mkdtempSync(join(tmpdir(), 'seyra-gateway-'));
-  execFileSync('pwsh', ['-NoProfile', '-Command', `
+  execFileSync('powershell.exe', ['-NoProfile', '-Command', `
     $key=[Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve+NamedCurves]::nistP256)
     $request=[Security.Cryptography.X509Certificates.CertificateRequest]::new('CN=seyra-test',$key,[Security.Cryptography.HashAlgorithmName]::SHA256)
     $cert=$request.CreateSelfSigned([DateTimeOffset]::Now.AddDays(-1),[DateTimeOffset]::Now.AddDays(1))

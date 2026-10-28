@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Collections.Generic;
 using Seyra.SceneTools;
 using Seyra.UI;
 using TMPro;
@@ -20,12 +18,13 @@ namespace Seyra.Configuration
         [SerializeField] SeyraSceneRuntime runtime;
         string gatewayUrl;
         string fingerprint;
-        Rect lastSafeArea;
-        int lastWidth, lastHeight;
+        [SerializeField] Button detailsButton;
+        [SerializeField] LayoutElement resultsLayout;
         string configurationError;
 
-        public void Configure(RectTransform safeRoot, TMP_Text statusText, TMP_Text resultText, Button probe, Button reconnect, OpenCodeTestChat chatView, SeyraSceneRuntime sceneRuntime)
+        public void Configure(RectTransform safeRoot, TMP_Text statusText, TMP_Text resultText, Button probe, Button reconnect, Button details, LayoutElement resultLayout, OpenCodeTestChat chatView, SeyraSceneRuntime sceneRuntime)
         {
+            detailsButton = details; resultsLayout = resultLayout;
             safeAreaRoot = safeRoot; status = statusText; results = resultText;
             probeButton = probe; reconnectButton = reconnect; chat = chatView; runtime = sceneRuntime;
         }
@@ -33,12 +32,15 @@ namespace Seyra.Configuration
         {
             probeButton.onClick.AddListener(Probe);
             reconnectButton.onClick.AddListener(Reconnect);
+            detailsButton.onClick.AddListener(ToggleDetails);
+            resultsLayout.gameObject.SetActive(false);
             Reload();
         }
         void OnDisable()
         {
             probeButton.onClick.RemoveListener(Probe);
             reconnectButton.onClick.RemoveListener(Reconnect);
+            detailsButton.onClick.RemoveListener(ToggleDetails);
         }
         void Reload()
         {
@@ -55,23 +57,19 @@ namespace Seyra.Configuration
         }
         void Update()
         {
-            if (Screen.width > 0 && Screen.height > 0 && (lastSafeArea != Screen.safeArea || lastWidth != Screen.width || lastHeight != Screen.height))
-            {
-                lastSafeArea = Screen.safeArea; lastWidth = Screen.width; lastHeight = Screen.height;
-                safeAreaRoot.anchorMin = new Vector2(lastSafeArea.xMin / Screen.width, lastSafeArea.yMin / Screen.height);
-                safeAreaRoot.anchorMax = new Vector2(lastSafeArea.xMax / Screen.width, lastSafeArea.yMax / Screen.height);
-                safeAreaRoot.offsetMin = safeAreaRoot.offsetMax = Vector2.zero;
-            }
+            float availableHeight = safeAreaRoot.rect.height;
+            resultsLayout.preferredHeight = Mathf.Max(0, availableHeight * .45f);
             string endpoint = "Sin emparejar";
             if (configurationError == null && Uri.TryCreate(gatewayUrl, UriKind.Absolute, out var uri))
                 endpoint = $"Pasarela (HTTPS) · {uri.Host}:{uri.Port} · pin {fingerprint.Substring(0, 8)}";
-            status.text = "Diagnóstico de conexión\n" + endpoint + "\nChat: " + (chat != null && chat.Session != null && chat.Session.IsConnected ? "conectado" : "desconectado")
-                + " · Runtime: " + (runtime != null ? runtime.BridgeStatus : "desconectado") + "\n" + (configurationError ?? "Conexión segura por sondeo HTTPS.")
-                + "\nConfig: " + Application.persistentDataPath + "/.env.local";
+            status.text = endpoint + "\nChat: " + (chat != null && chat.Session != null && chat.Session.IsConnected ? "conectado" : "desconectado")
+                + " · Runtime: " + (runtime != null ? runtime.BridgeStatus : "desconectado");
         }
+        void ToggleDetails() => resultsLayout.gameObject.SetActive(!resultsLayout.gameObject.activeSelf);
         async void Probe()
         {
             Reload();
+            resultsLayout.gameObject.SetActive(true);
             if (configurationError != null) { results.text = configurationError; return; }
             probeButton.interactable = false;
             results.text = "Probando TLS…";

@@ -158,7 +158,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 07. Conexión y ejecución verificadas en Quest
 
-**Estado:** In progress · cambios solicitados (28 de octubre de 2026): mergeada en main; pendientes restauración del build de móvil, maquetación y teclado de MobileConnectionTest, agente seyra y test portable. Pasarela HTTPS con huella y token revocable, bridge por sondeo largo, reanudación sin reenvío y APK Quest/móvil generados. Validación básica aprobada; conexión completa en móvil y pruebas físicas en Quest pendientes del usuario. [Implementación y validación](Progress/Completed/07-quest-connection.md).
+**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Correcciones 11.1.1–5 aplicadas: restauración del build comprobada por API y hashes, escena móvil regenerada con layouts, diagnóstico plegable, MobileKeyboardInset y agente seyra; suite del bridge 11/11 sin pwsh. APK móvil recompilado. Pendiente del usuario: teclado y Enviar visibles, «hola» con respuesta y runtime conectado; pruebas físicas en Quest pendientes. Añadidos 6–7 de la revisión fuera de esta entrega. [Implementación y validación](Progress/Completed/07-quest-connection.md).
 
 **Entrega:** configurar desde la aplicación la dirección del backend, autenticar la conexión sin incluir secretos de proveedores en assets o builds y verificar el enlace Unity–bridge fuera del Editor. El backend sigue ejecutándose en un equipo accesible por red.
 
