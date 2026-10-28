@@ -65,7 +65,7 @@ namespace Seyra.Spatial
             var roots=new HashSet<Transform>(placements.Keys.Where(t=>t!=null));
             foreach(var panel in FindObjectsByType<ManagedPanel>(FindObjectsSortMode.None))if(panel.gameObject.scene==gameObject.scene)roots.Add(panel.transform);
             foreach(var window in FindObjectsByType<UIXRWindow>(FindObjectsSortMode.None))
-                if(window.gameObject.scene==gameObject.scene&&(window.GetComponent<Seyra.UI.SeyraSpatialChatWindow>()!=null||window.GetComponent<Seyra.UI.SeyraSpatialMenu>()!=null))roots.Add(window.transform);
+                if(window.gameObject.scene==gameObject.scene&&(window.GetComponent<Seyra.UI.SeyraSpatialChatWindow>()!=null))roots.Add(window.transform);
             var result=new List<SpatialBox>();
             foreach(var root in roots)
             {
