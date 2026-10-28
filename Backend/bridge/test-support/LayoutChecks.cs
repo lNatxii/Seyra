@@ -33,6 +33,7 @@ public static class LayoutChecks
             var group=Owned(id);var card=group.transform.GetChild(0);
             card.rotation=Quaternion.Euler(0,60,0);
             Check(DrivenTransform.Channels(card)==DrivenChannels.Rotation,"Billboard rotation is not registered.");
+            Check((string)Call("set_transform",new JObject{["entityId"]=card.GetComponent<GeneratedObject>().EntityId,["space"]="world",["rotation"]=new JObject{["x"]=0,["y"]=90,["z"]=0}})["error"]?["code"]=="MOTION_DRIVEN","Billboard rotation must reject set_transform with MOTION_DRIVEN.");
             var applied=Ok("layout_apply",new JObject{["rootId"]=id,["layout"]="plane"});
             Check((string)applied["layout"]=="plane","Expected plane.");
             Ok("undo",new JObject{["scope"]="operation"});

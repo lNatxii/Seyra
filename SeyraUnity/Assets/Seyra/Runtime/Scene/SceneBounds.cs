@@ -110,8 +110,9 @@ namespace Seyra.SceneTools
             if(reference==null){var physical=ResolvePhysical(referenceId);referencePoints=physical.points;referenceFacing=physical.facing;}
             else{referencePoints=GeometryPoints(reference).ToArray();referenceFacing=r.forward;referenceId=Id(reference);}
             string frame=args["frame"]==null?"world":Text(args,"frame"),orient=args["orient"]==null?"keep":Text(args,"orient");
-            var frameRotation=ResolveFrame(frame,referenceFacing);
             if(orient!="keep"&&orient!="face_viewer"&&orient!="match_reference")throw new ArgumentException("Unknown orientation.");
+            DrivenTransform.Require(t,DrivenChannels.Position|(orient!="keep"?DrivenChannels.Rotation:DrivenChannels.None));
+            var frameRotation=ResolveFrame(frame,referenceFacing);
             var oldPosition=t.localPosition;var oldRotation=t.localRotation;
             try
             {

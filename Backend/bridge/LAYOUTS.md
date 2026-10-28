@@ -98,6 +98,14 @@ after load, applying anchor retains saved poses and reports
 
 ## Errors and validation
 
+`MOTION_DRIVEN` rejects writes to registered Position/Rotation channels with
+"Pause or remove the behavior first." `set_transform` checks only the supplied
+position/rotation fields; scale is unaffected. `place_relative` checks position
+and, when orient is not keep, rotation. `spatial_place` checks both channels;
+the read-only `spatial_candidates` query remains available. Checks apply only
+to the target Transform, so moving a parent is permitted. `layout_apply` is
+exempt because it owns layout reconfiguration.
+
 Layout-specific failures include LAYOUT_DOES_NOT_FIT (message includes
 maxItems), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
 LAYOUT_TOO_MANY_PRESENTATIONS, LAYOUT_FOLLOW_BUSY (structured rootId),

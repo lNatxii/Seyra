@@ -301,6 +301,7 @@ namespace Seyra.SceneTools
                 RequirePanelRoot(go);
                 if(space!="local" && space!="world")throw new ArgumentException("space must be local or world.");
                 Vector3? pos=args["position"]==null?null:ReadVector(args["position"]), rot=args["rotation"]==null?null:ReadVector(args["rotation"]), scale=args["scale"]==null?null:ReadVector(args["scale"]);
+                DrivenTransform.Require(t,(pos.HasValue?DrivenChannels.Position:DrivenChannels.None)|(rot.HasValue?DrivenChannels.Rotation:DrivenChannels.None));
                 if(space=="world" && (pos.HasValue || rot.HasValue)) Invertible(t.parent);
                 var oldPos=t.localPosition;var oldRot=t.localRotation;var oldScale=t.localScale;
                 try

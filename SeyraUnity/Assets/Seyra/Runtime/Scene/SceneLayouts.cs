@@ -151,6 +151,7 @@ namespace Seyra.SceneTools
                 if(savedTargets!=null && args["order"]!=null)savedTargets=new JArray(children.Select(c=>savedTargets[c.transform.GetSiblingIndex()].DeepClone()));
                 specification=root.GetComponent<SeyraLayoutGroup>()?.Specification??new JObject{["layout"]="plane",["itemSize"]=new JObject{["width"]=size.width,["height"]=size.height}};
                 string oldLayout=(string)specification["layout"];
+                if((string)args["layout"]=="anchor"&&oldLayout!="anchor")throw new ArgumentException("anchor requires layout_create with targets");
                 if(args["layout"]!=null&&(string)args["layout"]!=oldLayout){specification.Remove("params");specification.Remove("centerSize");specification.Remove("behavior");}
                 foreach(var key in new[]{"layout","behavior","gap","params"})if(args[key]!=null)specification[key]=args[key].DeepClone();
                 specification=LayoutPlanner.Normalize(specification,children.Length);name=root.name;LayoutHierarchy(root.transform);

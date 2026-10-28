@@ -51,8 +51,10 @@ public static class ChatExecutionChecks
         Check(Application.isPlaying,"Play Mode required");
         chat=UnityEngine.Object.FindFirstObjectByType<OpenCodeTestChat>();
         var originalUrl=Get<string>("serverUrl");
+        var originalAgent=Get<string>("agent");var originalBackground=Application.runInBackground;
+        Application.runInBackground=true;
         chat.enabled=false;
-        Set("sessionId",null);Set("serverUrl","http://127.0.0.1:4202");
+        Set("sessionId",null);Set("serverUrl","http://127.0.0.1:4202");Set("agent","seyra");
         fixture=new JsonHttpClient("http://127.0.0.1:4202");
         chat.enabled=true;
         var checks=new JArray();
@@ -193,6 +195,7 @@ public static class ChatExecutionChecks
         {
             chat.enabled=false;
             Set("serverUrl",originalUrl);Set("sessionId",null);Set("activeUserId",null);Set("pendingText",null);
+            Set("agent",originalAgent);Application.runInBackground=originalBackground;
             fixture.Dispose();
         }
     }

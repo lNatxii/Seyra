@@ -186,6 +186,18 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 03–06; validación en visor tras 07. Sirve de fuente espacial para 13, 15 y 16.
 
+### 23. Layouts espaciales para colecciones
+
+**Estado:** Completed · Pendiente de revisión (23a). Corregidos los tres cambios solicitados: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de ChatExecutionChecks (perfil seyra y Player Loop en segundo plano). Compilación y LayoutChecks aprobados (16 comprobaciones). ChatExecutionChecks ejecutada una vez: timeout por perfil seyra_zai incompatible; conexión confirmada tras corregir el arranque, sin repetir ni dar por aprobada la suite completa. Layouts flotantes y persistencia 5 implementados; 23b/23c y validación física pendientes. [Diseño](Progress/InProgress/23-spatial-layouts.md).
+
+**Orden:** 23a después de 22b; 23b después de 23a; 23c (prompt) al cerrar 23a, con la parte de pared tras 23b.
+
+**Entrega:** herramientas `layout_plan`, `layout_create` y `layout_apply` que crean o reorganizan N tarjetas del mismo tamaño en una llamada, con las disposiciones arc, plane, hub, surround, anchor, wall y surface, y los comportamientos fijo, alineado, billboard y lazy follow. El sistema calcula las poses, también el reparto entre paredes. El prompt sustituye la receta manual de colecciones por una guía de decisión con ejemplos.
+
+**Aceptación:** una petición como «muéstrame los libros de Isabel Allende» produce tarjetas distribuidas en una sola llamada; las preguntas simples siguen en el chat; sin solapes; si no cabe no se crea nada y se informa de la capacidad; deshacer, guardado y carga conservan el layout.
+
+**Dependencias:** 05, 06c, 22a y 22b.
+
 ### 10. Selección e interacción bidireccional con contenido virtual
 
 **Entrega:** seleccionar objetos o paneles y enviar su `entityId` como contexto explícito del siguiente mensaje. Añadir indicación visual de selección y manipulación manual básica mediante el rig existente.
