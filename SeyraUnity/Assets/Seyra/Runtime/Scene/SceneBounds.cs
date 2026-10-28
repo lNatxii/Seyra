@@ -137,9 +137,7 @@ namespace Seyra.SceneTools
                 }
                 var before=SpatialGeometry.Project(GeometryPoints(moving),frameRotation);
                 var target=SpatialGeometry.Project(referencePoints,frameRotation);
-                var offset=target.center-before.center;
-                offset[axis]=positive?target.max[axis]+(float)gapValue-before.min[axis]:target.min[axis]-(float)gapValue-before.max[axis];
-                t.position+=frameRotation*offset;Check(t);
+                t.position+=RelativeOffset(before,target,axis,positive,(float)gapValue,frameRotation);Check(t);
                 var after=SpatialGeometry.Project(GeometryPoints(moving),frameRotation);
                 // Reject precision loss or driven UI that cannot represent the requested placement.
                 var actualGap=positive?after.min[axis]-target.max[axis]:target.min[axis]-after.max[axis];
@@ -154,6 +152,12 @@ namespace Seyra.SceneTools
                 return result;
             }
             catch{t.localPosition=oldPosition;t.localRotation=oldRotation;throw;}
+        }
+        internal static Vector3 RelativeOffset(Bounds moving,Bounds target,int axis,bool positive,float gap,Quaternion frame)
+        {
+            var offset=target.center-moving.center;
+            offset[axis]=positive?target.max[axis]+gap-moving.min[axis]:target.min[axis]-gap-moving.max[axis];
+            return frame*offset;
         }
     }
 }

@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","layout_create","layout_apply"};
 
         void InitializeLifecycle(string directory)
         {
@@ -85,20 +85,20 @@ namespace Seyra.SceneTools
             public string AppearanceSignature;
             public PanelContent Panel;
             public string PanelSignature;
-            public JObject Presentation,Interaction;
+            public JObject Presentation,Interaction,Layout;
             public static ObjectState Capture(GameObject go)
             {
                 var t=go.transform;var record=go.GetComponent<GeneratedObject>();
                 return new ObjectState{Object=go,Parent=t.parent,Sibling=t.GetSiblingIndex(),Name=go.name,Tag=go.tag,Layer=go.layer,
                     Position=t.localPosition,Rotation=t.localRotation,Scale=t.localScale,Active=go.activeSelf,
                     EntityId=record!=null?record.EntityId:null,Kind=record!=null?record.Kind:null,Shape=record!=null?record.PrimitiveType:null,GroupId=record!=null?record.RequestGroupId:null,
-                    Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
+                    Layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification,Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
                     Panel=go.GetComponent<ManagedPanel>()?.Content,PanelSignature=go.GetComponent<ManagedPanel>()?.StateSignature,
                     Presentation=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().Presentation.ToJson():null,
                     Interaction=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().InteractionState:null};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && PanelSignature==other.PanelSignature;
+                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout);
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
@@ -150,7 +150,7 @@ namespace Seyra.SceneTools
             foreach(var go in snapshot.Content.Concat(externals??externalTargets).Where(g=>g!=null).Distinct())
             {
                 var state=ObjectState.Capture(go);
-                if(state.Presentation==null && lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state))state=previous;
+                if(DrivenTransform.Channels(go.transform)==DrivenChannels.None && state.Presentation==null && lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state))state=previous;
                 snapshot.States[go]=state;
             }
             lastCapture=snapshot;return snapshot;
@@ -184,6 +184,7 @@ namespace Seyra.SceneTools
             }
             foreach(var group in target.States.Values.GroupBy(s=>s.Parent))foreach(var state in group.OrderBy(s=>s.Sibling))state.Object.transform.SetSiblingIndex(state.Sibling);
             foreach(var state in target.States.Values)state.Object.SetActive(state.Active);
+            foreach(var state in target.States.Values)RestoreLayout(state.Object,state.Layout);
             Reindex();lastCapture=target;
         }
         JObject ExecuteRecorded(string tool,JObject args)
@@ -203,8 +204,9 @@ namespace Seyra.SceneTools
                 if(tool=="spatial_place"&&(bool?)result["applied"]!=true)return result;
                 var after=Capture();
                 var operationId="op_"+Guid.NewGuid().ToString("N");
-                history.Add(new HistoryEntry{Id=operationId,Tool=tool,GroupId=activeRequest,EntityId=(string)result["entityId"],Before=before,After=after});
+                history.Add(new HistoryEntry{Id=operationId,Tool=tool,GroupId=tool=="layout_create"||tool=="layout_apply"?(string)result["requestGroupId"]:activeRequest,EntityId=(string)result["entityId"],Before=before,After=after});
                 result["operationId"]=operationId;result["operationRequestGroupId"]=activeRequest;
+                if(tool=="layout_create"||tool=="layout_apply")result["operationIds"]=new JArray(operationId);
                 return result;
             }
             catch {try{ApplySnapshot(before);}catch{throw new SceneRollbackException();}throw;}

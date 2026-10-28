@@ -50,7 +50,7 @@ public static class AppearanceChecks
                 ShaderUtil.CompilePass(material,0,true);
                 Require(!ShaderUtil.ShaderHasError(material.shader),"Shader compilation failed: "+style);
                 Ok("content_save",new JObject{["slot"]="styles"});
-                Require((int)JObject.Parse(File.ReadAllText(Path.Combine(storage,"styles.json")))["version"]==4,"Wrong persistence version.");
+                Require((int)JObject.Parse(File.ReadAllText(Path.Combine(storage,"styles.json")))["version"]==5,"Wrong persistence version.");
                 var loaded=Ok("content_load",new JObject{["slot"]="styles"});
                 Require(JToken.DeepEquals(applied["appearance"],Ok("scene_get",new JObject{["entityId"]=firstId})["appearance"]),"Load lost appearance.");
                 Ok("undo",new JObject{["scope"]="operation",["expectedOperationId"]=loaded["operationId"]});
@@ -72,8 +72,8 @@ public static class AppearanceChecks
             Require((string)Ok("scene_get",new JObject{["entityId"]=firstId})["appearance"]["style"]=="transparent","Restore lost appearance.");
             Ok("content_save",new JObject{["slot"]="legacy"});
             var path=Path.Combine(storage,"legacy.json");var legacy=JObject.Parse(File.ReadAllText(path));legacy["version"]=1;
-            ((JObject)legacy["root"]).Remove("appearance");((JObject)legacy["root"]).Remove("panel");((JObject)legacy["root"]).Remove("presentation");
-            foreach(JObject node in legacy["nodes"]){node.Remove("appearance");node.Remove("panel");node.Remove("presentation");}
+            ((JObject)legacy["root"]).Remove("layout");((JObject)legacy["root"]).Remove("appearance");((JObject)legacy["root"]).Remove("panel");((JObject)legacy["root"]).Remove("presentation");
+            foreach(JObject node in legacy["nodes"]){node.Remove("appearance");node.Remove("panel");node.Remove("layout"); node.Remove("presentation");}
             File.WriteAllText(path,legacy.ToString());
             var migration=Ok("content_load",new JObject{["slot"]="legacy"});
             Require((string)Ok("scene_get",new JObject{["entityId"]=firstId})["appearance"]["style"]=="matte_opaque","v1 migration failed.");

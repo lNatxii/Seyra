@@ -1,4 +1,5 @@
 using Seyra.UI.Library;
+using System.Linq;
 using UnityEngine;
 
 namespace Seyra.UI
@@ -25,13 +26,13 @@ namespace Seyra.UI
 
         Vector3 defaultOffset, velocity;
         float outsideTime;
-        bool initialized, simulatedGrab, warned;
+        bool initialized, simulatedGrab, warned, layoutRoot;
         UIMetaGrabFrame subscribedFrame;
 
         public FollowState State { get; private set; }
         public Transform Head { get => head; set { head = value; initialized = false; } }
         public Vector3 RestOffset => restOffset;
-        bool IsHeld => simulatedGrab || (grabFrame != null && grabFrame.IsGrabbed);
+        bool IsHeld => simulatedGrab || (grabFrame != null && grabFrame.IsGrabbed) || (layoutRoot && GetComponentsInChildren<UIMetaGrabFrame>().Any(f => f.IsGrabbed));
 
         void Awake() { defaultOffset = restOffset; }
         void OnEnable()
@@ -85,11 +86,12 @@ namespace Seyra.UI
             var yaw = Quaternion.Euler(0, resolvedHead.eulerAngles.y, 0);
             var position = resolvedHead.position + yaw * restOffset;
             var direction = position - resolvedHead.position;
-            var rotation = direction.sqrMagnitude > .000001f
+            var rotation = layoutRoot ? yaw : direction.sqrMagnitude > .000001f
                 ? Quaternion.LookRotation(direction, Vector3.up) : yaw;
             return new Pose(position, rotation);
         }
 
+        public void ConfigureOffset(Vector3 offset) { layoutRoot = true; restOffset = defaultOffset = offset; initialized = true; velocity = Vector3.zero; outsideTime = 0; }
         public void ResetOffset() { restOffset = defaultOffset; }
 
         public void SnapToTarget()

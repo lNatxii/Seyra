@@ -1,3 +1,4 @@
+import { layoutTools } from './layouts.js';
 import { z } from 'zod';
 import { roomTools, spatialFrame, spatialOrientation } from './spatial.js';
 import { panelSchema } from './panels.js';
@@ -12,6 +13,7 @@ const appearanceStyles = ['matte_opaque', 'colored_translucent', 'unlit', 'ui_un
 const channel = z.number().finite().min(0).max(1);
 const appearance = z.object({ entityId: id, style: z.enum(appearanceStyles), color: z.object({ r: channel, g: channel, b: channel, a: channel }).strict() }).strict().refine(a => ['colored_translucent', 'ui_unlit', 'transparent'].includes(a.style) || a.color.a === 1, 'This style requires alpha=1.');
 export const tools = [
+  ...layoutTools,
   ...roomTools,
   ...presentationTools(creation, id),
   { name: 'create_panel', readOnly: false,
