@@ -37,8 +37,10 @@ namespace Seyra.SceneTools
             child.transform.position+=RelativeOffset(SpatialGeometry.Project(GeometryPoints(child),frame),SpatialGeometry.Project(points,frame),axis,side!="left",gap,frame);
             Check(child.transform);
         }
-        LayoutPlanner.PlanResult PlanLayout(JObject spec,int count,JArray targets)
+        LayoutPlanner.PlanResult PlanLayout(JObject spec,int count,JArray targets,Transform exclude=null)
         {
+            if(LayoutPlanner.IsRoomLayout((string)spec["layout"])&&PlacementService.Snapshot.State!=RoomState.Ready)
+                throw new RoomToolException("ROOM_UNAVAILABLE","Room layouts require a ready captured room.");
             var view=PlacementService.View(activeRequest,currentYaw:activeRequest==null);
             var resolved=new List<Vector3[]>();
             if((string)spec["layout"]=="anchor")
@@ -65,7 +67,10 @@ namespace Seyra.SceneTools
                 position+=RelativeOffset(SpatialGeometry.Project(corners,frame),bounds,axis,side!="left",(float)spec["gap"],frame);
                 return new Pose(position,rotation);
             }
-            var plan=LayoutPlanner.Plan(spec,count,view,Anchor);
+            LayoutPlanner.PlanResult plan;
+            try{plan=LayoutPlanner.Plan(spec,count,view,Anchor,PlacementService.Snapshot,PlacementService.Reservations(exclude));}
+            catch(ArgumentException error) when(error.Message.StartsWith("ROOM_UNAVAILABLE:")||error.Message.StartsWith("ROOM_REFERENCE_STALE:"))
+            {throw new RoomToolException(error.Message.Split(':')[0],error.Message);}
             if((string)spec["layout"]=="anchor")
             {
                 for(int i=0;i<count;i++)for(int j=i+1;j<count;j++)
@@ -76,8 +81,8 @@ namespace Seyra.SceneTools
         JObject LayoutPlanJson(JObject spec,int count,LayoutPlanner.PlanResult plan)=>new JObject{
             ["fits"]=plan.Fits,["layout"]=spec["layout"],["behavior"]=spec["behavior"],["count"]=count,["maxItems"]=plan.MaxItems,
             ["rows"]=plan.Rows,["columns"]=plan.Columns,["radius"]=plan.Radius>0?new JValue(plan.Radius):JValue.CreateNull(),
-            ["items"]=new JArray(plan.Items.Select((pose,index)=>new JObject{["index"]=index,["position"]=Vector(pose.position),["rotation"]=Vector(pose.rotation.eulerAngles)})),
-            ["warnings"]=new JArray(plan.Warnings),["reason"]=plan.Fits?null:"LAYOUT_DOES_NOT_FIT"};
+            ["items"]=new JArray(plan.Items.Select((pose,index)=>new JObject{["index"]=index,["position"]=Vector(pose.position),["rotation"]=Vector(pose.rotation.eulerAngles),["physicalId"]=plan.Candidates.Count>index?plan.Candidates[index].PhysicalId:null})),
+            ["warnings"]=new JArray(plan.Warnings),["perWall"]=plan.PerWall.DeepClone(),["roomRevision"]=plan.RoomRevision,["simulated"]=plan.Simulated,["reason"]=plan.Reason??(plan.Fits?null:"LAYOUT_DOES_NOT_FIT")};
         void RequireFollowAvailable(JObject spec,GameObject except=null)
         {
             if((string)spec["behavior"]!="lazy_follow")return;
@@ -163,8 +168,8 @@ namespace Seyra.SceneTools
                 if((string)specification["layout"]=="anchor")targets=savedTargets;
             }
             RequireFollowAvailable(specification,root);
-            int total=create?items.Count:children.Length;var plan=!create && (string)specification["layout"]=="anchor" && targets==null ? SavedAnchorPlan(root,children) : PlanLayout(specification,total,targets);
-            if(!plan.Fits)throw new LayoutToolException("LAYOUT_DOES_NOT_FIT","The layout does not fit. Group or select items.",new JObject{["maxItems"]=plan.MaxItems,["perWall"]=new JArray()});
+            int total=create?items.Count:children.Length;var plan=!create && (string)specification["layout"]=="anchor" && targets==null ? SavedAnchorPlan(root,children) : PlanLayout(specification,total,targets,root!=null?root.transform:null);
+            if(!plan.Fits)throw new LayoutToolException("LAYOUT_DOES_NOT_FIT",plan.Reason??"The layout does not fit. Group or select items.",new JObject{["maxItems"]=plan.MaxItems,["perWall"]=plan.PerWall.DeepClone()});
             bool automatic=activeRequest==null;string requestId=activeRequest;
             try
             {
@@ -182,6 +187,7 @@ namespace Seyra.SceneTools
                 {var view=PlacementService.View(activeRequest,currentYaw:activeRequest==null);for(int i=0;i<total;i++)ApplyAnchor(children[i],(JObject)targets[i],(float)specification["gap"],view);}
                 if(targets!=null)specification["targets"]=targets.DeepClone();
                 RestoreLayout(root,specification);Check(root.transform);
+                for(int i=0;i<total;i++)PlacementService.Register(children[i].transform,plan.Candidates.Count>i?plan.Candidates[i]:null);
                 return new JObject{["rootId"]=Id(root),["entityId"]=Id(root),["requestGroupId"]=requestId,["layout"]=specification["layout"],["behavior"]=specification["behavior"],
                     ["items"]=new JArray(children.Select((c,i)=>new JObject{["index"]=i,["entityId"]=Id(c),["name"]=c.name})),["warnings"]=new JArray(plan.Warnings)};
             }

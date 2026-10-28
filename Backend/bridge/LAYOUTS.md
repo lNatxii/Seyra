@@ -1,4 +1,4 @@
-# Floating spatial layouts (23a)
+# Spatial layouts (23a / 23b)
 
 `layout_plan` is a query; `layout_create` and `layout_apply` use the existing
 recorded scene mutation circuit. All schemas are strict. Use layouts for two
@@ -10,12 +10,13 @@ content. Do not replace them with one long list.
 
 ```ts
 type Size = { width: number; height: number };
-type Layout = 'arc' | 'plane' | 'hub' | 'surround' | 'anchor';
-type Behavior = 'fixed_facing' | 'billboard' | 'lazy_follow';
+type Layout = 'arc' | 'plane' | 'hub' | 'surround' | 'anchor' | 'wall' | 'surface';
+type Behavior = 'fixed_facing' | 'fixed_aligned' | 'billboard' | 'lazy_follow';
 type Params = {
   radius?: number; rows?: number; distance?: number;
   arrangement?: 'row' | 'column' | 'grid'; columns?: number;
   side?: 'left' | 'center' | 'right';
+  physicalId?: string; allowSpill?: boolean; pose?: 'standing' | 'lying';
 };
 type Spec = { layout: Layout; behavior?: Behavior; itemSize: Size;
   centerSize?: Size; gap?: number; params?: Params };
@@ -34,12 +35,12 @@ presentation width/height >=.4. Labels retain their title and font constraints.
 Count is 1..24; hub requires 3..9 including its center. Presentation IDs must
 be unique across the runtime and at most 16 presentations may be live.
 
-Default behavior is fixed_facing, except anchor (billboard). Billboard is
+Default behavior is fixed_facing, except anchor (billboard) and wall/surface
+(fixed_aligned, their only valid behavior). Billboard is
 valid only for arc, hub and anchor. Lazy follow is valid only for plane with
 1..3 items; one live following layout per runtime, including inactive content.
 It follows the root in yaw, pauses while a child is grabbed, and defaults to
-.9m forward, .35m right and .1m below eye height. Fixed aligned, wall and
-surface are deferred to 23b. No room is required for floating layouts;
+.9m forward, .35m right and .1m below eye height. No room is required for floating layouts;
 physical anchor targets require current room references.
 
 Arc: radius 1.2..2.6, rows 1..3; automatic radius increases to 2.2 before
@@ -54,7 +55,8 @@ proceeds right around the user. Gap is 0.. .5, default .08 (.05 for anchor).
 The root uses the working view from SpatialPlacementService.View().
 
 Plan returns `fits,layout,behavior,count,maxItems,rows,columns,radius,items,
-warnings,reason`. Each item has index and world position/rotation (Euler
+warnings,reason,perWall,roomRevision,simulated`. Room plans add each item
+physicalId and perWall entries `{physicalId,capacity,used}`. Each item has index and world position/rotation (Euler
 degrees). Capacity is computed with the same constraints, including explicit
 parameters. Failed planning creates nothing. Anchor plans use the declared card rectangle; creation refines placement with the real panel/grab envelope through the shared relative offset calculation. Anchor overlap warnings identify
 potentially overlapping indices; anchor placement does not resolve collisions.
@@ -92,7 +94,9 @@ Saves format 5 and reads formats 1..5. Container nodes add optional `layout`
 with layout, behavior, itemSize, centerSize, gap and params. Cards and sibling
 order use the existing format. Loading reconstructs behavior after the entire
 hierarchy is ready. Physical targets, room revisions and reservations are
-never saved. Anchor target references are retained only during the runtime;
+never saved; params.physicalId is stripped while other parameters remain.
+Loaded wall/surface layouts retain their saved world poses without revalidation;
+layout_apply chooses a current support when physicalId is omitted. Anchor target references are retained only during the runtime;
 after load, applying anchor retains saved poses and reports
 `anchor_targets_not_persisted`, until recreated with new targets.
 
@@ -107,7 +111,7 @@ to the target Transform, so moving a parent is permitted. `layout_apply` is
 exempt because it owns layout reconfiguration.
 
 Layout-specific failures include LAYOUT_DOES_NOT_FIT (message includes
-maxItems), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
+structured maxItems and perWall), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
 LAYOUT_TOO_MANY_PRESENTATIONS, LAYOUT_FOLLOW_BUSY (structured rootId),
 and LAYOUT_NOT_A_GROUP, plus existing room/identity errors. Schema failures
 are invalid arguments. Never repeat ambiguous mutations automatically.
@@ -115,3 +119,44 @@ are invalid arguments. Never repeat ambiguous mutations automatically.
 Basic checks: `npm test --prefix Backend/bridge`, LayoutPlannerChecks in Edit
 Mode, LayoutChecks in Play Mode, then the existing basic scene/UI suites.
 Readability, comfort and physical interaction remain headset validation work.
+
+## Room layouts (23b)
+
+Both layouts require a Ready RoomSnapshot. ROOM_UNAVAILABLE rejects missing or
+suspended room data; ROOM_REFERENCE_STALE rejects a missing physicalId;
+INVALID_ARGUMENT rejects a reference of the wrong support kind. Plans are pure,
+using captured geometry and reservations. They do not detect newly moved furniture.
+
+Wall uses a centered grid with 10 cm wall margins and centers its useful vertical
+range between floor + .8 m and floor + 2.2 m. Every oriented .05 m deep card box
+sits 3 cm off the wall and passes SpatialPlacementPlanner.ValidatePose, including
+openings, furniture, occlusion, reservations and the unchanged minimum 12 degree
+angular height. A .2 m high card at 2.5 m cannot pass; use taller cards or group
+items. A blocked anchor does not discard a wall's remaining free cells. Wall
+scores use the work view and the shared Score function; cell validation turns
+the view toward the projected anchor, or the shared corner for spill walls.
+
+physicalId selects the preferred wall; otherwise the best scored wall with free
+cells and incidence <=45 degrees is preferred. The most compact complete window
+nearest the anchor is used, falling back to nearest free cells. allowSpill defaults
+to true and traverses adjacent walls sharing a corner within .3 m, by score.
+Reading order is left to right, top to bottom, wall by wall. Capacity includes
+reachable free cells even when count is smaller, with the existing 5 cm reservation
+separation applied within and across walls. Failed plans allocate nothing.
+
+Surface uses captured tabletop supports. Without physicalId the existing spatial
+planner selects a support for the complete block envelope. Standing cards are at
+most .35 m high, lean backward 15 degrees and occupy at most two rows parallel
+to the near edge. Lying cards are at most .30 x .30 m and rise 30 degrees from
+horizontal with their top away from the viewer. Both sit 2 cm above the support.
+Full rotated boxes go through ValidatePose and the unchanged oriented support
+footprint rule. Its 10 cm edge margin also applies to lying cards (rather than
+relaxing it to 5 cm). Small or low tables may fail comfort or reading constraints.
+
+Create/apply register each card with wall/tabletop and its physicalId for
+scene_get.spatial and needsPlacement. Applying a floating layout clears these
+support registrations; undo restores the captured registrations with the poses.
+Apply excludes its entire root from reservations and permits transitions between
+floating and room layouts, resetting behavior defaults when the layout changes.
+Persistence stays at version 5. Physical comfort and readability need headset
+validation; synthetic and Bedroom00 checks are Editor-only evidence.

@@ -6,11 +6,11 @@ using UnityEngine;
 
 namespace Seyra.Spatial
 {
-    /// <summary>Deterministic floating layouts. No scene objects or room access.</summary>
-    public static class LayoutPlanner
+    /// <summary>Deterministic layouts over explicit view, room snapshots and reservations. No scene access.</summary>
+    public static partial class LayoutPlanner
     {
-        public static readonly string[] Layouts={"arc","plane","hub","surround","anchor"};
-        public static string[] Behaviors(string layout)=>layout=="anchor"?new[]{"fixed_facing","billboard"}:layout=="arc"||layout=="hub"?new[]{"fixed_facing","billboard"}:layout=="plane"?new[]{"fixed_facing","lazy_follow"}:new[]{"fixed_facing"};
+        public static readonly string[] Layouts={"arc","plane","hub","surround","anchor","wall","surface"};
+        public static string[] Behaviors(string layout)=>IsRoomLayout(layout)?new[]{"fixed_aligned"}:layout=="anchor"?new[]{"fixed_facing","billboard"}:layout=="arc"||layout=="hub"?new[]{"fixed_facing","billboard"}:layout=="plane"?new[]{"fixed_facing","lazy_follow"}:new[]{"fixed_facing"};
         public static float Number(JObject a,string key,float fallback,float min,float max)
         {
             if(a[key]==null)return fallback;
@@ -26,14 +26,14 @@ namespace Seyra.Spatial
         }
         public static JObject Normalize(JObject a,int count)
         {
-            string layout=(string)a["layout"],behavior=(string)a["behavior"]??(layout=="anchor"?"billboard":"fixed_facing");
-            if(!Layouts.Contains(layout))throw new ArgumentException("Unsupported layout; wall and surface belong to 23b.");
+            string layout=(string)a["layout"],behavior=(string)a["behavior"]??(IsRoomLayout(layout)?"fixed_aligned":layout=="anchor"?"billboard":"fixed_facing");
+            if(!Layouts.Contains(layout))throw new ArgumentException("Unsupported layout.");
             if(count<1||count>24)throw new ArgumentException("count must be 1..24.");
             if(!Behaviors(layout).Contains(behavior)||behavior=="lazy_follow"&&count>3)throw new ArgumentException("LAYOUT_BEHAVIOR_INVALID: valid behaviors: "+string.Join(", ",Behaviors(layout))+"; lazy_follow requires 1..3 items.");
             Size(a["itemSize"]);if(a["centerSize"]!=null&&a["centerSize"].Type!=JTokenType.Null){if(layout!="hub")throw new ArgumentException("centerSize is only valid for hub.");Size(a["centerSize"]);}
             if(layout=="hub"&&(count<3||count>9))throw new ArgumentException("hub requires a center and 2..8 satellites.");
             var p=a["params"]==null?new JObject():a["params"] as JObject??throw new ArgumentException("params must be an object.");
-            Keys(p,layout=="arc"||layout=="surround"?new[]{"radius","rows"}:layout=="plane"?new[]{"distance","arrangement","columns","side"}:layout=="hub"?new[]{"distance"}:Array.Empty<string>());
+            Keys(p,layout=="arc"||layout=="surround"?new[]{"radius","rows"}:layout=="plane"?new[]{"distance","arrangement","columns","side"}:layout=="hub"?new[]{"distance"}:layout=="wall"?new[]{"physicalId","allowSpill"}:layout=="surface"?new[]{"physicalId","pose"}:Array.Empty<string>());
             if(p["radius"]!=null)Number(p,"radius",0,layout=="arc"?1.2f:1.4f,layout=="arc"?2.6f:3);
             if(p["rows"]!=null&&(p["rows"].Type!=JTokenType.Integer||(int)p["rows"]<1||(int)p["rows"]>(layout=="arc"?3:2)))throw new ArgumentException("Invalid rows.");
             Number(p,"distance",1.6f,.8f,3);
@@ -41,15 +41,23 @@ namespace Seyra.Spatial
             if(p["arrangement"]!=null&&!new[]{"row","column","grid"}.Contains((string)p["arrangement"]))throw new ArgumentException("Invalid arrangement.");
             if(p["columns"]!=null&&((string)p["arrangement"]??"grid")!="grid")throw new ArgumentException("columns requires grid.");
             if(p["side"]!=null&&(behavior!="lazy_follow"||!new[]{"left","center","right"}.Contains((string)p["side"])))throw new ArgumentException("side requires lazy_follow.");
+            if(p["physicalId"]!=null&&(p["physicalId"].Type!=JTokenType.String||string.IsNullOrWhiteSpace((string)p["physicalId"])||((string)p["physicalId"]).Length>128))throw new ArgumentException("Invalid physicalId.");
+            if(p["allowSpill"]!=null&&p["allowSpill"].Type!=JTokenType.Boolean)throw new ArgumentException("allowSpill must be boolean.");
+            if(p["pose"]!=null&&!new[]{"standing","lying"}.Contains((string)p["pose"]))throw new ArgumentException("Invalid surface pose.");
+            if(layout=="surface"&&(Size(a["itemSize"]).y>((string)p["pose"]=="lying"?.30f:.35f)||(string)p["pose"]=="lying"&&Size(a["itemSize"]).x>.30f))throw new ArgumentException("LAYOUT_SIZE_INVALID: surface cards exceed pose limits.");
             return new JObject{["layout"]=layout,["behavior"]=behavior,["itemSize"]=a["itemSize"].DeepClone(),["centerSize"]=a["centerSize"]?.DeepClone(),["gap"]=Number(a,"gap",layout=="anchor"?.05f:.08f,0,.5f),["params"]=p.DeepClone()};
         }
         public sealed class PlanResult
         {
             public bool Fits;public int MaxItems,Rows,Columns;public float Radius;public Pose Root;
+            public string Reason;public long RoomRevision;public bool Simulated;
+            public readonly List<SpatialCandidate> Candidates=new List<SpatialCandidate>();
+            public readonly JArray PerWall=new JArray();
             public readonly List<Pose> Items=new List<Pose>();public readonly List<string> Warnings=new List<string>();
         }
         public static PlanResult Plan(JObject spec,int count,Pose view,Func<int,Vector2,Pose> anchor=null)
         {
+            if(IsRoomLayout((string)spec["layout"]))throw new ArgumentException("ROOM_UNAVAILABLE: a ready room is required.");
             spec=Normalize(spec,count);var result=Build(spec,count,view,anchor);
             result.MaxItems=0;
             int min=(string)spec["layout"]=="hub"?3:1,max=(string)spec["layout"]=="hub"?9:(string)spec["behavior"]=="lazy_follow"?3:24;

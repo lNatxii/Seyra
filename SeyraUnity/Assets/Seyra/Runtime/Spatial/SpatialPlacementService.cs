@@ -79,7 +79,7 @@ namespace Seyra.Spatial
             return result;
         }
         public SpatialPlan Plan(SpatialPlacementRequest request,Pose view,Transform exclude=null,Transform excludeOther=null)=>SpatialPlacementPlanner.Plan(Snapshot,request,view,Reservations(exclude,excludeOther));
-        public void Register(Transform root,SpatialCandidate candidate)=>placements[root]=candidate;
+        public void Register(Transform root,SpatialCandidate candidate){if(candidate==null)placements.Remove(root);else placements[root]=candidate;}
         public SpatialCandidate Placement(Transform root)=>placements.TryGetValue(root,out var candidate)?candidate:null;
         public bool NeedsPlacement(Transform root)
         {

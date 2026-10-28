@@ -80,7 +80,7 @@ namespace Seyra.SceneTools
             if(!Regex.IsMatch(slot,"^[A-Za-z0-9_-]{1,64}$"))throw new ArgumentException("slot only accepts ASCII letters, digits, hyphens and underscores (1..64).");
             return System.IO.Path.Combine(storageDirectory,slot+".json");
         }
-        static JToken PersistentLayout(GameObject go) { var spec=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification; if(spec==null)return JValue.CreateNull(); spec.Remove("targets"); return spec; }
+        static JToken PersistentLayout(GameObject go) { var spec=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification; if(spec==null)return JValue.CreateNull(); spec.Remove("targets"); (spec["params"] as JObject)?.Remove("physicalId"); return spec; }
         JObject PersistNode(Transform t)
         {
             var record=t.GetComponent<GeneratedObject>();
