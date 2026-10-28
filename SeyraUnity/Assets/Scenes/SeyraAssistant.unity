@@ -371,6 +371,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Seyra.Spatial.RoomContext
   roomProvider: {fileID: 1671202280}
   viewer: {fileID: 1833881009}
+  loadDeviceRoomInEditor: 1
 --- !u!4 &1013735976
 Transform:
   m_ObjectHideFlags: 0
@@ -1889,7 +1890,7 @@ MonoBehaviour:
     RoomIndex: -1
     RoomPrefabs: []
     SceneJsons: []
-    LoadSceneOnStartup: 1
+    LoadSceneOnStartup: 0
     EnableHighFidelityScene: 0
     SeatWidth: 0.6
     SceneJson: 

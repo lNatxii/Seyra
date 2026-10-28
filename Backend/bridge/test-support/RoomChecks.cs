@@ -29,16 +29,19 @@ public static class RoomChecks
         Vector3 Read(JToken value)=>new Vector3((float)value["x"],(float)value["y"],(float)value["z"]);
         try
         {
-            // MRUK LoadSceneOnStartup can still be discovering the simulator scene; prefab loads return DiscoveryOngoing until it ends.
-            var startupLoad=typeof(MRUK).GetField("_loadSceneTask",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
-            for(int attempt=0;attempt<240&&startupLoad?.GetValue(provider)!=null;attempt++)await Task.Delay(500);
-            Require(startupLoad?.GetValue(provider)==null,"MRUK startup scene discovery did not finish.");
-            if(provider.Rooms.Count>0){provider.ClearScene();for(int attempt=0;attempt<20&&context.Snapshot.State!=RoomState.AirOnly;attempt++)await Task.Delay(100);}
-            Require(context.Snapshot.State==RoomState.AirOnly,"Editor must not load a simulated room automatically.");
-            context.SendMessage("OnApplicationPause",true);context.SendMessage("OnApplicationPause",false);
-            Require(context.Snapshot.State==RoomState.AirOnly,"Pause/resume without captured geometry must preserve the no-map state.");
-            Require((string)Ok("room_get")["state"]=="AirOnly","No-map state must be honest.");
-            Require((string)Call("scene_bounds",new JObject{["entityId"]="physical:unknown"})["error"]["code"]=="ROOM_UNAVAILABLE","No-map bounds must fail.");
+            Require(!provider.SceneSettings.LoadSceneOnStartup,"MRUK must not load on startup; RoomContext owns loading.");
+            await context.WhenIdle();
+            var startState=context.Snapshot.State;var skipped=new JArray();
+            Require(startState!=RoomState.Loading&&startState!=RoomState.Error,"Startup device load must settle honestly: "+startState+" · "+context.Diagnostic);
+            if(startState==RoomState.Ready)Require(!context.Snapshot.Simulated,"The simulator device room must not be marked as simulated.");
+            if(startState==RoomState.AirOnly)
+            {
+                context.SendMessage("OnApplicationPause",true);context.SendMessage("OnApplicationPause",false);
+                Require(context.Snapshot.State==RoomState.AirOnly,"Pause/resume without captured geometry must preserve the no-map state.");
+                Require((string)Ok("room_get")["state"]=="AirOnly","No-map state must be honest.");
+                Require((string)Call("scene_bounds",new JObject{["entityId"]="physical:unknown"})["error"]["code"]=="ROOM_UNAVAILABLE","No-map bounds must fail.");
+            }
+            else skipped.Add("No-map pause/resume and ROOM_UNAVAILABLE checks: start state "+startState+" · "+context.Diagnostic);
             string previousId=null;long previousRevision=context.Snapshot.Revision;
             foreach(var path in new[]{"Bedroom/Bedroom00","Office/Office00","Other/OtherRoom07_Cluttered"})
             {
@@ -142,7 +145,7 @@ public static class RoomChecks
                     ["wallNormal"]=V((wall.Pose.rotation*Vector3.forward).x,(wall.Pose.rotation*Vector3.forward).y,(wall.Pose.rotation*Vector3.forward).z)});
                 Ok("delete_object",new JObject{["entityId"]=id});
             }
-            return new JObject{["checks"]=checks,["rooms"]=evidence,["simulated"]=true}.ToString();
+            return new JObject{["checks"]=checks,["startState"]=startState.ToString(),["skipped"]=skipped,["rooms"]=evidence,["simulated"]=true}.ToString();
         }
         finally{Object.DestroyImmediate(root);Object.DestroyImmediate(head);}
     }

@@ -2467,6 +2467,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Seyra.Spatial.RoomContext
   roomProvider: {fileID: 1671202280}
   viewer: {fileID: 0}
+  loadDeviceRoomInEditor: 1
 --- !u!4 &1013735976
 Transform:
   m_ObjectHideFlags: 0
