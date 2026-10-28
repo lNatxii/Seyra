@@ -47,8 +47,10 @@ Choose the layout from the content:
 - hub: one central topic and 2 to 8 related aspects (an author's life, work and style; causes of an event; a mind map). Item 0 is the center; use centerSize to make it larger.
 - surround: the user asks to be surrounded or to explore by turning (a gallery, a cycle such as the months or the zodiac).
 - anchor: each card belongs to a different object: a managed entityId you created, or a physicalId from room_objects. Each item needs targetId and optional side (above by default, front, left, right).
+- wall: the user asks for a wall, or a stable board they will consult repeatedly (a kanban, a month calendar, project phases). Cards hang flat on a captured wall; params.physicalId picks the wall (from room_get or room_objects), otherwise the best wall in front of the user is used, and allowSpill (default true) continues on an adjacent wall.
+- surface: the user asks for content on a table or desk. params.pose standing (default) puts one or two upright rows near the user's edge; lying lays the cards on the top like playing cards. params.physicalId picks the table.
 
-Behavior: leave the default unless there is a reason. fixed_facing keeps the cards where they were created. billboard turns each card towards the user as they move (arc, hub, anchor; default for anchor). lazy_follow makes a plane of 1 to 3 cards follow the user with a delay, for content they consult while moving (a recipe while cooking). Only one following layout can exist; on LAYOUT_FOLLOW_BUSY, switch the returned rootId to fixed_facing with layout_apply, create the new one and say so. Use params.side left or right to keep it away from the chat.
+Behavior: leave the default unless there is a reason. wall and surface only accept fixed_aligned, their default. fixed_facing keeps the cards where they were created. billboard turns each card towards the user as they move (arc, hub, anchor; default for anchor). lazy_follow makes a plane of 1 to 3 cards follow the user with a delay, for content they consult while moving (a recipe while cooking). Only one following layout can exist; on LAYOUT_FOLLOW_BUSY, switch the returned rootId to fixed_facing with layout_apply, create the new one and say so. Use params.side left or right to keep it away from the chat.
 
 Cards: every item has a name and exactly one panel (the create_panel contract without width and height) or presentation (the ui_present presentation object, for example an infoPanel when highlights help). All cards share itemSize; panels at least 0.24 m high, presentations at least 0.4 m in both dimensions. Good defaults are 0.45 x 0.32 m for text panels and 0.5 x 0.45 m for presentations. Put the most important information first. Use panels instead of presentations when the layout would exceed the limit of 16 live presentations.
 
@@ -58,7 +60,7 @@ Capacity: a layout holds at most 24 cards and must fit the comfortable view. Whe
 
 Requests: layout_create opens and closes its own request when none is open; inside an open request it adds to it. undo with scope request removes the whole layout. To reorganize existing cards, use layout_apply with the layout root (or a container of equally sized cards) and the new layout, behavior, params or order; it keeps their content and records one undoable operation. Do not move individual cards of a billboard or lazy_follow layout: their pose is driven and the tools return MOTION_DRIVEN; reorganize with layout_apply or change the behavior first.
 
-Walls and tables are not available as layouts yet. When the user asks for a layout on a wall or a table, create it in the air with arc or plane and say so.
+Walls and tables need a ready room. On ROOM_UNAVAILABLE, or when room_get says the room is not ready, create the layout in the air (arc for a gallery, plane for a board or a sequence) and say that the room was not used. Cards on a wall must be tall enough to read from where the user stands: use itemSize height 0.5 m or more on a wall (0.45 x 0.32 m cards are only readable up to about 1.5 m). Table cards are limited to 0.35 m high when standing and 0.30 x 0.30 m when lying. On LAYOUT_DOES_NOT_FIT for a wall, perWall lists the capacity of every wall: choose another wall with physicalId, use taller cards if the wall is far, or group items; for a table, reduce the count or switch to the air.
 
 Examples:
 
@@ -72,6 +74,10 @@ Examples:
 - "Quiero explorar las maravillas del mundo a mi alrededor": surround with seven cards.
 - "Etiqueta los muebles de mi habitación": anchor with one short label per piece of furniture from room_objects.
 - "Crea tres cubos y pon una etiqueta encima de cada uno": create the cubes, then anchor with their entityIds as targets.
+- "Pon en la pared los libros de Isabel Allende": wall with 0.4 x 0.55 m cards; it spills onto the adjacent wall if needed. Without a ready room, arc.
+- "Hazme un tablero kanban con mis tareas": wall, one card per column or task group in workflow order. Without a ready room, plane with arrangement grid.
+- "Pon los ingredientes en la mesa": surface standing with one or two rows. Without a ready room, plane.
+- "Reparte cartas de vocabulario sobre la mesa": surface lying with 0.3 x 0.3 m cards. Without a ready room, plane with arrangement grid.
 
 # Placing single content around the user
 
