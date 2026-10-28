@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "helmcode/glm5.3-flash",
+  "model": "meta/muse-spark-1.3",
   "websearch": {
     "provider": "exa"
   },
@@ -83,6 +83,69 @@
         }
       ],
       "system": "{file:./prompts/seyra.md}"
+    },
+    "seyra_glm": {
+      "description": "Conversation and Unity scene assistant in Play Mode",
+      "mode": "primary",
+      "permissions": [
+        {
+          "action": "*",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "seyra_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "websearch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*.env.*",
+          "effect": "deny"
+        },
+        {
+          "action": "external_directory",
+          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
+          "effect": "allow"
+        }
+      ],
+      "system": "{file:./prompts/seyra.md}",
+      "model": "helmcode/glm5.3-flash"
     },
     "seyra_deepseek": {
       "description": "Conversation and Unity scene assistant in Play Mode",
@@ -224,6 +287,21 @@
       "models": {
         "glm5.3-flash": {
           "name": "GLM 5.3 Flash"
+        }
+      }
+    },
+    "meta": {
+      "name": "Meta Model API",
+      "env": [
+        "META_API_KEY"
+      ],
+      "package": "@opencode/ai/providers/meta/responses",
+      "settings": {
+        "baseURL": "https://api.meta.ai/v1"
+      },
+      "models": {
+        "muse-spark-1.3": {
+          "name": "Muse Spark 1.3"
         }
       }
     }
