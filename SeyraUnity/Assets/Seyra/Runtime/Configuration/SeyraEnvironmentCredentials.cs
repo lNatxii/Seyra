@@ -26,6 +26,8 @@ namespace Seyra.Configuration
             get
             {
 #if UNITY_EDITOR
+                var alternate = Environment.GetEnvironmentVariable("SEYRA_EDITOR_ENV_PATH");
+                if (!string.IsNullOrWhiteSpace(alternate)) return Path.GetFullPath(alternate);
                 return Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend/.env.local"));
 #else
                 return Path.Combine(Application.persistentDataPath, ".env.local");
@@ -137,6 +139,8 @@ namespace Seyra.Configuration
         public static string RedactToken(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
+            var deviceToken = GetValue("SEYRA_DEVICE_TOKEN");
+            if (!string.IsNullOrEmpty(deviceToken)) text = text.Replace(deviceToken, "[device token redacted]");
             var witToken = WitClientToken;
             if (!string.IsNullOrEmpty(witToken) && witToken.Length > 4)
                 text = text.Replace(witToken, "[token oculto]");

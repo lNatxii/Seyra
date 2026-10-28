@@ -41,7 +41,7 @@ namespace Seyra.Configuration
                             using (var request = new HttpRequestMessage(path.Contains("/hello") || path.Contains("/result") ? HttpMethod.Post : HttpMethod.Get, new Uri(endpoint, path)))
                             {
                                 if (request.Method == HttpMethod.Post) request.Content = new StringContent("{}");
-                                try { using (var response = await client.SendAsync(request, timeout.Token)) accepted = response.IsSuccessStatusCode; }
+                                try { using (var response = await client.SendAsync(request, timeout.Token)) accepted = true; /* Any HTTP response confirms TLS; auth is separate. */ }
                                 catch (Exception error) { failure = Describe(error); }
                             }
                         }

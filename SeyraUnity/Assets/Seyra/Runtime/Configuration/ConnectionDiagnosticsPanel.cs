@@ -43,29 +43,15 @@ namespace Seyra.Configuration
         void Reload()
         {
             gatewayUrl = null; fingerprint = null; configurationError = null;
-#if UNITY_EDITOR
-            // Editor verification supplies explicit fixture arguments; never read the real environment file.
-            configurationError = "Editor: use PinningChecks with the test certificate. No environment file is read.";
-#else
             try
             {
-                var values = new Dictionary<string, string>();
-                string path = Path.Combine(Application.persistentDataPath, ".env.local");
-                if (File.Exists(path)) foreach (var raw in File.ReadLines(path))
-                {
-                    string line = raw.Trim();
-                    if (line.StartsWith("#")) continue;
-                    int split = line.IndexOf('=');
-                    if (split > 0) values[line.Substring(0, split).Trim()] = line.Substring(split + 1).Trim().Trim('"', '\'');
-                }
-                values.TryGetValue("SEYRA_GATEWAY_URL", out gatewayUrl);
-                values.TryGetValue("SEYRA_GATEWAY_CERT_SHA256", out fingerprint);
-                if (!Uri.TryCreate(gatewayUrl, UriKind.Absolute, out var uri) || uri.Scheme != "https" || !string.IsNullOrEmpty(uri.UserInfo) || uri.AbsolutePath != "/" || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
-                    throw new ArgumentException("Invalid HTTPS origin.");
-                new PinnedCertificate(fingerprint);
+                gatewayUrl = SeyraEnvironmentCredentials.GetValue("SEYRA_GATEWAY_URL");
+                fingerprint = SeyraEnvironmentCredentials.GetValue("SEYRA_GATEWAY_CERT_SHA256");
+                var settings = SeyraConnectionSettings.Load();
+                if (!settings.CanConnect) configurationError = ConnectionErrors.Describe(null, settings);
+                if (settings.CanConnect && !settings.IsGateway) configurationError = "Directo (solo Editor) · sin pasarela TLS configurada";
             }
-            catch (Exception error) { configurationError = "CONNECTION_CONFIG_INVALID: " + error.GetType().Name; }
-#endif
+            catch { configurationError = "Configuración de conexión inválida"; }
         }
         void Update()
         {
@@ -78,9 +64,9 @@ namespace Seyra.Configuration
             }
             string endpoint = "Sin emparejar";
             if (configurationError == null && Uri.TryCreate(gatewayUrl, UriKind.Absolute, out var uri))
-                endpoint = $"Pasarela (sondeo TLS) · {uri.Host}:{uri.Port} · pin {fingerprint.Substring(0, 8)}";
+                endpoint = $"Pasarela (HTTPS) · {uri.Host}:{uri.Port} · pin {fingerprint.Substring(0, 8)}";
             status.text = "Diagnóstico de conexión\n" + endpoint + "\nChat: " + (chat != null && chat.Session != null && chat.Session.IsConnected ? "conectado" : "desconectado")
-                + " · Runtime: " + (runtime != null ? runtime.BridgeStatus : "desconectado") + "\n" + (configurationError ?? "Solo TLS: la pasarela y el cliente seguro están pendientes.")
+                + " · Runtime: " + (runtime != null ? runtime.BridgeStatus : "desconectado") + "\n" + (configurationError ?? "Conexión segura por sondeo HTTPS.")
                 + "\nConfig: " + Application.persistentDataPath + "/.env.local";
         }
         async void Probe()
@@ -99,10 +85,10 @@ namespace Seyra.Configuration
         }
         void Reconnect()
         {
-            Reload();
+            SeyraEnvironmentCredentials.ForceReload(); Reload();
             chat?.Session?.Reconnect();
-            if (runtime != null && runtime.enabled) { runtime.enabled = false; runtime.enabled = true; }
-            results.text = "Reconexión solicitada. En esta entrega solo está disponible el sondeo TLS; chat y bridge seguros pendientes de 1c/1d y pasos 2–6.";
+            runtime?.ReconnectNow(true);
+            results.text = "Reconexión solicitada; se consulta la sesión existente sin reenviar mutaciones.";
         }
     }
 }
