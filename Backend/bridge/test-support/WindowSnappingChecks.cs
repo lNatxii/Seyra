@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using Oculus.Interaction;
 using Seyra.SceneTools;
 using Seyra.Spatial;
 using UnityEditor;
@@ -47,7 +48,15 @@ public static class WindowSnappingChecks
             var request=new SpatialPlacementRequest{Content=SpatialPlacementService.Measure(panelRoot),Readable=true};
             var expected=SpatialPlacementPlanner.Snap(context.Snapshot,request,new Pose(panelRoot.position,panelRoot.rotation),placement.View(currentYaw:true),placement.Reservations(panelRoot));
             Check(expected!=null&&expected.Destination=="wall","Snap must find the nearby wall.");
-            Check(snapping.SimulateRelease(panelRoot)=="snapped","Release near a wall must snap.");
+            var managedPanel=panelRoot.GetComponent<ManagedPanel>();
+            var frameBody=managedPanel.Window.GrabFrame.GetComponent<Rigidbody>();
+            frameBody.LockKinematic();
+            try
+            {
+                Check(managedPanel.IsIntact(),"A panel must remain intact after the native grab kinematic lock.");
+                Check(snapping.SimulateRelease(panelRoot)=="snapped","Release near a wall must snap after the native grab kinematic lock.");
+            }
+            finally{frameBody.UnlockKinematic();}
             Check((string)Ok("scene_get",new JObject{["entityId"]=id})["spatial"]["surface"]=="wall","scene_get must report the wall.");
             Check(Same(panelRoot,expected.Pose),"Snapped pose differs from Snap.");
 
