@@ -50,6 +50,7 @@ public static class LayoutPlannerChecks
         }
         var noSpill=(JObject)wallSpec.DeepClone();noSpill["params"]["allowSpill"]=false;
         var full=Plan(noSpill,24);Check(!full.Fits&&full.MaxItems<24&&(int)full.PerWall[0]["capacity"]>=0&&full.Items.Count==0,"Missing rejection capacity.");
+        Check(full.PerWall.Any(w=>(string)w["physicalId"]!="front"&&(int)w["capacity"]>0),"Unused walls must report their available capacity when spill is disabled.");
         var far=Wall("far",new Vector3(0,1.5f,2.5f),180);
         var small=new JObject{["layout"]="wall",["itemSize"]=new JObject{["width"]=.24,["height"]=.2},["params"]=new JObject{["physicalId"]="far"}};
         var unreadable=LayoutPlanner.Plan(small,6,roomView,null,new RoomSnapshot(2,"far",true,RoomState.Ready,new[]{far,floor}),Array.Empty<SpatialBox>());

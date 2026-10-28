@@ -139,7 +139,7 @@ namespace Seyra.Spatial
                 result.Candidates.AddRange(selected);used[grid.Surface.PhysicalId]=selected.Count;
                 if(grid==first){result.Rows=grid.Rows;result.Columns=grid.Columns;}
             }
-            foreach(var grid in grids){var active=ordered.FirstOrDefault(g=>g.Surface==grid.Surface);result.PerWall.Add(new JObject{["physicalId"]=grid.Surface.PhysicalId,["capacity"]=active?.Cells.Count??0,["used"]=used.TryGetValue(grid.Surface.PhysicalId,out int n)?n:0});}
+            foreach(var grid in grids){var active=ordered.FirstOrDefault(g=>g.Surface==grid.Surface);result.PerWall.Add(new JObject{["physicalId"]=grid.Surface.PhysicalId,["capacity"]=active?.Cells.Count??grid.Cells.Count,["used"]=used.TryGetValue(grid.Surface.PhysicalId,out int n)?n:0});}
             result.Fits=result.Candidates.Count==count;
             result.Reason=result.Fits?null:"LAYOUT_DOES_NOT_FIT: insufficient free readable cells; use taller cards for TOO_SMALL_TO_READ, or group/select items.";
             if(result.Fits)result.Items.AddRange(result.Candidates.Select(c=>c.Pose));
