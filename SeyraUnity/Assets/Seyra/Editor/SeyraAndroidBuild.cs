@@ -51,13 +51,13 @@ namespace Seyra.Editor
                 foreach (var child in children) child.SetParent(safeRoot, false);
                 var chatLayout = safeRoot.Find("ChatLayout") as RectTransform;
                 if (chatLayout == null) throw new InvalidOperationException("Expected ChatLayout.");
-                chatLayout.anchorMin = Vector2.zero; chatLayout.anchorMax = new Vector2(1, .53f);
-                chatLayout.offsetMin = new Vector2(24, 20); chatLayout.offsetMax = new Vector2(-24, -12);
-                // Until the transport decision, do not start the direct loopback clients on phones.
-                chat.enabled = false; runtime.enabled = false;
+                chatLayout.anchorMin = Vector2.zero; chatLayout.anchorMax = Vector2.one;
+                chatLayout.offsetMin = new Vector2(24, 20); chatLayout.offsetMax = new Vector2(-24, -1290);
+                // Device clients remain unpaired until a gateway configuration is installed.
+                chat.enabled = true; runtime.enabled = true;
                 var panel = new GameObject("ConnectionDiagnostics", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup)).GetComponent<RectTransform>();
-                panel.SetParent(safeRoot, false); panel.anchorMin = new Vector2(0, .53f); panel.anchorMax = Vector2.one;
-                panel.offsetMin = new Vector2(24, 12); panel.offsetMax = new Vector2(-24, -20);
+                panel.SetParent(safeRoot, false); panel.anchorMin = new Vector2(0, 1); panel.anchorMax = Vector2.one;
+                panel.offsetMin = new Vector2(24, -1270); panel.offsetMax = new Vector2(-24, -20);
                 panel.GetComponent<Image>().color = new Color(.06f, .08f, .12f, .98f);
                 var layout = panel.GetComponent<VerticalLayoutGroup>();
                 layout.padding = new RectOffset(18, 18, 18, 18); layout.spacing = 12; layout.childControlWidth = true; layout.childControlHeight = true; layout.childForceExpandHeight = false;
@@ -67,6 +67,7 @@ namespace Seyra.Editor
                 var probe = Button(buttons.transform, "Probar TLS"); var reconnect = Button(buttons.transform, "Reconectar");
                 var scroll = new GameObject("ResultsScroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect), typeof(LayoutElement));
                 scroll.transform.SetParent(panel, false); scroll.GetComponent<Image>().color = new Color(.1f,.12f,.16f);
+                scroll.GetComponent<LayoutElement>().minHeight = 900;
                 scroll.GetComponent<LayoutElement>().flexibleHeight = 1;
                 var results = Text(scroll.transform, "Results", 23);
                 results.text = "Copia la configuración de prueba y pulsa Probar TLS. Desliza para leer todos los resultados.";
@@ -97,11 +98,51 @@ namespace Seyra.Editor
             var text = Text(button.transform, "Label", 28); text.text = label; text.alignment = TextAlignmentOptions.Center; Stretch(text.rectTransform);
             return button;
         }
-        [MenuItem("Seyra/Build/Android Phone Test")]
-        public static void BuildAndroidPhoneTest()
+        [MenuItem("Seyra/Build/Update Mobile Connection Test Scene")]
+        public static void UpdateMobileConnectionTestScene()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode first.");
-            if (!File.Exists(MobileScenePath)) CreateMobileConnectionTestScene();
+            var scene = SceneManager.GetSceneByPath(MobileScenePath);
+            bool wasLoaded = scene.isLoaded;
+            if (!wasLoaded) scene = EditorSceneManager.OpenScene(MobileScenePath, OpenSceneMode.Additive);
+            try
+            {
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    foreach (var chat in root.GetComponentsInChildren<OpenCodeTestChat>(true)) chat.enabled = true;
+                    foreach (var runtime in root.GetComponentsInChildren<SeyraSceneRuntime>(true)) runtime.enabled = true;
+                    foreach (var rect in root.GetComponentsInChildren<RectTransform>(true))
+                    {
+                        if (rect.name == "ResultsScroll") rect.GetComponent<LayoutElement>().minHeight = 900;
+                        if (rect.name == "ConnectionDiagnostics")
+                        {
+                            rect.anchorMin = new Vector2(0,1); rect.anchorMax = Vector2.one;
+                            rect.offsetMin = new Vector2(24,-1270); rect.offsetMax = new Vector2(-24,-20);
+                        }
+                        if (rect.name == "ChatLayout")
+                        {
+                            rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+                            rect.offsetMin = new Vector2(24,20); rect.offsetMax = new Vector2(-24,-1290);
+                        }
+                    }
+                }
+                if (!EditorSceneManager.SaveScene(scene)) throw new IOException("Could not update mobile scene.");
+            }
+            finally { if (!wasLoaded) EditorSceneManager.CloseScene(scene, true); }
+        }
+        [MenuItem("Seyra/Build/Android APK")]
+        public static void BuildAndroidApk() => BuildAndroid(false);
+        [MenuItem("Seyra/Build/Android Phone Test")]
+        public static void BuildAndroidPhoneTest() => BuildAndroid(true);
+        static void BuildAndroid(bool phone)
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play Mode first.");
+            if (phone)
+            {
+                if (!File.Exists(MobileScenePath)) CreateMobileConnectionTestScene();
+                UpdateMobileConnectionTestScene();
+            }
+            string scenePath = phone ? MobileScenePath : "Assets/Scenes/SeyraAssistant.unity";
             if (PlayerSettings.GetScriptingBackend(NamedBuildTarget.Android) != ScriptingImplementation.IL2CPP)
                 throw new InvalidOperationException("Android must use IL2CPP for the pinning verification.");
             var xr = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(BuildTargetGroup.Android);
@@ -115,18 +156,19 @@ namespace Seyra.Editor
             bool initialize = xr.InitManagerOnStart;
             bool appBundle = EditorUserBuildSettings.buildAppBundle;
             var scenes = EditorBuildSettings.scenes;
-            string output = Path.GetFullPath(Path.Combine(Application.dataPath, "../../Builds/SeyraPhoneTest.apk"));
+            string output = Path.GetFullPath(Path.Combine(Application.dataPath, phone ? "../../Builds/SeyraPhoneTest.apk" : "../../Builds/Seyra.apk"));
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             try
             {
-                IsPhoneTestBuild = true;
-                xr.InitManagerOnStart = false; EditorUtility.SetDirty(xr);
-                PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
+                IsPhoneTestBuild = phone;
+                xr.InitManagerOnStart = !phone; EditorUtility.SetDirty(xr);
+                if (phone) PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
                 EditorUserBuildSettings.buildAppBundle = false;
                 AssetDatabase.SaveAssets();
-                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { MobileScenePath }, locationPathName = output, target = BuildTarget.Android, options = BuildOptions.Development });
-                if (report.summary.result != BuildResult.Succeeded) throw new InvalidOperationException("Android phone build: " + report.summary.result);
-                Debug.Log("Seyra phone test APK: " + output);
+                EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = new[] { scenePath }, locationPathName = output, target = BuildTarget.Android, options = BuildOptions.Development });
+                if (report.summary.result != BuildResult.Succeeded) throw new InvalidOperationException("Android build: " + report.summary.result);
+                Debug.Log("Seyra APK: " + output);
             }
             finally
             {
@@ -142,6 +184,14 @@ namespace Seyra.Editor
                     if (!System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(file.Key), file.Value))
                         File.WriteAllBytes(file.Key, file.Value);
                 AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                // XR packages can queue settings writes after the build and asset refresh.
+                EditorApplication.delayCall += () =>
+                {
+                    PlayerSettings.defaultInterfaceOrientation = orientation;
+                    foreach (var file in configuration)
+                        if (!System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(file.Key), file.Value))
+                            File.WriteAllBytes(file.Key, file.Value);
+                };
             }
         }
     }

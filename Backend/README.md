@@ -75,3 +75,82 @@ Phase 3 adds twelve semantic presentations and persisted local interaction throu
 ## Spatial chat updates
 
 The spatial chat composer records speech into a read-only draft and sends it only when Send is pressed. A second dictation replaces the draft; failed dictation preserves the previous draft. The spatial menu follows the viewer after a delay, pauses while grabbed, and hides while the open chat is centrally visible. Recenter restores the chat and menu placement. Editor checks cover these behaviors; physical headset validation remains pending.
+
+## Conexión segura y Quest
+
+El único puerto accesible desde la red es la pasarela HTTPS (8443 por defecto).
+OpenCode (4096) y el bridge WS (4100) siguen escuchando exclusivamente en
+`127.0.0.1`. Los dispositivos usan HTTPS con huella SHA-256 del certificado y un
+token individual; el bridge remoto usa sondeo largo, nunca WSS. Contrato y lista
+exacta de rutas: [bridge/GATEWAY.md](bridge/GATEWAY.md).
+
+Desde PowerShell en `Backend/`:
+
+```powershell
+./seyra-device.ps1 init-tls
+./seyra-device.ps1 pair -Name quest3 -Url https://<IP-o-nombre-del-PC>:8443
+```
+
+`init-tls` crea un certificado ECDSA P-256 autofirmado para dos años. No reemplaza
+uno existente sin `-Force`. Una rotación exige volver a emparejar. `pair` escribe
+`.seyra/pairing/quest3.env`: copiar **solo ese archivo** al dispositivo como
+`Application.persistentDataPath/.env.local`, normalmente
+`/sdcard/Android/data/<identificador-del-APK>/files/.env.local`. Borrar después la
+copia de emparejamiento del PC. Nunca copiar `Backend/.env.local`: contiene
+credenciales que solo debe conocer el backend. El archivo del dispositivo contiene
+únicamente `SEYRA_GATEWAY_URL`, `SEYRA_DEVICE_TOKEN` y
+`SEYRA_GATEWAY_CERT_SHA256`; no introducir esos valores en Assets ni en un build.
+
+```powershell
+./start.ps1
+# Parámetros opcionales:
+./start.ps1 -Gateway -GatewayHost 0.0.0.0 -GatewayPort 8443
+./seyra-device.ps1 list
+./seyra-device.ps1 revoke -Name quest3
+```
+
+`start.ps1` activa la pasarela automáticamente si existe el certificado. Genera un
+token interno nuevo en memoria que heredan OpenCode/bridge y la pasarela, y detiene
+la pasarela al cerrar OpenCode. Muestra URLs candidatas y la huella pública; nunca
+muestra tokens. Sin certificado conserva el modo directo de Editor. Se puede usar
+`-Gateway:$false` para ese modo aun teniendo certificado; el bridge queda en
+loopback sin token interno. No debe usarse como conexión remota.
+
+Si el firewall impide llegar al puerto, el usuario puede crear esta regla en una
+consola de administrador (ajustar interfaz/puerto y limitarla a la red deseada):
+
+```powershell
+New-NetFirewallRule -DisplayName SeyraGateway -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Any -InterfaceAlias Ethernet -RemoteAddress LocalSubnet
+# Para retirarla:
+Remove-NetFirewallRule -DisplayName SeyraGateway
+```
+
+También funciona sobre VPN o con un puerto del router redirigido a la pasarela;
+solo debe publicarse ese puerto HTTPS. El host de la URL puede ser cualquier IP o
+nombre alcanzable. Si cambia la IP, cambiar únicamente `SEYRA_GATEWAY_URL` en el
+archivo del dispositivo. No desactivar la validación del certificado. Revocar el
+token de un dispositivo perdido; un dispositivo autorizado tiene acceso al agente.
+
+En Unity:
+
+- `Seyra/Build/Android APK`: genera `Builds/Seyra.apk`, únicamente con
+  `SeyraAssistant`, y habilita XR Android durante ese build.
+- `Seyra/Build/Android Phone Test`: genera `Builds/SeyraPhoneTest.apk`, únicamente
+  con `MobileConnectionTest`, orientación vertical y XR desactivado. El área de
+  resultados del diagnóstico tiene un mínimo de 900 unidades del CanvasScaler.
+- Ambos restauran la configuración previa al terminar, mantienen el identificador
+  del proyecto y no incluyen el archivo de conexión. El móvil necesita ARM64 y al
+  menos la versión Android configurada en el proyecto (API 32 actualmente).
+- Instalar, abrir una vez y copiar el archivo de emparejamiento a la ruta indicada.
+  En el móvil pulsar **Reconectar**; en Quest cerrar y volver a abrir la app tras copiar el archivo. Comprobar por separado chat y runtime,
+  conversar y crear un panel. **Probar TLS** no envía credenciales ni abre una
+  sesión: una respuesta 401 confirma TLS, pero no autoriza al dispositivo.
+- Para validar pausa/reanudación, apartar el visor 30 s y continuar. Se consulta la
+  sesión previa y no se reenvía una mutación con resultado desconocido. Comprobar
+  también que `revoke` provoca el mensaje de dispositivo no autorizado.
+
+El modo directo solo existe en Editor, sobre HTTP/WS de loopback. En Editor, si se
+configuran las tres variables de pasarela en su archivo local, se usa la misma
+pasarela. Para pruebas aisladas, `SEYRA_EDITOR_ENV_PATH` puede seleccionar un archivo
+alternativo en el proceso del Editor; no se lee entonces el archivo real. Esa
+variable de prueba no se usa en el dispositivo.
