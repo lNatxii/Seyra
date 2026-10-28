@@ -91,3 +91,25 @@ test('MCP transport confirms, rejects invalid arguments, times out without retry
     const disconnected=outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}));assert.equal(disconnected.error.code,'UNITY_DISCONNECTED');assert.equal(disconnected.outcomeUnknown,true);
   } finally {socket?.terminate();await client.close();await transport.close();}
 });
+
+test('internal token rejects unauthorized runtime and replacement settles pending calls', async () => {
+  const port = await freePort();
+  const transport = new StdioClientTransport({command:process.execPath,args:['dist/index.js'],cwd:new URL('..',import.meta.url).pathname.replace(/^\/(.:)/,'$1'),env:{...process.env,SEYRA_UNITY_PORT:String(port),SEYRA_BRIDGE_INTERNAL_TOKEN:'test-internal-token'},stderr:'pipe'});
+  const client = new Client({name:'replacement-test',version:'1.0'});
+  let first, second;
+  try {
+    await client.connect(transport);
+    const rejected = new WebSocket(`ws://127.0.0.1:${port}`);
+    await once(rejected, 'close');
+    assert.equal(outcome(await client.callTool({name:'scene_hierarchy',arguments:{}})).error.code,'UNITY_NOT_CONNECTED');
+    first = new WebSocket(`ws://127.0.0.1:${port}`, {headers:{Authorization:'Bearer test-internal-token'}});
+    await once(first,'open');
+    const received = once(first,'message');
+    const pendingCall = client.callTool({name:'scene_hierarchy',arguments:{}});
+    await received;
+    second = new WebSocket(`ws://127.0.0.1:${port}`, {headers:{Authorization:'Bearer test-internal-token'}});
+    await once(second,'open');
+    const result = outcome(await pendingCall);
+    assert.equal(result.error.code,'UNITY_DISCONNECTED'); assert.equal(result.outcomeUnknown,true);
+  } finally {first?.terminate();second?.terminate();await client.close();await transport.close();}
+});

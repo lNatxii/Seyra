@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -37,10 +37,27 @@ function disconnected(socket: WebSocket) {
   for (const [id, entry] of pending) if (entry.socket === socket)
     settle(id, failure('UNITY_DISCONNECTED', 'Unity disconnected before confirmation. Outcome unknown; do not retry mutations automatically.', true));
 }
+const internalToken = process.env.SEYRA_BRIDGE_INTERNAL_TOKEN;
+function authorized(header: string | undefined) {
+  if (!internalToken) return true;
+  return timingSafeEqual(createHash('sha256').update(header ?? '').digest(),
+    createHash('sha256').update(`Bearer ${internalToken}`).digest());
+}
+const alive = new WeakSet<WebSocket>();
+const heartbeat = setInterval(() => {
+  for (const socket of sockets.clients) {
+    if (!alive.has(socket)) { disconnected(socket); socket.terminate(); continue; }
+    alive.delete(socket); socket.ping();
+  }
+}, 10000);
+heartbeat.unref();
 sockets.on('connection', (socket, request) => {
   socket.on('error', () => { disconnected(socket); socket.terminate(); });
-  // Native runtime only: reject browser-origin requests and extra clients.
-  if (closing || unity || request.headers.origin) { socket.terminate(); return; }
+  // Only an authenticated native runtime can replace the current connection.
+  if (closing || request.headers.origin || !authorized(request.headers.authorization)) { socket.terminate(); return; }
+  const previous = unity;
+  if (previous) { disconnected(previous); previous.terminate(); }
+  alive.add(socket); socket.on('pong', () => alive.add(socket));
   unity = socket; log('Unity connected');
   socket.on('close', () => disconnected(socket));
   socket.on('message', (bytes, binary) => {
@@ -78,7 +95,7 @@ for (const tool of tools) server.registerTool(tool.name, {
 
 async function shutdown(code = 0) {
   if (closing) return;
-  closing = true;
+  closing = true; clearInterval(heartbeat);
   for (const id of pending.keys()) settle(id, failure('UNITY_DISCONNECTED', 'Bridge stopped before confirmation. Outcome unknown.', true));
   for (const socket of sockets.clients) socket.terminate();
   sockets.close(); await server.close(); process.exitCode = code; process.stdin.destroy();
