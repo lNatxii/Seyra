@@ -45,6 +45,7 @@ namespace Seyra.Chat
         string serverUrl = "http://127.0.0.1:4096";
         string agent = "seyra";
         JsonHttpClient http;
+        Seyra.Configuration.SeyraConnectionSettings connectionSettings;
         CancellationTokenSource lifetime;
         string sessionId;
 
@@ -134,7 +135,8 @@ namespace Seyra.Chat
         {
             if (lifetime != null) return;
             lifetime = new CancellationTokenSource();
-            http = new JsonHttpClient(serverUrl);
+            connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
+            if (connectionSettings.CanConnect) http = new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings);
             SetConnected(false, "Conectando…");
             _ = ConnectAsync(lifetime.Token);
             _ = MonitorAsync(lifetime.Token);
@@ -189,8 +191,13 @@ namespace Seyra.Chat
             try
             {
                 while (syncing) await Task.Delay(20, token);
-                var password = Seyra.Configuration.SeyraEnvironmentCredentials.OpenCodeServerPassword;
-                if (string.IsNullOrEmpty(password))
+                Seyra.Configuration.SeyraEnvironmentCredentials.ForceReload();
+                connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
+                http?.Dispose();
+                http = connectionSettings.CanConnect ? new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings) : null;
+                if (!connectionSettings.CanConnect) throw new Seyra.Configuration.ConnectionException(connectionSettings.ErrorCode);
+                var password = connectionSettings.IsGateway ? null : Seyra.Configuration.SeyraEnvironmentCredentials.OpenCodeServerPassword;
+                if (!connectionSettings.IsGateway && string.IsNullOrEmpty(password))
                     throw new InvalidOperationException("HTTP password is missing from .env.local (" + Seyra.Configuration.SeyraEnvironmentCredentials.EnvFilePath + ").");
                 var backend = Application.isEditor ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend")) : Application.persistentDataPath;
 
@@ -206,6 +213,7 @@ namespace Seyra.Chat
                         ["agent"] = agent,
                         ["location"] = new JObject { ["directory"] = backend.Replace('\\', '/') }
                     };
+                    if (connectionSettings.IsGateway) request.Remove("location");
                     if (profile["model"] is JObject model) request["model"] = model.DeepClone();
                     var result = await http.RequestAsync("POST", "/api/session", request, token);
                     sessionId = (string)result["data"]?["id"];
@@ -236,7 +244,7 @@ namespace Seyra.Chat
                 while (!token.IsCancellationRequested)
                 {
                     await Task.Delay(HasTurn && connected ? 500 : 3000, token);
-                    if (connecting || syncing || submissionInFlight || interruptInFlight || string.IsNullOrEmpty(sessionId)) continue;
+                    if (http == null || connecting || syncing || submissionInFlight || interruptInFlight || string.IsNullOrEmpty(sessionId)) continue;
                     try
                     {
                         if (HasTurn) await SyncAsync(token);
@@ -702,14 +710,16 @@ namespace Seyra.Chat
         void ConnectionFailed(Exception error)
         {
             sessionMissing = error is OpenCodeHttpException failure && failure.StatusCode == 404;
-            SetConnected(false, sessionMissing ? "Sesión no disponible" : "Sin conexión · reconectar");
+            SetConnected(false, sessionMissing ? "Sesión no disponible" : Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings));
             if (sessionMissing || (HasTurn && !terminalConfirmed))
             {
                 SetState(TurnState.Unresolved, sessionMissing
                     ? "La sesión ya no está disponible. Cierra este turno para iniciar otra conversación."
                     : "Resultado sin confirmar. Reconecta para inspeccionar la misma sesión; no se reenviará la petición.");
             }
-            UpsertMessage("connection-error", "Sistema", error.Message);
+            UpsertMessage("connection-error", "Sistema", connectionSettings?.IsGateway == true || error is Seyra.Configuration.ConnectionException
+                ? Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings)
+                : Seyra.Configuration.SeyraEnvironmentCredentials.RedactToken(error.Message));
         }
     }
 }

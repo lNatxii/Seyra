@@ -18,12 +18,24 @@ namespace Seyra.Networking
         readonly string baseUrl;
         readonly HttpClient client;
         string password;
+        readonly Seyra.Configuration.SeyraConnectionSettings settings;
+        bool certificateMismatch;
         bool disposed;
 
-        public JsonHttpClient(string baseUrl)
+        public JsonHttpClient(string baseUrl, Seyra.Configuration.SeyraConnectionSettings connectionSettings = null)
         {
-            this.baseUrl = baseUrl.TrimEnd('/');
-            client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+            settings = connectionSettings;
+            this.baseUrl = (settings?.IsGateway == true ? settings.OpenCodeUrl : baseUrl).TrimEnd('/');
+            var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false };
+            if (settings?.IsGateway == true)
+            {
+                var pin = new Seyra.Configuration.PinnedCertificate(settings.CertificateSha256);
+                handler.ServerCertificateCustomValidationCallback = (_, certificate, chain, errors) =>
+                {
+                    bool matches = pin.Matches(certificate); if (!matches) certificateMismatch = true; return matches;
+                };
+            }
+            client = new HttpClient(handler);
             client.Timeout = TimeSpan.FromSeconds(15);
         }
         public void SetPassword(string value) { password = value; }
@@ -37,7 +49,9 @@ namespace Seyra.Networking
                 // Reused native connections can replay a POST after a lost response. Do not pool these requests.
                 request.Headers.ConnectionClose = true;
                 request.Headers.Accept.ParseAdd("application/json");
-                if (!string.IsNullOrEmpty(password))
+                if (settings?.IsGateway == true)
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.DeviceToken);
+                else if (!string.IsNullOrEmpty(password))
                     request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic",
                         Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password)));
                 if (body != null) request.Content = new StringContent(body.ToString(Newtonsoft.Json.Formatting.None), Encoding.UTF8, "application/json");
@@ -46,7 +60,7 @@ namespace Seyra.Networking
                     using (var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead, token))
                     {
                         token.ThrowIfCancellationRequested();
-                        if ((int)response.StatusCode == 401)
+                        if ((int)response.StatusCode == 401 && settings?.IsGateway != true)
                             throw new InvalidOperationException("OpenCode rejected authentication. Check the connection credentials and reconnect.");
                         if (!response.IsSuccessStatusCode)
                             throw new OpenCodeHttpException((int)response.StatusCode, "OpenCode HTTP " + (int)response.StatusCode + ": " + response.ReasonPhrase);
@@ -61,7 +75,8 @@ namespace Seyra.Networking
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
                 { throw new OpenCodeHttpException(0, "OpenCode HTTP timed out. Outcome unknown; inspect before repeating any mutation."); }
                 catch (HttpRequestException error)
-                { throw new OpenCodeHttpException(0, "OpenCode HTTP connection failed. Outcome unknown; no request will be retried. " + error.Message); }
+                { if (certificateMismatch) throw new Seyra.Configuration.ConnectionException("CERTIFICATE_MISMATCH");
+                  throw new OpenCodeHttpException(0, "OpenCode HTTP connection failed. Outcome unknown; no request will be retried."); }
             }
         }
 

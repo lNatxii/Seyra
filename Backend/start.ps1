@@ -1,8 +1,12 @@
 param(
-    [ValidateRange(1, 65535)][int]$Port = 4096
+    [ValidateRange(1, 65535)][int]$Port = 4096,
+    [switch]$Gateway,
+    [string]$GatewayHost = '0.0.0.0',
+    [ValidateRange(1, 65535)][int]$GatewayPort = 8443,
+    [string]$Root = $PSScriptRoot
 )
 $ErrorActionPreference = 'Stop'
-Set-Location $PSScriptRoot
+Set-Location $Root
 $envPath = Join-Path $PSScriptRoot '.env.local'
 if (-not (Test-Path -LiteralPath $envPath)) {
     throw 'Backend/.env.local is missing. See README.md to create the file.'
@@ -40,5 +44,38 @@ if (-not (Test-Path -LiteralPath (Join-Path $bridgeDirectory 'node_modules'))) {
 }
 & npm run build --prefix $bridgeDirectory
 if ($LASTEXITCODE -ne 0) { throw 'Could not build the bridge. OpenCode was not started.' }
-& opencode2 serve --hostname 127.0.0.1 --port $Port
-if ($LASTEXITCODE -ne 0) { throw "OpenCode exited with code $LASTEXITCODE." }
+$gatewayProcess = $null
+$dataRoot = Join-Path $Root '.seyra'
+$hasCertificate = Test-Path -LiteralPath (Join-Path $dataRoot 'tls/gateway.pfx')
+$useGateway = if ($PSBoundParameters.ContainsKey('Gateway')) { [bool]$Gateway } else { $hasCertificate }
+$previousInternalToken = $env:SEYRA_BRIDGE_INTERNAL_TOKEN
+try {
+    # Direct Editor mode keeps the legacy unauthenticated loopback bridge.
+    if ($useGateway) {
+        if (-not $hasCertificate) { throw 'Gateway TLS is missing. Run seyra-device.ps1 init-tls first.' }
+        $randomBytes = New-Object byte[] 32
+        $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $random.GetBytes($randomBytes) } finally { $random.Dispose() }
+        $env:SEYRA_BRIDGE_INTERNAL_TOKEN = [Convert]::ToBase64String($randomBytes)
+        $env:SEYRA_GATEWAY_HOST = $GatewayHost
+        $env:SEYRA_GATEWAY_PORT = [string]$GatewayPort
+        $env:SEYRA_OPENCODE_PORT = [string]$Port
+        $env:SEYRA_DATA_ROOT = [IO.Path]::GetFullPath($dataRoot)
+        $gatewayProcess = Start-Process -FilePath (Get-Command node).Source -ArgumentList @('bridge/dist/gateway.js') -WorkingDirectory $Root -WindowStyle Hidden -PassThru
+        Write-Host "Gateway: https://$($GatewayHost):$GatewayPort"
+        Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | ForEach-Object { Write-Host "LAN candidate: https://$($_.IPAddress):$GatewayPort" }
+        $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new((Join-Path $dataRoot 'tls/gateway.pfx'),([IO.File]::ReadAllText((Join-Path $dataRoot 'tls/gateway.pass')).Trim()))
+        try {
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { Write-Host ('Certificate SHA-256: ' + ([BitConverter]::ToString($sha.ComputeHash($certificate.RawData))).Replace('-','').ToLowerInvariant()) }
+            finally { $sha.Dispose() }
+        } finally { $certificate.Dispose() }
+        Start-Sleep -Milliseconds 300
+        if ($gatewayProcess.HasExited) { throw 'Gateway failed to start.' }
+    } else { Remove-Item Env:SEYRA_BRIDGE_INTERNAL_TOKEN -ErrorAction SilentlyContinue }
+    & opencode2 serve --hostname 127.0.0.1 --port $Port
+    if ($LASTEXITCODE -ne 0) { throw "OpenCode exited with code $LASTEXITCODE." }
+} finally {
+    if ($gatewayProcess -and -not $gatewayProcess.HasExited) { Stop-Process -Id $gatewayProcess.Id }
+    $env:SEYRA_BRIDGE_INTERNAL_TOKEN = $previousInternalToken
+}

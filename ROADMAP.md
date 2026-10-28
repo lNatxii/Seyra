@@ -158,13 +158,17 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 07. Conexión y ejecución verificadas en Quest
 
+**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Pasarela HTTPS con huella y token revocable, bridge por sondeo largo, reanudación sin reenvío y APK Quest/móvil generados. Validación básica aprobada; conexión completa en móvil y pruebas físicas en Quest pendientes del usuario. [Implementación y validación](Progress/Completed/07-quest-connection.md).
+
 **Entrega:** configurar desde la aplicación la dirección del backend, autenticar la conexión sin incluir secretos de proveedores en assets o builds y verificar el enlace Unity–bridge fuera del Editor. El backend sigue ejecutándose en un equipo accesible por red.
 
-**Aceptación:** build instalado en el dispositivo objetivo que conecta con el backend y completa conversación, herramientas y recuperación tras pausa/reanudación; estado independiente de conexión al chat y al runtime; errores de red comprensibles. La conexión no depende de `127.0.0.1` del visor ni de leer `.env.local` desde Android.
+**Aceptación:** build instalado en el dispositivo objetivo que conecta con el backend y completa conversación, herramientas y recuperación tras pausa/reanudación; estado independiente de conexión al chat y al runtime; errores de red comprensibles. La conexión es cifrada y autenticada por dispositivo y funciona con cualquier IP o puerto; OpenCode y el bridge nunca se exponen fuera de `127.0.0.1`; el build no contiene secretos y el visor solo guarda la URL, su token y la huella del certificado.
 
 **Dependencias:** 06. La solución de transporte y credenciales debe cerrarse antes de considerar entregado el MVP.
 
 ### 08. Muse Spark como proveedor utilizable
+
+**Estado:** In progress · diseño listo (28 de octubre de 2026). Prioridad máxima: las bases descartan en la fase 1 los proyectos sin modelos de Meta. Proveedor `meta` integrado en opencode2 2.1.1, `seyra` pasa a Muse Spark y GLM queda en `seyra_glm`. [Diseño](Progress/InProgress/08-muse-spark.md).
 
 **Entrega:** integrar Muse Spark mediante Meta Model API, preferentemente como proveedor de OpenCode si su versión y la API lo permiten. Conservar schemas, executors y bridge. Si falta soporte, resolver primero esa compatibilidad con una prueba pequeña antes de crear otra arquitectura de agentes.
 

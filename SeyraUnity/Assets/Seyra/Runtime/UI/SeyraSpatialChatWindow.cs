@@ -503,6 +503,7 @@ namespace Seyra.UI
             SendDraft();
         }
 
+        void OnApplicationPause(bool paused) { if (!paused && session?.CanReconnect == true) session.Reconnect(); }
         void OnReconnectClicked()
         {
             session?.Reconnect();
