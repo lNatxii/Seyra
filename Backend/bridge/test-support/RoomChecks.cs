@@ -29,11 +29,19 @@ public static class RoomChecks
         Vector3 Read(JToken value)=>new Vector3((float)value["x"],(float)value["y"],(float)value["z"]);
         try
         {
-            Require(context.Snapshot.State==RoomState.AirOnly,"Editor must not load a simulated room automatically.");
-            context.SendMessage("OnApplicationPause",true);context.SendMessage("OnApplicationPause",false);
-            Require(context.Snapshot.State==RoomState.AirOnly,"Pause/resume without captured geometry must preserve the no-map state.");
-            Require((string)Ok("room_get")["state"]=="AirOnly","No-map state must be honest.");
-            Require((string)Call("scene_bounds",new JObject{["entityId"]="physical:unknown"})["error"]["code"]=="ROOM_UNAVAILABLE","No-map bounds must fail.");
+            Require(!provider.SceneSettings.LoadSceneOnStartup,"MRUK must not load on startup; RoomContext owns loading.");
+            await context.WhenIdle();
+            var startState=context.Snapshot.State;var skipped=new JArray();
+            Require(startState!=RoomState.Loading&&startState!=RoomState.Error,"Startup device load must settle honestly: "+startState+" · "+context.Diagnostic);
+            if(startState==RoomState.Ready)Require(!context.Snapshot.Simulated,"The simulator device room must not be marked as simulated.");
+            if(startState==RoomState.AirOnly)
+            {
+                context.SendMessage("OnApplicationPause",true);context.SendMessage("OnApplicationPause",false);
+                Require(context.Snapshot.State==RoomState.AirOnly,"Pause/resume without captured geometry must preserve the no-map state.");
+                Require((string)Ok("room_get")["state"]=="AirOnly","No-map state must be honest.");
+                Require((string)Call("scene_bounds",new JObject{["entityId"]="physical:unknown"})["error"]["code"]=="ROOM_UNAVAILABLE","No-map bounds must fail.");
+            }
+            else skipped.Add("No-map pause/resume and ROOM_UNAVAILABLE checks: start state "+startState+" · "+context.Diagnostic);
             string previousId=null;long previousRevision=context.Snapshot.Revision;
             foreach(var path in new[]{"Bedroom/Bedroom00","Office/Office00","Other/OtherRoom07_Cluttered"})
             {
@@ -41,6 +49,7 @@ public static class RoomChecks
                 Require(prefab!=null,"Missing room prefab: "+path);
                 var loadTimer=System.Diagnostics.Stopwatch.StartNew();
                 await context.LoadTestRoomAsync(prefab,head.transform);
+                Require(provider.Rooms.Count>0,"No room after load: "+context.Snapshot.State+" · "+context.Diagnostic+" · MRUK instances="+Object.FindObjectsByType<MRUK>(FindObjectsSortMode.None).Length+" · provider==MRUK.Instance:"+(provider==MRUK.Instance));
                 var room=provider.Rooms[0];var floor=room.FloorAnchors[0];
                 var rect=floor.PlaneRect.Value;head.transform.position=floor.transform.TransformPoint(new Vector3(rect.center.x,rect.center.y,0))+Vector3.up*1.5f;
                 for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
@@ -61,6 +70,17 @@ public static class RoomChecks
                 while(next.Type!=JTokenType.Null){var page=Ok("room_objects",new JObject{["offset"]=(int)next,["limit"]=1});count+=page["objects"].Count();next=page["nextOffset"];}
                 Require(count==total&&total>5,"Inventory pagination lost references.");
                 Require(Ok("room_objects",new JObject{["kind"]="wall"})["objects"].All(i=>(string)i["kind"]=="wall"),"Kind filtering failed.");
+                var inventory=Ok("room_objects",new JObject{["limit"]=64})["objects"].ToArray();
+                Require(inventory.Select(i=>(string)i["physicalId"]).SequenceEqual(inventory.OrderBy(i=>(float)i["viewerRelative"]["distance"]).ThenBy(i=>(string)i["physicalId"],StringComparer.Ordinal).ThenBy(i=>(string)i["kind"],StringComparer.Ordinal).Select(i=>(string)i["physicalId"])),"Inventory must sort by distance before pagination.");
+                foreach(var entry in inventory)
+                {
+                    var relative=Read(entry["viewerRelative"]["position"]);
+                    Require(Mathf.Abs((float)entry["viewerRelative"]["bearing"]-Mathf.Atan2(relative.x,relative.z)*Mathf.Rad2Deg)<.001f,"Viewer bearing must use horizontal degrees.");
+                    if((string)entry["kind"]!="wall"&&(string)entry["kind"]!="opening")continue;
+                    var surface=snapshot.Surfaces.Single(s=>s.PhysicalId==(string)entry["physicalId"]&&s.Kind==(string)entry["kind"]);
+                    Require(Mathf.Abs((float)entry["width"]-(surface.Polygon.Max(p=>p.x)-surface.Polygon.Min(p=>p.x)))<.0001f&&Mathf.Abs((float)entry["height"]-(surface.Polygon.Max(p=>p.y)-surface.Polygon.Min(p=>p.y)))<.0001f,"Surface dimensions must match polygon extents.");
+                    if(surface.Kind=="wall")Require(Vector3.Dot(Read(entry["facing"]),head.transform.position-surface.Pose.position)>=0,"Wall facing must point into the viewer's side of the room.");
+                }
                 foreach(var item in snapshot.Objects)
                 {
                     var bounds=Ok("scene_bounds",new JObject{["entityId"]=item.PhysicalId})["bounds"];
@@ -119,13 +139,26 @@ public static class RoomChecks
                 for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
                 Require(context.Snapshot.State==RoomState.Ready&&context.Snapshot.Revision>oldSnapshot.Revision,"Invalidated room did not rebuild.");
                 Require(oldSnapshot.Surfaces.Count>0,"Published snapshots must remain immutable.");
+                if(previousId==null)
+                {
+                    var broken=room.Anchors.First(a=>a.VolumeBounds.HasValue&&!a.HasAnyLabel(MRUKAnchor.SceneLabels.GLOBAL_MESH|MRUKAnchor.SceneLabels.INVISIBLE_WALL_FACE));
+                    var brokenId="physical:"+broken.Anchor.Uuid;var healthy=context.Snapshot;var oldScale=broken.transform.localScale;
+                    broken.transform.localScale=new Vector3(oldScale.x,0,oldScale.z);room.AnchorUpdatedEvent.Invoke(broken);
+                    for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
+                    var partial=context.Snapshot;
+                    Require(partial.State==RoomState.Ready&&partial.SkippedAnchors==1&&partial.Objects.Count==healthy.Objects.Count-1&&partial.Objects.All(o=>o.PhysicalId!=brokenId)&&partial.Surfaces.Count==healthy.Surfaces.Count(s=>s.PhysicalId!=brokenId),"A singular anchor must be skipped without invalidating the room.");
+                    Require(((string)Ok("room_get")["reason"]).Contains("Skipped 1 invalid anchor"),"room_get.reason must report skipped anchors.");
+                    broken.transform.localScale=oldScale;room.AnchorUpdatedEvent.Invoke(broken);
+                    for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
+                    Require(context.Snapshot.SkippedAnchors==0&&context.Snapshot.Objects.Count==healthy.Objects.Count&&!context.Diagnostic.Contains("Skipped"),"A restored anchor must return to the snapshot.");
+                }
                 if(previousId!=null)Require((string)Call("scene_bounds",new JObject{["entityId"]=previousId})["error"]["code"]=="ROOM_REFERENCE_STALE","Old room reference accepted.");
                 previousId=physical;
                 evidence.Add(new JObject{["prefab"]=path,["surfaces"]=snapshot.Surfaces.Count,["volumes"]=snapshot.Objects.Count,["tabletops"]=snapshot.Surfaces.Count(s=>s.Kind=="tabletop"),["revision"]=snapshot.Revision,["loadMilliseconds"]=loadTimer.ElapsedMilliseconds,["inventoryBytes"]=System.Text.Encoding.UTF8.GetByteCount(Ok("room_objects",new JObject{["limit"]=64}).ToString(Newtonsoft.Json.Formatting.None)),
                     ["wallNormal"]=V((wall.Pose.rotation*Vector3.forward).x,(wall.Pose.rotation*Vector3.forward).y,(wall.Pose.rotation*Vector3.forward).z)});
                 Ok("delete_object",new JObject{["entityId"]=id});
             }
-            return new JObject{["checks"]=checks,["rooms"]=evidence,["simulated"]=true}.ToString();
+            return new JObject{["checks"]=checks,["startState"]=startState.ToString(),["skipped"]=skipped,["rooms"]=evidence,["simulated"]=true}.ToString();
         }
         finally{Object.DestroyImmediate(root);Object.DestroyImmediate(head);}
     }

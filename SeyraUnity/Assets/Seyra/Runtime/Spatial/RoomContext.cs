@@ -14,7 +14,10 @@ namespace Seyra.Spatial
         public const string ScenePermission="com.oculus.permission.USE_SCENE";
         [SerializeField] MRUK roomProvider;
         [SerializeField] Transform viewer;
+        // In the Editor the Meta XR Simulator provides the device room; RoomContext stays the only loader.
+        [SerializeField] bool loadDeviceRoomInEditor=true;
         readonly List<MRUKRoom> subscribedRooms=new List<MRUKRoom>();
+        Task deviceLoad=Task.CompletedTask;
         MRUKRoom currentRoom;
         bool stopping,dirty=true,simulated,loading,paused;
         int epoch;
@@ -25,6 +28,7 @@ namespace Seyra.Spatial
         public Transform Viewer=>viewer;
         public bool ViewerReady=>viewer!=null && (simulated || (!paused && OVRManager.isHmdPresent && OVRPlugin.GetNodePositionTracked(OVRPlugin.Node.EyeCenter)));
         public event Action<RoomSnapshot> Changed;
+        public Task WhenIdle()=>deviceLoad;
         public void Configure(MRUK provider,Transform head) { roomProvider=provider;viewer=head; }
         void OnEnable()
         {
@@ -61,15 +65,23 @@ namespace Seyra.Spatial
                 return;
             }
             await LoadDeviceAsync();
+#elif UNITY_EDITOR
+            if(loadDeviceRoomInEditor)await LoadDeviceAsync();
 #else
             await Task.CompletedTask;
 #endif
         }
-        public async Task LoadDeviceAsync(bool requestCapture=false)
+        public Task LoadDeviceAsync(bool requestCapture=false)
         {
-            if(stopping||loading)return;
-#if UNITY_ANDROID && !UNITY_EDITOR
+            if(stopping||loading)return deviceLoad;
+            return deviceLoad=LoadDeviceCoreAsync(requestCapture);
+        }
+        async Task LoadDeviceCoreAsync(bool requestCapture)
+        {
+#if UNITY_ANDROID || UNITY_EDITOR
+#if !UNITY_EDITOR
             if(!Permission.HasUserAuthorizedPermission(ScenePermission)){Publish(RoomState.PermissionDenied,"Spatial data permission is required.");return;}
+#endif
             simulated=false;loading=true;var loadEpoch=epoch;Publish(RoomState.Loading,"Loading captured scene.");
             try
             {
@@ -87,7 +99,10 @@ namespace Seyra.Spatial
 #if UNITY_EDITOR
         public async Task LoadTestRoomAsync(GameObject prefab,Transform testViewer)
         {
-            if(!Application.isPlaying||prefab==null||testViewer==null||loading||stopping)throw new InvalidOperationException("Explicit test loading requires Play Mode, a prefab and a viewer.");
+            if(!Application.isPlaying||prefab==null||testViewer==null||stopping)throw new InvalidOperationException("Explicit test loading requires Play Mode, a prefab and a viewer.");
+            // The prefab replaces the simulator room; MRUK clears the previous scene when loading it.
+            await WhenIdle();
+            if(loading||stopping)throw new InvalidOperationException("Explicit test loading requires an idle room context.");
             var loadEpoch=++epoch;loading=true;simulated=true;viewer=testViewer;roomProvider.EnableWorldLock=false;
             Publish(RoomState.Loading,"Loading explicitly requested simulated room.");
             try
@@ -141,7 +156,8 @@ namespace Seyra.Spatial
             if(!simulated&&roomProvider.EnableWorldLock&&!roomProvider.IsWorldLockActive){Publish(RoomState.Suspended,"Waiting for room localization and World Lock.");return;}
             if(!dirty&&currentRoom==selected&&(Snapshot.State==RoomState.Ready||Snapshot.State==RoomState.Error))return;
             currentRoom=selected;dirty=false;SubscribeRooms();
-            try{Snapshot=RoomSnapshotBuilder.Build(selected,++revision,simulated);Diagnostic=simulated?"Explicitly simulated captured geometry.":"Captured geometry only; moved furniture is unknown.";Changed?.Invoke(Snapshot);}
+            try{Snapshot=RoomSnapshotBuilder.Build(selected,++revision,simulated);Diagnostic=(simulated?"Explicitly simulated captured geometry.":"Captured geometry only; moved furniture is unknown.")+
+                (Snapshot.SkippedAnchors>0?" Skipped "+Snapshot.SkippedAnchors+" invalid anchor(s) with singular or sheared transforms.":"");Changed?.Invoke(Snapshot);}
             catch(Exception error){Publish(RoomState.Error,error.Message);}
         }
         void Publish(RoomState state,string diagnostic)
