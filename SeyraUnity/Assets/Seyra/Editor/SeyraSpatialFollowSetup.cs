@@ -48,6 +48,7 @@ namespace Seyra.Editor
             var roots=scene.GetRootGameObjects();
             var placement=roots.SelectMany(r=>r.GetComponentsInChildren<SpatialPlacementService>(true)).FirstOrDefault();
             if(placement==null){var go=new GameObject("SeyraSpatialPlacement");SceneManager.MoveGameObjectToScene(go,scene);placement=go.AddComponent<SpatialPlacementService>();}
+            if(placement.GetComponent<SpatialWindowSnapping>()==null)placement.gameObject.AddComponent<SpatialWindowSnapping>();
             var room=roots.SelectMany(r=>r.GetComponentsInChildren<RoomContext>(true)).FirstOrDefault();Reference(placement,"room",room);
             var app=roots.FirstOrDefault(r=>r.name=="SeyraAssistantApp");if(app==null)return;
             var chat=app.GetComponentInChildren<SeyraSpatialChatWindow>(true);var menu=app.GetComponentInChildren<SeyraSpatialMenu>(true);if(chat==null||menu==null)return;
