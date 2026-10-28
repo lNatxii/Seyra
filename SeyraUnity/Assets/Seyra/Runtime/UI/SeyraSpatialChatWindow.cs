@@ -78,6 +78,7 @@ namespace Seyra.UI
         public bool IsDictating { get; private set; }
         public VoiceDictation Dictation => voiceDictation;
         public PushToTalkButton PushToTalk => pushToTalkButton;
+        public bool PermissionPanelOpen => permissionPanel != null && permissionPanel.activeInHierarchy;
         public bool IsConnected => session != null && session.IsConnected;
         public bool CanSend => session != null && session.CanSend;
 

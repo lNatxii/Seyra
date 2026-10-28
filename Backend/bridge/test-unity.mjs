@@ -76,6 +76,10 @@ try {
     ok(await call('undo',{scope:'operation',expectedOperationId:placed.operationId}));
     assert.deepEqual(ok(await call('scene_get',{entityId:cube.entityId})).transform,cube.transform);
     assert.equal((await call('set_transform',{entityId:table.physicalId,space:'world',position:vector()})).error.code,'ROOM_READ_ONLY');
+    const spatialQuery=ok(await call('spatial_candidates',{entityId:cube.entityId,destination:'air'}));assert.equal(spatialQuery.applied,false);
+    const spatialPlacement=ok(await call('spatial_place',{entityId:cube.entityId,destination:'air',expectedRoomRevision:room.roomRevision}));
+    if(spatialPlacement.applied)ok(await call('undo',{scope:'operation',expectedOperationId:spatialPlacement.operationId}));
+    else assert.equal(spatialPlacement.code,'PLACEMENT_REJECTED');
     const wall=inventory.find(o=>o.kind==='wall');
     const bounds=ok(await call('scene_bounds',{entityId:wall.physicalId,frame:'reference'}));assert.equal(bounds.bounds.kind,'frame_aligned_box');
     const panel=ok(await call('create_panel',{name:'RoomPanel',parentId:parent.entityId,position:vector(0,1,2),rotation:vector(),scale:vector(1,1,1),panel:{version:1,kind:'panel',title:'Room orientation',text:'Readable side faces into the room',width:.8,height:.6,fontSize:24}}));

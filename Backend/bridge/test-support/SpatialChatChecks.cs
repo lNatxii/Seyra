@@ -52,6 +52,40 @@ public static class SpatialChatChecks
         }
     }
 
+    public static async Task<string> RunRecenter()
+    {
+        var currentChat=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
+        var currentMenu=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>();
+        var controller=currentChat.GetComponentInParent<Seyra.Spatial.SpatialFollowController>();
+        var anchor=controller!=null?controller.transform:currentChat.transform;
+        var oldAnchor=new Pose(anchor.position,anchor.rotation);
+        var oldChat=new Pose(currentChat.transform.localPosition,currentChat.transform.localRotation);
+        var oldMenu=new Pose(currentMenu.transform.localPosition,currentMenu.transform.localRotation);
+        try
+        {
+            if(controller!=null)
+            {
+                await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
+                // Keep both windows together: the legacy test moved only the chat child.
+                currentChat.transform.localPosition=new Vector3(0,1.35f,1.25f);
+                currentMenu.transform.localPosition=new Vector3(0,.95f,1.05f);
+                controller.UseTestTracking(true);
+            }
+            anchor.position=new Vector3(8,10,8);
+            var button=Get<Button>(currentMenu,"recenterButton");Check(button!=null,"RecenterButton missing.");button.onClick.Invoke();
+            var head=SeyraLazyFollow.ResolveHead();
+            Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the group near the explicit viewer.");
+            return "Planner-driven group recenter passed.";
+        }
+        finally
+        {
+            anchor.SetPositionAndRotation(oldAnchor.position,oldAnchor.rotation);
+            currentChat.transform.SetLocalPositionAndRotation(oldChat.position,oldChat.rotation);
+            currentMenu.transform.SetLocalPositionAndRotation(oldMenu.position,oldMenu.rotation);
+            if(controller!=null)controller.UseTestTracking(false);
+        }
+    }
+
     static async Task<string> RunChecks()
     {
         Check(Application.isPlaying, "Play Mode is required for SpatialChatChecks.");
@@ -254,18 +288,9 @@ public static class SpatialChatChecks
         Check(xrWindow.gameObject.activeSelf, "Window should be active again.");
         checks.Add("session and message continuity across hide and reopen without duplicate connections");
 
-        // 10. Real Button-Driven Recenter
-        chat.transform.position = new Vector3(8f, 10f, 8f);
-        var recenterBtn = Get<Button>(menu, "recenterButton");
-        Check(recenterBtn != null, "RecenterButton missing on menu.");
-        recenterBtn.onClick.Invoke();
-        var cam = Camera.main ?? UnityEngine.Object.FindFirstObjectByType<Camera>();
-        if (cam != null)
-        {
-            var dist = Vector3.Distance(cam.transform.position, chat.transform.position);
-            Check(dist < 3.0f, "Recenter button did not bring window near the camera. Distance: " + dist);
-        }
-        checks.Add("recenter button places chat window in front of user head pose");
+        // 10. Recenter the shared group using an explicit Editor viewer.
+        await RunRecenter();
+        checks.Add("planner-driven group recenter through the real menu button");
 
         // 11. Runtime Bridge Distinction Check
         var runtimeDot = Get<Image>(chat, "runtimeStatusDot");

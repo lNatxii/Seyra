@@ -54,7 +54,7 @@ namespace Seyra.UI
         {
             bool reappearing = shown && State == VisibilityState.Hidden;
             // Place the menu before restoring rendering and interaction.
-            if (reappearing && follow != null) follow.SnapToTarget();
+            if (reappearing && follow != null && follow.enabled) follow.SnapToTarget();
             State = shown ? VisibilityState.Shown : VisibilityState.Hidden;
             if (visualParts != null)
                 foreach (var part in visualParts)
@@ -94,7 +94,8 @@ namespace Seyra.UI
             bool inView = EvaluateChatInView(head, IsChatInView);
             if (inView != IsChatInView) conditionTime = 0;
             IsChatInView = inView;
-            bool shouldHide = inView && (follow == null || follow.State != SeyraLazyFollow.FollowState.Held);
+            bool grabbed = GetComponent<UIXRWindow>()?.GrabFrame?.IsGrabbed == true;
+            bool shouldHide = inView && !grabbed && (follow == null || follow.State != SeyraLazyFollow.FollowState.Held);
             if (shouldHide == (State == VisibilityState.Hidden)) { conditionTime = 0; return; }
             conditionTime += Time.unscaledDeltaTime;
             if (conditionTime < (shouldHide ? hideDelay : showDelay)) return;

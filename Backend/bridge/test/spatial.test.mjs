@@ -21,3 +21,12 @@ test('room queries and optional placement frames have strict bounded schemas', (
   for (const args of [{ frame: 'head' }, { orient: 'auto' }, { gap: Infinity }, { gap: NaN }, { roomRevision: 3 }])
     assert.equal(tool('place_relative').schema.safeParse({ ...legacy, ...args }).success, false);
 });
+
+ test('spatial placement schemas remain bounded and distinguish query from commit', () => {
+  const query=tools.find(t=>t.name==='spatial_candidates'), commit=tools.find(t=>t.name==='spatial_place');
+  assert.equal(query.readOnly,true);assert.equal(commit.readOnly,false);
+  assert.equal(query.schema.safeParse({entityId:'go_test',destination:'air'}).success,true);
+  assert.equal(query.schema.safeParse({entityId:'go_test',destination:'air',expectedRoomRevision:1}).success,false);
+  assert.equal(commit.schema.safeParse({entityId:'go_test',destination:'wall',expectedRoomRevision:1}).success,true);
+  assert.equal(commit.schema.safeParse({entityId:'go_test',destination:'air',minScale:0}).success,false);
+ });

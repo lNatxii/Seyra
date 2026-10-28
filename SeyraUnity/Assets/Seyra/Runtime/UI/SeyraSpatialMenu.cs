@@ -1,5 +1,6 @@
 using System;
 using Seyra.SceneTools;
+using Seyra.Spatial;
 using Seyra.UI.Library;
 using TMPro;
 using UnityEngine;
@@ -18,6 +19,11 @@ namespace Seyra.UI
         [SerializeField] SeyraSpatialChatWindow chatWindow;
         [SerializeField] UIXRWindow chatXrWindow;
         [SerializeField] SeyraLazyFollow follow;
+
+        [SerializeField] SpatialFollowController spatialFollow;
+        [SerializeField] RoomContext roomContext;
+        [SerializeField] Button followButton, scanRoomButton;
+        string roomActionStatus = "";
 
         [Header("Controls")]
         [SerializeField] Button toggleChatButton;
@@ -51,6 +57,10 @@ namespace Seyra.UI
         void Awake()
         {
             if (follow == null) follow = GetComponent<SeyraLazyFollow>();
+            if (spatialFollow == null) spatialFollow = GetComponentInParent<SpatialFollowController>();
+            if (roomContext == null) roomContext = FindFirstObjectByType<RoomContext>();
+            if (followButton != null) followButton.onClick.AddListener(OnFollowClicked);
+            if (scanRoomButton != null) scanRoomButton.onClick.AddListener(OnScanRoomClicked);
             if (toggleChatButton != null) toggleChatButton.onClick.AddListener(OnToggleChatClicked);
             if (recenterButton != null) recenterButton.onClick.AddListener(OnRecenterClicked);
             if (voiceActionButton != null) voiceActionButton.onClick.AddListener(OnVoiceActionClicked);
@@ -99,8 +109,22 @@ namespace Seyra.UI
             RefreshUI();
         }
 
+        public void OnFollowClicked(){spatialFollow?.ResumeFollow();RefreshUI();}
+        public async void OnScanRoomClicked()
+        {
+            if(roomContext==null||scanRoomButton==null||!scanRoomButton.interactable)return;
+            roomActionStatus="Escaneando habitación…";RefreshUI();scanRoomButton.interactable=false;
+            try
+            {
+                await roomContext.LoadDeviceAsync(true);
+                roomActionStatus=roomContext!=null&&(roomContext.Snapshot.State==RoomState.Error||roomContext.Snapshot.State==RoomState.Unavailable||roomContext.Snapshot.State==RoomState.PermissionDenied)?"No se pudo cargar la habitación":"";
+            }
+            catch(Exception error){roomActionStatus="No se pudo cargar la habitación";Debug.LogWarning("Room scan failed: "+error.Message,this);}
+            finally{if(this!=null)RefreshUI();}
+        }
         public void OnRecenterClicked()
         {
+            if(spatialFollow!=null){spatialFollow.Recenter();RefreshUI();return;}
             if (follow == null) follow = GetComponent<SeyraLazyFollow>();
             var head = SeyraLazyFollow.ResolveHead(follow != null ? follow.Head : null);
             if (head == null || !float.IsFinite(head.position.sqrMagnitude)) return;
@@ -151,6 +175,12 @@ namespace Seyra.UI
 
         public void RefreshUI()
         {
+            if(scanRoomButton!=null)
+            {
+                bool available=Application.platform==RuntimePlatform.Android&&roomContext!=null&&(roomContext.Snapshot.State==RoomState.AirOnly||roomContext.Snapshot.State==RoomState.Unavailable);
+                scanRoomButton.gameObject.SetActive(available);scanRoomButton.interactable=available;
+            }
+            if(followButton!=null)followButton.interactable=spatialFollow!=null;
             bool isChatOpen = (chatXrWindow != null && chatXrWindow.gameObject.activeSelf) ||
                               (chatXrWindow == null && chatWindow != null && chatWindow.gameObject.activeSelf);
 
@@ -171,7 +201,9 @@ namespace Seyra.UI
             {
                 string chatTxt = isChatConnected ? "Chat: Conectado" : "Chat: Desconectado";
                 string runTxt = isRuntimeConnected ? "Runtime: OK" : "Runtime: Inactivo";
-                statusSummary.text = $"{chatTxt} · {runTxt}";
+                string roomText=roomContext==null?"Habitación: sin mapa":roomContext.Snapshot.Simulated?"Habitación: simulada":roomContext.Snapshot.State switch {
+                    RoomState.Ready=>"Habitación: lista",RoomState.PermissionDenied=>"Habitación: sin permiso",RoomState.Loading=>"Habitación: cargando",RoomState.Suspended=>"Habitación: suspendida",RoomState.WaitingForPermission=>"Habitación: permiso pendiente",_=>"Habitación: sin mapa"};
+                statusSummary.text = $"{chatTxt} · {runTxt}\n{roomText} · {(!string.IsNullOrEmpty(roomActionStatus) ? roomActionStatus : spatialFollow?.Status ?? "")}";
             }
         }
     }

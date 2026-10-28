@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load"};
 
         void InitializeLifecycle(string directory)
         {
@@ -200,6 +200,7 @@ namespace Seyra.SceneTools
             try
             {
                 var result=ExecuteLifecycle(tool,args);
+                if(tool=="spatial_place"&&(bool?)result["applied"]!=true)return result;
                 var after=Capture();
                 var operationId="op_"+Guid.NewGuid().ToString("N");
                 history.Add(new HistoryEntry{Id=operationId,Tool=tool,GroupId=activeRequest,EntityId=(string)result["entityId"],Before=before,After=after});

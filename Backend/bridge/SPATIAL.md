@@ -1,5 +1,89 @@
 # Captured room references (22a)
 
+## Planned placement (22b)
+
+`spatial_candidates({entityId,destination,physicalId?,allowAirFallback?,minScale?})`
+plans without moving or reserving content. Destination is wall/tabletop/air;
+fallback defaults true, relative scale .1..1 defaults 1 and must be 1 for any
+reading panel/presentation subtree. `spatial_place` accepts the same arguments
+plus `expectedRoomRevision`, replans against current reservations and revalidates
+before synchronous commit. Only managed Generated descendants are movable;
+held objects return OBJECT_MANIPULATED, stale revisions ROOM_REVISION_CONFLICT.
+Positive uniform ancestor scales are required. Task yaw is fixed only inside an
+open request; unscoped calls use the current yaw. Current viewer position is
+used for each call.
+
+Results include applied, code, reason, actual destination/support, pose (world
+position/Euler degrees), relative scale, score, distance, yaw, elevation,
+angularHeight, roomRevision, simulated, physicalValidation and up to 40 rejected
+supports/reasons. A query returns applied=false and CANDIDATE for a valid plan.
+PLACEMENT_REJECTED with applied=false is a confirmed refusal, not an unknown
+mutation, and creates no history entry. A successful commit returns PLACED and
+one existing Transform history operation; undo restores position/rotation/scale.
+
+Candidates sample captured walls/tabletops and a fixed air grid. Conservative
+corner footprints (including edges across concave cutouts), oriented-box SAT,
+captured planes, openings, floor containment, visibility rays, comfort sector,
+reading angle and current reservations determine validity. Physical geometry is
+captured data only. A missing map permits air with physicalValidation=false;
+loading/suspended tracking does not permit placement. A failed named support
+can fall back to checked air when requested. Settings defaults are centralized
+in SpatialPlacementSettings; SAT and polygon predicates are pure SpatialCollision.
+
+Reservations are derived from current live transforms of placed content, panels,
+presentations, chat and menu, omitting hidden presentations and inactive/trash
+roots. Planning never reserves. Restore revalidates through scene_get/ui_get
+`spatial:{surface,physicalId,needsPlacement,lastValidPose}` without moving anything.
+Metadata lives in the runtime service, adds no persisted components and never
+survives content_load (new instances). Only Transform is recorded in history;
+after undo/external movement, stale placement metadata is marked needsPlacement
+when it fails geometric validation. `ValidateGeometry` checks finite geometry,
+support footprint, openings, floor containment, furniture, planes and reservations
+without using the viewer. Thus turning or walking away never sets needsPlacement
+by itself. Planning/commit additionally use `ValidatePose` for distance, visibility,
+comfort and readability; wall incidence applies to both reading and 3D content.
+Surface attachment/snapping belongs to 22c.
+
+## Application following (22d)
+
+`SpatialFollowController` on SeyraAssistantApp replaces the menu's active
+SeyraLazyFollow writer. It moves the chat/menu application anchor as one group;
+both native grab frames target that anchor and take priority over automatic motion.
+Releasing a grab pins the group; Seguirme restores adaptive following. Application
+windows and their ancestors reject generic scene mutation tools; they are not
+Generated content and have no scene-tool placement history or persistence.
+
+Modes are Adaptive, Pinned and Suspended; states Stable, Waiting, Plan, Moving,
+Cooldown, Recovery. Motion requires being beyond 45 degrees or outside .8..2.1 m
+for 1.5 seconds, with head speed below 20 degrees/s for .6 seconds. Returning to
+30 degrees and .9..1.8 m resets the wait. Maximum chat speed is .35 m/s and
+25 degrees/s, with time-based damping, followed by a 3-second cooldown. Native
+grabs, focused TMP inputs, pointer/scroll activity, scrolling velocity, dictation
+and the permission panel block motion; activity imposes a further 1-second wait.
+Tracking/focus loss and room loading/localization suspend following. Long turns
+beyond 90 degrees or room changes require explicit Reubicar.
+
+The planner captures one air destination at motion start. A conservative swept
+envelope checks captured furniture/planes and live reservations throughout the
+move; no automatic slide or jump is used when blocked. Reubicar explicitly commits
+a fresh air plan (including the menu envelope); failure keeps the current pose.
+No-map success reports that physical validation was unavailable. Room state is
+shown in the menu. Escanear habitación is visible only on Android when AirOnly
+or Unavailable, and invokes the existing RoomContext loader with capture enabled
+only on that user action. No separate permission requester was added.
+While a scan is in progress or has failed, its nonempty action status takes
+precedence over the general following status in the menu.
+
+The authoring setup patches the menu prefab and saves scene references without
+rebuilding the chat. Menu visibility no longer calls a disabled legacy follower
+when reappearing. Physical comfort, simultaneous native grabs, scrolling/input
+on the headset and the system scan dialog need manual device validation; the
+basic Editor checks do not establish these results.
+
+Geometry is deliberately conservative: footprints are projected bounding rectangles;
+this can reject a fit that a tighter silhouette would accept. Hidden holes are
+represented by captured opening surfaces, not invented polygon-hole data.
+
 `room_get({})` returns `runtimeId`, `roomRevision`, `roomId`, `state`,
 `simulated`, `viewerReady`, surface/object counts and a diagnostic `reason`.
 States are `AirOnly`, `WaitingForPermission`, `Loading`, `Ready`,
@@ -84,9 +168,9 @@ their generic IDs and ancestor transforms are also protected against mutation.
 
 Room snapshots, IDs and revisions are never persisted. Generated content continues
 to save its local pose using the existing content format; no physical attachment
-is created. Placement uses captured envelopes and does not check free space,
-visibility, collisions or moved furniture. Planner, reservations, snapping and
-chat following belong to 22b–22d.
+is created by relative placement. `place_relative` uses captured envelopes without
+free-space, visibility or collision validation. `spatial_place` adds the captured
+geometry checks described above; moved furniture remains unknown. Snapping is 22c.
 
 ## Validation
 
