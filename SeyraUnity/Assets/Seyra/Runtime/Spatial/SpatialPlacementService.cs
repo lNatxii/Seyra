@@ -22,8 +22,8 @@ namespace Seyra.Spatial
         public static SpatialPlacementService ForScene(Scene scene)
         {
             var result=FindObjectsByType<SpatialPlacementService>(FindObjectsSortMode.None).FirstOrDefault(s=>s.gameObject.scene==scene);
-            if(result!=null)return result;
-            var go=new GameObject("SeyraSpatialPlacement");SceneManager.MoveGameObjectToScene(go,scene);return go.AddComponent<SpatialPlacementService>();
+            if(result!=null){if(result.GetComponent<SpatialWindowSnapping>()==null)result.gameObject.AddComponent<SpatialWindowSnapping>();return result;}
+            var go=new GameObject("SeyraSpatialPlacement");SceneManager.MoveGameObjectToScene(go,scene);result=go.AddComponent<SpatialPlacementService>();go.AddComponent<SpatialWindowSnapping>();return result;
         }
         public Pose View(string key=null,bool currentYaw=false)
         {
