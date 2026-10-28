@@ -87,10 +87,9 @@ namespace Seyra.Editor
 
                 // Instantiate or refresh SpatialMenu
                 var existingMenu = appRoot.GetComponentInChildren<SeyraSpatialMenu>(true);
-                if (existingMenu != null)
-                {
-                    Undo.DestroyObjectImmediate(existingMenu.gameObject);
-                }
+                var existingHandMenu = appRoot.GetComponentInChildren<SeyraHandMenu>(true);
+                if (existingHandMenu != null) Undo.DestroyObjectImmediate(existingHandMenu.gameObject);
+                else if (existingMenu != null) Undo.DestroyObjectImmediate(existingMenu.gameObject);
                 var menuGo = (GameObject)PrefabUtility.InstantiatePrefab(menuPrefab, appRoot.transform);
                 menuGo.name = "SpatialMenu";
                 menuGo.transform.localPosition = new Vector3(0f, 0.95f, 1.05f);
@@ -100,21 +99,7 @@ namespace Seyra.Editor
                 // Connect references
                 var spatialChat = chatGo.GetComponent<SeyraSpatialChatWindow>();
                 var chatXrWindow = chatGo.GetComponent<UIXRWindow>();
-                var spatialMenu = menuGo.GetComponent<SeyraSpatialMenu>();
-                var follow = menuGo.GetComponent<SeyraLazyFollow>();
-                var visibility = menuGo.GetComponent<SeyraMenuVisibility>();
-                if (visibility != null)
-                {
-                    visibility.ChatWindow = chatXrWindow;
-                    PrefabUtility.RecordPrefabInstancePropertyModifications(visibility);
-                }
-                if (follow != null)
-                {
-                    var serializedFollow = new SerializedObject(follow);
-                    serializedFollow.FindProperty("head").objectReferenceValue = SeyraLazyFollow.ResolveHead();
-                    serializedFollow.ApplyModifiedProperties();
-                    PrefabUtility.RecordPrefabInstancePropertyModifications(follow);
-                }
+                var spatialMenu = menuGo.GetComponentInChildren<SeyraSpatialMenu>(true);
                 if (spatialMenu != null)
                 {
                     var serializedMenu = new SerializedObject(spatialMenu);
@@ -323,86 +308,102 @@ namespace Seyra.Editor
             return prefab;
         }
 
-        public static GameObject BuildMenuPrefab(UIPrefabCatalog catalog)
+        [MenuItem("Seyra/UI/Build Hand Menu Prefab")]
+        public static void BuildHandMenuPrefab()
         {
-            var xrWindow = (UIXRWindow)PrefabUtility.InstantiatePrefab(catalog.WindowPrefab);
-            var menuGo = xrWindow.gameObject;
-            menuGo.name = "SeyraSpatialMenu";
-            xrWindow.Resize(new Vector2(460, 110));
-
-            var content = xrWindow.Content;
-            for (int i = content.childCount - 1; i >= 0; i--)
-            {
-                UnityEngine.Object.DestroyImmediate(content.GetChild(i).gameObject);
-            }
-
-            var font = catalog.DefaultTheme != null ? catalog.DefaultTheme.font : AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset");
-
-            // Header row
-            var topRow = CreateRow(content, "HeaderRow", 28);
-            var title = CreateText(topRow.transform, "MenuTitle", "<b>SeYRA</b> · Asistente", 16, FontStyles.Normal, new Color(0.95f, 0.96f, 0.98f), font);
-            title.GetComponent<LayoutElement>().flexibleWidth = 1;
-
-            var chatDot = CreateImage(topRow.transform, "ChatDot", 12, 12, new Color(0.2f, 0.85f, 0.45f));
-            var runDot = CreateImage(topRow.transform, "RuntimeDot", 12, 12, new Color(0.2f, 0.85f, 0.45f));
-            var summary = CreateText(topRow.transform, "StatusSummary", "Chat: OK · Runtime: OK", 13, FontStyles.Normal, new Color(0.7f, 0.8f, 0.85f), font);
-
-            // Controls row
-            var controlsRow = CreateRow(content, "ControlsRow", 46);
-            var crLayout = controlsRow.GetComponent<HorizontalLayoutGroup>();
-            crLayout.spacing = 10;
-            crLayout.childAlignment = TextAnchor.MiddleCenter;
-
-            var toggleChatBtn = CreateButton(controlsRow.transform, "ToggleChatButton", "Ocultar chat", 140, 40, new Color(0.12f, 0.44f, 0.35f), font, 15);
-            toggleChatBtn.GetComponent<LayoutElement>().flexibleWidth = 1;
-            var toggleChatLabel = toggleChatBtn.GetComponentInChildren<TextMeshProUGUI>();
-
-            var recenterBtn = CreateButton(controlsRow.transform, "RecenterButton", "🎯 Reubicar", 130, 40, new Color(0.20f, 0.32f, 0.45f), font, 15);
-            recenterBtn.GetComponent<LayoutElement>().flexibleWidth = 1;
-
-            var voiceBtn = CreateButton(controlsRow.transform, "VoiceButton", "🎙 Dictar", 120, 40, new Color(0.22f, 0.28f, 0.38f), font, 15);
-            voiceBtn.GetComponent<LayoutElement>().flexibleWidth = 1;
-
-            var follow = menuGo.AddComponent<SeyraLazyFollow>();
-            var serializedFollow = new SerializedObject(follow);
-            serializedFollow.FindProperty("grabFrame").objectReferenceValue = xrWindow.GrabFrame;
-            serializedFollow.ApplyModifiedProperties();
-            var visibility = menuGo.AddComponent<SeyraMenuVisibility>();
-            var serializedVisibility = new SerializedObject(visibility);
-            serializedVisibility.FindProperty("follow").objectReferenceValue = follow;
-            var parts = serializedVisibility.FindProperty("visualParts");
-            parts.arraySize = menuGo.transform.childCount;
-            for (int i = 0; i < parts.arraySize; i++)
-                parts.GetArrayElementAtIndex(i).objectReferenceValue = menuGo.transform.GetChild(i).gameObject;
-            var behaviours = serializedVisibility.FindProperty("visualBehaviours");
-            var interaction = new Behaviour[] {
-                menuGo.GetComponent<Oculus.Interaction.PointableCanvas>(),
-                menuGo.GetComponent<Oculus.Interaction.RayInteractable>(),
-                menuGo.GetComponent<Oculus.Interaction.PokeInteractable>()
-            };
-            behaviours.arraySize = interaction.Length;
-            for (int i = 0; i < interaction.Length; i++)
-                behaviours.GetArrayElementAtIndex(i).objectReferenceValue = interaction[i];
-            serializedVisibility.ApplyModifiedProperties();
-            var spatialMenu = menuGo.AddComponent<SeyraSpatialMenu>();
-            var serializedMenu = new SerializedObject(spatialMenu);
-            serializedMenu.FindProperty("follow").objectReferenceValue = follow;
-            serializedMenu.FindProperty("toggleChatButton").objectReferenceValue = toggleChatBtn;
-            serializedMenu.FindProperty("toggleChatLabel").objectReferenceValue = toggleChatLabel;
-            serializedMenu.FindProperty("recenterButton").objectReferenceValue = recenterBtn;
-            serializedMenu.FindProperty("voiceActionButton").objectReferenceValue = voiceBtn;
-            serializedMenu.FindProperty("chatStatusDot").objectReferenceValue = chatDot.GetComponent<Image>();
-            serializedMenu.FindProperty("runtimeStatusDot").objectReferenceValue = runDot.GetComponent<Image>();
-            serializedMenu.FindProperty("statusSummary").objectReferenceValue = summary;
-            serializedMenu.ApplyModifiedProperties();
-
-            SeyraSpatialChatPresentation.Apply(menuGo);
-            SeyraSpatialFollowSetup.ConfigureMenu(menuGo);
-            var prefab = PrefabUtility.SaveAsPrefabAsset(menuGo, MenuPrefabPath);
-            UnityEngine.Object.DestroyImmediate(menuGo);
-            return prefab;
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before building the hand menu.");
+            var previous = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            SceneManager.SetActiveScene(scene);
+            try { BuildMenuPrefab(AssetDatabase.LoadAssetAtPath<UIPrefabCatalog>(CatalogPath)); AssetDatabase.SaveAssets(); }
+            finally { SceneManager.SetActiveScene(previous); EditorSceneManager.CloseScene(scene, true); }
         }
 
+        public static GameObject BuildMenuPrefab(UIPrefabCatalog catalog)
+        {
+            var root = new GameObject("SeyraHandMenu");
+            var hand = root.AddComponent<SeyraHandMenu>();
+            var window = (UIXRWindow)PrefabUtility.InstantiatePrefab(catalog.WindowPrefab, root.transform);
+            var menuGo = window.gameObject;
+            menuGo.name = "SpatialMenu";
+            menuGo.transform.localPosition = Vector3.zero;
+            menuGo.transform.localRotation = Quaternion.identity;
+            menuGo.transform.localScale = Vector3.one * .5f;
+            // The library canvas uses 0.001 m/unit; half-scale gives 0.15 x 0.18 m.
+            window.Resize(new Vector2(300, 360));
+            if (window.GrabFrame != null)
+            {
+                foreach (var collider in window.GrabFrame.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                if (window.GrabFrame.Grabbable != null) window.GrabFrame.Grabbable.enabled = false;
+                window.GrabFrame.gameObject.SetActive(false);
+                window.ConfigureGrab(null);
+            }
+            var content = window.Content;
+            for (int i = content.childCount - 1; i >= 0; i--) UnityEngine.Object.DestroyImmediate(content.GetChild(i).gameObject);
+            var layout = content.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(16, 16, 12, 12);
+            layout.spacing = 12;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            var font = catalog.DefaultTheme.font;
+            var top = CreateRow(content, "StatusRow", 60);
+            var topLayout = top.GetComponent<HorizontalLayoutGroup>();
+            topLayout.spacing = 4;
+            topLayout.childAlignment = TextAnchor.MiddleCenter;
+            var chatDot = CreateImage(top.transform, "ChatDot", 8, 8, Color.gray).GetComponent<Image>();
+            var runtimeDot = CreateImage(top.transform, "RuntimeDot", 8, 8, Color.gray).GetComponent<Image>();
+            chatDot.raycastTarget = runtimeDot.raycastTarget = false;
+            var summary = CreateText(top.transform, "StatusSummary", "Habitación: sin mapa", 12, FontStyles.Normal, Color.white, font);
+            summary.enableAutoSizing = true;
+            summary.fontSizeMin = 7; summary.fontSizeMax = 12;
+            summary.textWrappingMode = TextWrappingModes.NoWrap;
+            summary.overflowMode = TextOverflowModes.Ellipsis;
+            summary.GetComponent<LayoutElement>().minWidth = 0;
+            summary.GetComponent<LayoutElement>().flexibleWidth = 1;
+            var gridGo = new GameObject("ActionGrid", typeof(RectTransform), typeof(GridLayoutGroup), typeof(LayoutElement));
+            gridGo.transform.SetParent(content, false);
+            var grid = gridGo.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(120, 120); grid.spacing = new Vector2(12, 12);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 2;
+            grid.childAlignment = TextAnchor.MiddleCenter;
+            gridGo.GetComponent<LayoutElement>().minHeight = gridGo.GetComponent<LayoutElement>().preferredHeight = 252;
+            window.Factory.Configure(catalog, content);
+            Button Action(string name, string label)
+            {
+                var view = window.Factory.InstantiateButton((RectTransform)gridGo.transform, new UIButtonOptions { Name = name, Label = label });
+                view.Button.name = name;
+                foreach (var size in view.GetComponentsInChildren<LayoutElement>(true))
+                { size.minWidth = size.minHeight = 0; size.preferredWidth = size.preferredHeight = 120; }
+                var text = view.GetComponentInChildren<TMP_Text>(true);
+                text.fontSize = 18; text.enableAutoSizing = true; text.fontSizeMin = 12; text.fontSizeMax = 18;
+                text.textWrappingMode = TextWrappingModes.Normal; text.alignment = TextAlignmentOptions.Center;
+                return view.Button;
+            }
+            var toggle = Action("ToggleChatButton", "Abrir chat");
+            var voice = Action("VoiceButton", "Voz");
+            var bring = Action("BringChatButton", "Traer chat");
+            var scan = Action("ScanRoomButton", "Habitación");
+            var menu = menuGo.AddComponent<SeyraSpatialMenu>();
+            var serialized = new SerializedObject(menu);
+            void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
+            Reference("toggleChatButton", toggle); Reference("toggleChatLabel", toggle.GetComponentInChildren<TMP_Text>(true));
+            Reference("voiceActionButton", voice); Reference("bringChatButton", bring); Reference("scanRoomButton", scan);
+            Reference("chatStatusDot", chatDot); Reference("runtimeStatusDot", runtimeDot); Reference("statusSummary", summary);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var handSettings = new SerializedObject(hand);
+            handSettings.FindProperty("window").objectReferenceValue = window;
+            var actions = AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>("Assets/Seyra/Input/SeyraInput.inputactions");
+            var reference = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<UnityEngine.InputSystem.InputActionReference>(
+                AssetDatabase.LoadAllAssetsAtPath("Assets/Seyra/Input/SeyraInput.inputactions")), r => r.action.id == actions.FindAction("Menu/ToggleMenu").id);
+            if (reference == null) throw new InvalidOperationException("The imported Menu/ToggleMenu action reference is required.");
+            handSettings.FindProperty("toggleMenuAction").objectReferenceValue = reference;
+            handSettings.ApplyModifiedPropertiesWithoutUndo();
+            Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)window.Canvas.transform);
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, MenuPrefabPath);
+            UnityEngine.Object.DestroyImmediate(root);
+            return prefab;
+        }
         static GameObject CreateRow(Transform parent, string name, float preferredHeight)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
