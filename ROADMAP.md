@@ -146,6 +146,16 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 06c. Se implementa en secuencia con 22c/22d (mismos prefabs y escena).
 
+### 06e. Menú de mano
+
+**Estado:** Completed · Revisada (28 de octubre de 2026). Menú de mano en la izquierda (palma o botón de menú del mando, acción QuestButtons/Menu): una fila de tres botones de icono (Chat, Voz, Traer chat) de unos 0,15 × 0,08 m. El escaneo de habitación sale del menú: la habitación debe estar escaneada antes de abrir Seyra. HandMenuChecks (5) y SpatialFollowChecks (12) aprobados en Editor. Validación física en 07. [Implementación y revisión](Progress/Completed/06e-hand-menu.md).
+
+**Entrega:** el menú del asistente pasa a la mano izquierda: aparece al mostrar la palma o con el botón de menú del mando izquierdo (acción de Input System asignable en el inspector). Fila compacta de tres botones de icono (Chat, Voz, Traer chat) con línea de estado; cada botón da una respuesta visible. Sustituye el dock con seguimiento de 06c/06d para el menú.
+
+**Aceptación:** el menú aparece junto a la mano en menos de 0,3 s y desaparece sin parpadeo; mide entre 0,13 y 0,17 m de ancho; "Traer chat" coloca el chat delante o explica por qué no puede; el menú no reserva espacio ni bloquea la colocación.
+
+**Dependencias:** 06, 06b, 22d/22e.
+
 ### 07. Conexión y ejecución verificadas en Quest
 
 **Entrega:** configurar desde la aplicación la dirección del backend, autenticar la conexión sin incluir secretos de proveedores en assets o builds y verificar el enlace Unity–bridge fuera del Editor. El backend sigue ejecutándose en un equipo accesible por red.

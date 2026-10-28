@@ -171,7 +171,7 @@ MonoBehaviour:
   lateLatchingDebug: 0
   optimizeMultiviewRenderRegions: 0
   m_multiviewRenderRegionsOptimizationMode: 0
-  m_hasMigratedMultiviewRenderRegions: 0
+  m_hasMigratedMultiviewRenderRegions: 1
   spacewarpMotionVectorTextureFormat: 0
 --- !u!114 &-8406148863622954072
 MonoBehaviour:
@@ -545,7 +545,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4b862ee14fb479fbfe5fffe655d3ed3, type: 3}
   m_Name: MetaQuestTouchProControllerProfile Standalone
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.MetaQuestTouchProControllerProfile
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Meta Quest Touch Pro Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.metaquestpro
@@ -993,7 +993,7 @@ MonoBehaviour:
   m_symmetricProjection: 0
   m_optimizeMultiviewRenderRegions: 0
   m_multiviewRenderRegionsOptimizationMode: 0
-  m_hasMigratedMultiviewRenderRegionSetting: 0
+  m_hasMigratedMultiviewRenderRegionSetting: 1
   m_foveatedRenderingApi: 1
   m_useOpenXRPredictedTime: 1
 --- !u!114 &1037234986648015404
@@ -1120,7 +1120,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b7365b139f7aec43b23d26b7a48b5a6, type: 3}
   m_Name: MetaQuestTouchPlusControllerProfile Standalone
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.MetaQuestTouchPlusControllerProfile
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Meta Quest Touch Plus Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.metaquestplus
@@ -1297,7 +1297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4b862ee14fb479fbfe5fffe655d3ed3, type: 3}
   m_Name: MetaQuestTouchProControllerProfile Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.MetaQuestTouchProControllerProfile
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Meta Quest Touch Pro Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.metaquestpro
@@ -1458,37 +1458,37 @@ MonoBehaviour:
   m_Name: Standalone
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.OpenXRSettings
   features:
-  - {fileID: -8781944368879940582}
-  - {fileID: -3861090202629449320}
-  - {fileID: -286690042212572935}
-  - {fileID: 6216498956035472982}
-  - {fileID: -7301783482297602100}
   - {fileID: -8758430961590775158}
-  - {fileID: -577427301493131541}
-  - {fileID: -1833432877266465983}
-  - {fileID: 8932163004822900089}
-  - {fileID: -2015377450317160791}
-  - {fileID: 600961355840472485}
-  - {fileID: 235683674581065963}
-  - {fileID: 1301417486675498737}
+  - {fileID: -286690042212572935}
   - {fileID: 5109861767853726594}
-  - {fileID: -2067697045857666341}
-  - {fileID: 1886875645711501420}
-  - {fileID: -4501223950866769545}
-  - {fileID: -4405498787100065048}
-  - {fileID: 92254722459788216}
-  - {fileID: 1854148114057175111}
-  - {fileID: -3663668728899971759}
-  - {fileID: 8107475304758584317}
-  - {fileID: -9159910563651074329}
-  - {fileID: 1916153364606660928}
-  - {fileID: 5240587851648293108}
-  - {fileID: -8406148863622954072}
-  - {fileID: 1862286332328223418}
-  - {fileID: -759497431996010746}
   - {fileID: -6774885284131742507}
-  - {fileID: -104185684960233288}
+  - {fileID: -759497431996010746}
+  - {fileID: 1916153364606660928}
+  - {fileID: 600961355840472485}
+  - {fileID: -4405498787100065048}
+  - {fileID: -577427301493131541}
+  - {fileID: 92254722459788216}
+  - {fileID: 235683674581065963}
+  - {fileID: -3663668728899971759}
+  - {fileID: -7301783482297602100}
+  - {fileID: 8932163004822900089}
+  - {fileID: 8107475304758584317}
+  - {fileID: 1886875645711501420}
+  - {fileID: -1833432877266465983}
   - {fileID: 7289334680813824512}
+  - {fileID: -104185684960233288}
+  - {fileID: 1862286332328223418}
+  - {fileID: -8406148863622954072}
+  - {fileID: -2015377450317160791}
+  - {fileID: 1854148114057175111}
+  - {fileID: -3861090202629449320}
+  - {fileID: -4501223950866769545}
+  - {fileID: 5240587851648293108}
+  - {fileID: 6216498956035472982}
+  - {fileID: -8781944368879940582}
+  - {fileID: -2067697045857666341}
+  - {fileID: 1301417486675498737}
+  - {fileID: -9159910563651074329}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -1501,7 +1501,7 @@ MonoBehaviour:
   m_symmetricProjection: 0
   m_optimizeMultiviewRenderRegions: 0
   m_multiviewRenderRegionsOptimizationMode: 0
-  m_hasMigratedMultiviewRenderRegionSetting: 0
+  m_hasMigratedMultiviewRenderRegionSetting: 1
   m_foveatedRenderingApi: 1
   m_useOpenXRPredictedTime: 1
 --- !u!114 &7289334680813824512
@@ -1721,7 +1721,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b7365b139f7aec43b23d26b7a48b5a6, type: 3}
   m_Name: MetaQuestTouchPlusControllerProfile Android
   m_EditorClassIdentifier: Unity.XR.OpenXR::UnityEngine.XR.OpenXR.Features.Interactions.MetaQuestTouchPlusControllerProfile
-  m_enabled: 0
+  m_enabled: 1
   nameUi: Meta Quest Touch Plus Controller Profile
   version: 0.0.1
   featureIdInternal: com.unity.openxr.feature.input.metaquestplus

@@ -1,0 +1,42 @@
+{
+    "version": 1,
+    "name": "SeyraInput",
+    "maps": [
+        {
+            "name": "QuestButtons",
+            "id": "e9527b47-4d38-4895-b866-6905eb760971",
+            "actions": [
+                {
+                    "name": "Menu",
+                    "type": "Button",
+                    "id": "6d0d2cae-0cbb-4ab4-9d17-5dc0a20a4bb2",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "d3dfa5c0-373a-4472-99fe-b068e8946c0f",
+                    "path": "<XRController>{LeftHand}/menu",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Menu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": [
+        {
+            "name": "SeyraControlScheme",
+            "bindingGroup": "SeyraControlScheme",
+            "devices": []
+        }
+    ]
+}

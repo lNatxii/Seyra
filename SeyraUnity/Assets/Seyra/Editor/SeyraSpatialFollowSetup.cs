@@ -3,95 +3,113 @@ using System.Linq;
 using Seyra.Spatial;
 using Seyra.UI;
 using Seyra.UI.Library;
-using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 namespace Seyra.Editor
 {
     public static class SeyraSpatialFollowSetup
     {
-        const string MenuPath="Assets/Seyra/UI/Panels/SeyraSpatialMenu.prefab";
-        static void Reference(UnityEngine.Object owner,string name,UnityEngine.Object value)
-        {var serialized=new SerializedObject(owner);serialized.FindProperty(name).objectReferenceValue=value;serialized.ApplyModifiedPropertiesWithoutUndo();EditorUtility.SetDirty(owner);}
+        const string MenuPath = "Assets/Seyra/UI/Panels/SeyraSpatialMenu.prefab";
+        static void Reference(UnityEngine.Object owner, string name, UnityEngine.Object value)
+        {
+            var serialized = new SerializedObject(owner);
+            serialized.FindProperty(name).objectReferenceValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(owner);
+            if (PrefabUtility.IsPartOfPrefabInstance(owner)) PrefabUtility.RecordPrefabInstancePropertyModifications(owner);
+        }
         public static void ConfigureMenu(GameObject root)
         {
-            var menu=root.GetComponent<SeyraSpatialMenu>();var window=root.GetComponent<UIXRWindow>();
-            var source=root.GetComponentsInChildren<Button>(true).First(b=>b.name=="RecenterButton");
-            var row=window.Content.Find("RoomControls");
-            if(row==null)
-            {
-                var go=new GameObject("RoomControls",typeof(RectTransform),typeof(HorizontalLayoutGroup),typeof(LayoutElement));row=go.transform;row.SetParent(window.Content,false);
-                var layout=go.GetComponent<HorizontalLayoutGroup>();layout.spacing=12;layout.childControlWidth=layout.childControlHeight=true;layout.childForceExpandWidth=true;layout.childForceExpandHeight=false;
-                var size=go.GetComponent<LayoutElement>();size.minHeight=size.preferredHeight=52;
-            }
-            Button Button(string name,string label)
-            {
-                var existing=row.Find(name);var button=existing!=null?existing.GetComponent<Button>():UnityEngine.Object.Instantiate(source,row,false);
-                button.name=name;button.onClick=new Button.ButtonClickedEvent();button.GetComponentInChildren<TMP_Text>(true).text=label;
-                var size=button.GetComponent<LayoutElement>();size.minWidth=0;size.preferredWidth=260;size.flexibleWidth=1;
-                return button;
-            }
-            Reference(menu,"followButton",Button("FollowButton","Seguirme"));Reference(menu,"scanRoomButton",Button("ScanRoomButton","Escanear habitación"));
-            window.GrabFrame?.Grabbable?.InjectOptionalTargetTransform(root.transform);
-            var legacy=root.GetComponent<SeyraLazyFollow>();if(legacy!=null)legacy.enabled=true;
-            var visibility=root.GetComponent<SeyraMenuVisibility>();
-            if(visibility!=null)
-            {
-                var serialized=new SerializedObject(visibility);serialized.FindProperty("maxChatDistance").floatValue=2.1f;
-                serialized.ApplyModifiedPropertiesWithoutUndo();EditorUtility.SetDirty(visibility);
-            }
-            var summary=root.GetComponentsInChildren<TMP_Text>(true).First(t=>t.name=="StatusSummary");
-            var summarySize=summary.GetComponent<LayoutElement>()??summary.gameObject.AddComponent<LayoutElement>();summarySize.minWidth=0;summarySize.preferredWidth=360;summarySize.flexibleWidth=1;
-            var header=summary.transform.parent.GetComponent<LayoutElement>();if(header!=null)header.minHeight=header.preferredHeight=80;
-            summary.textWrappingMode=TextWrappingModes.Normal;
-            window.Resize(new Vector2(640,240));
+            if (root.GetComponent<SeyraHandMenu>() == null || root.GetComponentInChildren<SeyraSpatialMenu>(true) == null)
+                throw new InvalidOperationException("Rebuild the hand menu prefab with Seyra/UI/Build Hand Menu Prefab first.");
+            Reference(root.GetComponent<SeyraHandMenu>(), "toggleMenuAction", SeyraSpatialChatAuthoring.ResolveMenuActionReference());
+            SeyraSpatialChatAuthoring.ConfigureHandMenuPresentation(root);
         }
         public static void ConfigureScene(Scene scene)
         {
-            var roots=scene.GetRootGameObjects();
-            var placement=roots.SelectMany(r=>r.GetComponentsInChildren<SpatialPlacementService>(true)).FirstOrDefault();
-            if(placement==null){var go=new GameObject("SeyraSpatialPlacement");SceneManager.MoveGameObjectToScene(go,scene);placement=go.AddComponent<SpatialPlacementService>();}
-            if(placement.GetComponent<SpatialWindowSnapping>()==null)placement.gameObject.AddComponent<SpatialWindowSnapping>();
-            var room=roots.SelectMany(r=>r.GetComponentsInChildren<RoomContext>(true)).FirstOrDefault();Reference(placement,"room",room);
-            var app=roots.FirstOrDefault(r=>r.name=="SeyraAssistantApp");if(app==null)return;
-            var chat=app.GetComponentInChildren<SeyraSpatialChatWindow>(true);var menu=app.GetComponentInChildren<SeyraSpatialMenu>(true);if(chat==null||menu==null)return;
-            var controller=app.GetComponent<SpatialFollowController>()??app.AddComponent<SpatialFollowController>();
-            var rig=roots.SelectMany(r=>r.GetComponentsInChildren<OVRCameraRig>(true)).FirstOrDefault();
-            Reference(controller,"head",rig?.centerEyeAnchor);Reference(controller,"chat",chat);Reference(controller,"chatWindow",chat.GetComponent<UIXRWindow>());
-            Reference(controller,"menuWindow",menu.GetComponent<UIXRWindow>());Reference(controller,"placement",placement);
-            Reference(menu,"spatialFollow",controller);Reference(menu,"roomContext",room);
-            foreach(var window in new[]{chat.GetComponent<UIXRWindow>(),menu.GetComponent<UIXRWindow>()})
-            {
-                var grab=window.GrabFrame?.Grabbable;if(grab==null)continue;
-                grab.InjectOptionalTargetTransform(window.transform);EditorUtility.SetDirty(grab);PrefabUtility.RecordPrefabInstancePropertyModifications(grab);
-            }
-            var legacy=menu.GetComponent<SeyraLazyFollow>();if(legacy!=null){legacy.enabled=true;EditorUtility.SetDirty(legacy);PrefabUtility.RecordPrefabInstancePropertyModifications(legacy);}
-            var visibility=menu.GetComponent<SeyraMenuVisibility>();
-            if(visibility!=null)
-            {
-                var serialized=new SerializedObject(visibility);serialized.FindProperty("maxChatDistance").floatValue=2.1f;
-                serialized.ApplyModifiedPropertiesWithoutUndo();PrefabUtility.RecordPrefabInstancePropertyModifications(visibility);
-            }
-            PrefabUtility.RecordPrefabInstancePropertyModifications(menu);
+            var roots = scene.GetRootGameObjects();
+            var app = roots.FirstOrDefault(r => r.name == "SeyraAssistantApp");
+            // The OpenCode testbed does not contain a spatial chat/menu app.
+            if (app == null) return;
+            var chat = app.GetComponentInChildren<SeyraSpatialChatWindow>(true);
+            var menu = app.GetComponentInChildren<SeyraSpatialMenu>(true);
+            if (chat == null || menu == null) return;
+            var placement = roots.SelectMany(r => r.GetComponentsInChildren<SpatialPlacementService>(true)).FirstOrDefault();
+            var controller = app.GetComponent<SpatialFollowController>() ?? app.AddComponent<SpatialFollowController>();
+            var rig = roots.SelectMany(r => r.GetComponentsInChildren<OVRCameraRig>(true)).FirstOrDefault();
+            Reference(controller, "head", rig?.centerEyeAnchor); Reference(controller, "chat", chat);
+            Reference(controller, "chatWindow", chat.GetComponent<UIXRWindow>()); Reference(controller, "placement", placement);
+            Reference(menu, "chatWindow", chat); Reference(menu, "chatXrWindow", chat.GetComponent<UIXRWindow>());
+            Reference(menu, "spatialFollow", controller);
+            var hand = menu.GetComponentInParent<SeyraHandMenu>();
+            SeyraSpatialChatAuthoring.ConfigureHandMenuPresentation(hand.gameObject);
+            Reference(hand, "head", rig?.centerEyeAnchor); Reference(hand, "leftControllerAnchor", rig?.leftControllerAnchor);
+            // Reading Hand.Handedness in Edit Mode initializes its data chain. Inspect
+            // the OVR source's serialized side instead, without starting providers.
+            var leftHand = rig != null ? rig.GetComponentsInChildren<Oculus.Interaction.Input.Hand>(true)
+                .FirstOrDefault(h =>
+                {
+                    if (h.name != "OVRHands") return false;
+                    UnityEngine.Object source = h;
+                    var visited = new System.Collections.Generic.HashSet<UnityEngine.Object>();
+                    while (source != null && visited.Add(source))
+                    {
+                        var data = new SerializedObject(source);
+                        var side = data.FindProperty("_handedness");
+                        if (side != null) return side.intValue == (int)Oculus.Interaction.Input.Handedness.Left;
+                        source = data.FindProperty("_iModifyDataFromSourceMono")?.objectReferenceValue;
+                    }
+                    return false;
+                }) : null;
+            Reference(hand, "leftHand", leftHand);
             EditorSceneManager.MarkSceneDirty(scene);
         }
+        [MenuItem("Seyra/UI/Repair Hand Menu References")]
+        public static void RepairReferences()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before repairing hand menu references.");
+            var prefab = PrefabUtility.LoadPrefabContents(MenuPath);
+            try { ConfigureMenu(prefab); PrefabUtility.SaveAsPrefabAsset(prefab, MenuPath); }
+            finally { PrefabUtility.UnloadPrefabContents(prefab); }
+            var scene = SceneManager.GetActiveScene();
+            ConfigureScene(scene);
+            EditorSceneManager.SaveScene(scene);
+        }
+        [MenuItem("Seyra/UI/Configure Hand Menu Scenes")]
         [MenuItem("Seyra/Spatial/Configure Chat Following")]
         public static void Configure()
         {
-            if(EditorApplication.isPlaying)throw new InvalidOperationException("Exit Play Mode before configuring spatial following.");
-            var prefab=PrefabUtility.LoadPrefabContents(MenuPath);
-            try{ConfigureMenu(prefab);PrefabUtility.SaveAsPrefabAsset(prefab,MenuPath);}finally{PrefabUtility.UnloadPrefabContents(prefab);}
-            var previous=SceneManager.GetActiveScene();
-            foreach(var path in new[]{"Assets/Scenes/SeyraAssistant.unity","Assets/Scenes/OpencodeTestUI.unity"})
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before configuring spatial following.");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(MenuPath);
+            ConfigureMenu(prefab);
+            var previous = SceneManager.GetActiveScene();
+            foreach (var path in new[] { "Assets/Scenes/SeyraAssistant.unity", "Assets/Scenes/OpencodeTestUI.unity" })
             {
-                var scene=SceneManager.GetSceneByPath(path);bool opened=!scene.isLoaded;if(opened)scene=EditorSceneManager.OpenScene(path,OpenSceneMode.Additive);
-                try{ConfigureScene(scene);EditorSceneManager.SaveScene(scene);}finally{if(opened)EditorSceneManager.CloseScene(scene,true);}
+                var scene = SceneManager.GetSceneByPath(path);
+                bool opened = !scene.isLoaded;
+                if (opened) scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                try
+                {
+                    var app = scene.GetRootGameObjects().FirstOrDefault(r => r.name == "SeyraAssistantApp");
+                    if (app != null)
+                    {
+                        // Replace only the menu instance; preserve chat, room, rig and their file IDs.
+                        var oldHand = app.GetComponentInChildren<SeyraHandMenu>(true);
+                        var oldMenu = app.GetComponentInChildren<SeyraSpatialMenu>(true);
+                        if (oldHand != null) UnityEngine.Object.DestroyImmediate(oldHand.gameObject);
+                        else if (oldMenu != null) UnityEngine.Object.DestroyImmediate(oldMenu.gameObject);
+                        var root = (GameObject)PrefabUtility.InstantiatePrefab(prefab, app.transform);
+                        root.name = "HandMenu";
+                        ConfigureScene(scene);
+                    }
+                    EditorSceneManager.SaveScene(scene);
+                }
+                finally { if (opened) EditorSceneManager.CloseScene(scene, true); }
             }
-            if(previous.isLoaded)SceneManager.SetActiveScene(previous);
+            if (previous.isLoaded) SceneManager.SetActiveScene(previous);
         }
     }
 }
