@@ -1071,7 +1071,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c047f2fa99a6fb4d85f8ec8319727cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Seyra.UI.SeyraHandMenu
-  toggleMenuAction: {fileID: 2478114547307037754, guid: 436a138c9207f2a4da4930a6236a53d1, type: 3}
+  toggleMenuAction: {fileID: -8798553664685461329, guid: 436a138c9207f2a4da4930a6236a53d1, type: 3}
   head: {fileID: 0}
   leftControllerAnchor: {fileID: 0}
   leftHand: {fileID: 0}

@@ -1,22 +1,42 @@
 {
+    "version": 1,
     "name": "SeyraInput",
     "maps": [
         {
-            "name": "Menu",
-            "id": "082a4fd9-8fea-4ca8-89d6-2185c23cc69a",
+            "name": "QuestButtons",
+            "id": "e9527b47-4d38-4895-b866-6905eb760971",
             "actions": [
                 {
-                    "name": "ToggleMenu",
+                    "name": "Menu",
                     "type": "Button",
-                    "id": "14de900e-2c83-4325-a29b-47b2847d2e26",
-                    "expectedControlType": "Button",
+                    "id": "6d0d2cae-0cbb-4ab4-9d17-5dc0a20a4bb2",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": false
+                    "initialStateCheck": false,
+                    "priority": 0
                 }
             ],
-            "bindings": []
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "d3dfa5c0-373a-4472-99fe-b068e8946c0f",
+                    "path": "<XRController>{LeftHand}/menu",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Menu",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
         }
     ],
-    "controlSchemes": []
+    "controlSchemes": [
+        {
+            "name": "SeyraControlScheme",
+            "bindingGroup": "SeyraControlScheme",
+            "devices": []
+        }
+    ]
 }

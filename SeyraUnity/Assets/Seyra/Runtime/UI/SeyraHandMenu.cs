@@ -84,8 +84,9 @@ namespace Seyra.UI
             if (leftHand is IHand assigned) hand = assigned;
             if (hand == null || hand is Object source && source == null)
                 hand = FindObjectsByType<Hand>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-                    .Where(h => h.Handedness == Handedness.Left)
-                    .OrderByDescending(h => h.name == "OVRHands").FirstOrDefault();
+                    .Where(h => h.isActiveAndEnabled)
+                    .OrderByDescending(h => h.name == "OVRHands")
+                    .FirstOrDefault(h => h.Handedness == Handedness.Left);
         }
 
         void OnTogglePerformed(InputAction.CallbackContext context) => ToggleMenu();

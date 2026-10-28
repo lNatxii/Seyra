@@ -393,16 +393,24 @@ namespace Seyra.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
             var handSettings = new SerializedObject(hand);
             handSettings.FindProperty("window").objectReferenceValue = window;
-            var actions = AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>("Assets/Seyra/Input/SeyraInput.inputactions");
-            var reference = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<UnityEngine.InputSystem.InputActionReference>(
-                AssetDatabase.LoadAllAssetsAtPath("Assets/Seyra/Input/SeyraInput.inputactions")), r => r.action.id == actions.FindAction("Menu/ToggleMenu").id);
-            if (reference == null) throw new InvalidOperationException("The imported Menu/ToggleMenu action reference is required.");
+            var reference = ResolveMenuActionReference();
             handSettings.FindProperty("toggleMenuAction").objectReferenceValue = reference;
             handSettings.ApplyModifiedPropertiesWithoutUndo();
             Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)window.Canvas.transform);
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, MenuPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        public static UnityEngine.InputSystem.InputActionReference ResolveMenuActionReference()
+        {
+            const string path = "Assets/Seyra/Input/SeyraInput.inputactions";
+            var actions = AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>(path);
+            var action = actions != null ? actions.FindAction("QuestButtons/Menu") ?? actions.FindAction("Menu/ToggleMenu") : null;
+            if (action == null) throw new InvalidOperationException("A menu toggle action is required in SeyraInput.");
+            var reference = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<UnityEngine.InputSystem.InputActionReference>(
+                AssetDatabase.LoadAllAssetsAtPath(path)), r => r.action != null && r.action.id == action.id);
+            return reference != null ? reference : throw new InvalidOperationException("The imported menu toggle action reference is required.");
         }
         static GameObject CreateRow(Transform parent, string name, float preferredHeight)
         {

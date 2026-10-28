@@ -25,6 +25,7 @@ namespace Seyra.Editor
         {
             if (root.GetComponent<SeyraHandMenu>() == null || root.GetComponentInChildren<SeyraSpatialMenu>(true) == null)
                 throw new InvalidOperationException("Rebuild the hand menu prefab with Seyra/UI/Build Hand Menu Prefab first.");
+            Reference(root.GetComponent<SeyraHandMenu>(), "toggleMenuAction", SeyraSpatialChatAuthoring.ResolveMenuActionReference());
         }
         public static void ConfigureScene(Scene scene)
         {
@@ -45,7 +46,36 @@ namespace Seyra.Editor
             Reference(menu, "spatialFollow", controller); Reference(menu, "roomContext", room);
             var hand = menu.GetComponentInParent<SeyraHandMenu>();
             Reference(hand, "head", rig?.centerEyeAnchor); Reference(hand, "leftControllerAnchor", rig?.leftControllerAnchor);
+            // Reading Hand.Handedness in Edit Mode initializes its data chain. Inspect
+            // the OVR source's serialized side instead, without starting providers.
+            var leftHand = rig != null ? rig.GetComponentsInChildren<Oculus.Interaction.Input.Hand>(true)
+                .FirstOrDefault(h =>
+                {
+                    if (h.name != "OVRHands") return false;
+                    UnityEngine.Object source = h;
+                    var visited = new System.Collections.Generic.HashSet<UnityEngine.Object>();
+                    while (source != null && visited.Add(source))
+                    {
+                        var data = new SerializedObject(source);
+                        var side = data.FindProperty("_handedness");
+                        if (side != null) return side.intValue == (int)Oculus.Interaction.Input.Handedness.Left;
+                        source = data.FindProperty("_iModifyDataFromSourceMono")?.objectReferenceValue;
+                    }
+                    return false;
+                }) : null;
+            Reference(hand, "leftHand", leftHand);
             EditorSceneManager.MarkSceneDirty(scene);
+        }
+        [MenuItem("Seyra/UI/Repair Hand Menu References")]
+        public static void RepairReferences()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before repairing hand menu references.");
+            var prefab = PrefabUtility.LoadPrefabContents(MenuPath);
+            try { ConfigureMenu(prefab); PrefabUtility.SaveAsPrefabAsset(prefab, MenuPath); }
+            finally { PrefabUtility.UnloadPrefabContents(prefab); }
+            var scene = SceneManager.GetActiveScene();
+            ConfigureScene(scene);
+            EditorSceneManager.SaveScene(scene);
         }
         [MenuItem("Seyra/UI/Configure Hand Menu Scenes")]
         [MenuItem("Seyra/Spatial/Configure Chat Following")]

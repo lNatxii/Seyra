@@ -148,7 +148,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06e. Menú de mano
 
-**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Menú de mano de 0,15 × 0,18 m validado en Editor: 5 grupos específicos y regresiones de seguimiento/colocación aprobados. Binding del mando pendiente de asignar al no detectarse un controlador XR en Input Debugger; validación física en 07. [Implementación y límites](Progress/Completed/06e-hand-menu.md).
+**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Menú de mano de 0,15 × 0,18 m validado en Editor: 5 grupos específicos y regresiones de seguimiento/colocación aprobados. Binding QuestButtons/Menu verificado con dos pulsaciones OpenXR en el simulador tras habilitar perfiles Touch Pro/Plus; mano izquierda asignada explícitamente. Validación física en 07. [Implementación y límites](Progress/Completed/06e-hand-menu.md).
 
 **Entrega:** el menú del asistente pasa a la mano izquierda: aparece al mostrar la palma o con el botón de menú del mando izquierdo (acción de Input System asignable en el inspector). Rejilla 2 × 2 compacta (Chat, Voz, Traer chat, Habitación) con línea de estado; cada botón da una respuesta visible. Sustituye el dock con seguimiento de 06c/06d para el menú.
 
