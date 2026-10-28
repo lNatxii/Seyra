@@ -29,6 +29,11 @@ public static class RoomChecks
         Vector3 Read(JToken value)=>new Vector3((float)value["x"],(float)value["y"],(float)value["z"]);
         try
         {
+            // MRUK LoadSceneOnStartup can still be discovering the simulator scene; prefab loads return DiscoveryOngoing until it ends.
+            var startupLoad=typeof(MRUK).GetField("_loadSceneTask",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+            for(int attempt=0;attempt<240&&startupLoad?.GetValue(provider)!=null;attempt++)await Task.Delay(500);
+            Require(startupLoad?.GetValue(provider)==null,"MRUK startup scene discovery did not finish.");
+            if(provider.Rooms.Count>0){provider.ClearScene();for(int attempt=0;attempt<20&&context.Snapshot.State!=RoomState.AirOnly;attempt++)await Task.Delay(100);}
             Require(context.Snapshot.State==RoomState.AirOnly,"Editor must not load a simulated room automatically.");
             context.SendMessage("OnApplicationPause",true);context.SendMessage("OnApplicationPause",false);
             Require(context.Snapshot.State==RoomState.AirOnly,"Pause/resume without captured geometry must preserve the no-map state.");
@@ -41,6 +46,7 @@ public static class RoomChecks
                 Require(prefab!=null,"Missing room prefab: "+path);
                 var loadTimer=System.Diagnostics.Stopwatch.StartNew();
                 await context.LoadTestRoomAsync(prefab,head.transform);
+                Require(provider.Rooms.Count>0,"No room after load: "+context.Snapshot.State+" · "+context.Diagnostic+" · MRUK instances="+Object.FindObjectsByType<MRUK>(FindObjectsSortMode.None).Length+" · provider==MRUK.Instance:"+(provider==MRUK.Instance));
                 var room=provider.Rooms[0];var floor=room.FloorAnchors[0];
                 var rect=floor.PlaneRect.Value;head.transform.position=floor.transform.TransformPoint(new Vector3(rect.center.x,rect.center.y,0))+Vector3.up*1.5f;
                 for(int attempt=0;attempt<40&&context.Snapshot.State!=RoomState.Ready;attempt++)await Task.Delay(50);
@@ -61,6 +67,17 @@ public static class RoomChecks
                 while(next.Type!=JTokenType.Null){var page=Ok("room_objects",new JObject{["offset"]=(int)next,["limit"]=1});count+=page["objects"].Count();next=page["nextOffset"];}
                 Require(count==total&&total>5,"Inventory pagination lost references.");
                 Require(Ok("room_objects",new JObject{["kind"]="wall"})["objects"].All(i=>(string)i["kind"]=="wall"),"Kind filtering failed.");
+                var inventory=Ok("room_objects",new JObject{["limit"]=64})["objects"].ToArray();
+                Require(inventory.Select(i=>(string)i["physicalId"]).SequenceEqual(inventory.OrderBy(i=>(float)i["viewerRelative"]["distance"]).ThenBy(i=>(string)i["physicalId"],StringComparer.Ordinal).ThenBy(i=>(string)i["kind"],StringComparer.Ordinal).Select(i=>(string)i["physicalId"])),"Inventory must sort by distance before pagination.");
+                foreach(var entry in inventory)
+                {
+                    var relative=Read(entry["viewerRelative"]["position"]);
+                    Require(Mathf.Abs((float)entry["viewerRelative"]["bearing"]-Mathf.Atan2(relative.x,relative.z)*Mathf.Rad2Deg)<.001f,"Viewer bearing must use horizontal degrees.");
+                    if((string)entry["kind"]!="wall"&&(string)entry["kind"]!="opening")continue;
+                    var surface=snapshot.Surfaces.Single(s=>s.PhysicalId==(string)entry["physicalId"]&&s.Kind==(string)entry["kind"]);
+                    Require(Mathf.Abs((float)entry["width"]-(surface.Polygon.Max(p=>p.x)-surface.Polygon.Min(p=>p.x)))<.0001f&&Mathf.Abs((float)entry["height"]-(surface.Polygon.Max(p=>p.y)-surface.Polygon.Min(p=>p.y)))<.0001f,"Surface dimensions must match polygon extents.");
+                    if(surface.Kind=="wall")Require(Vector3.Dot(Read(entry["facing"]),head.transform.position-surface.Pose.position)>=0,"Wall facing must point into the viewer's side of the room.");
+                }
                 foreach(var item in snapshot.Objects)
                 {
                     var bounds=Ok("scene_bounds",new JObject{["entityId"]=item.PhysicalId})["bounds"];

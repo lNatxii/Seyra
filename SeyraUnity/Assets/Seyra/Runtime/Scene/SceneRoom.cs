@@ -51,11 +51,15 @@ namespace Seyra.SceneTools
             Vector3? forward=null;
             if(surface.Kind=="wall")
             {
-                var normal=surface.Pose.rotation*Vector3.forward;
-                if(Room?.ViewerReady==true&&Vector3.Dot(normal,Room.Viewer.position-surface.Pose.position)<0)normal=-normal;
-                forward=normal;
+                forward=WallFacing(surface);
             }
             return(surface.Corners,forward);
+        }
+        Vector3 WallFacing(PhysicalSurface surface)
+        {
+            var normal=surface.Pose.rotation*Vector3.forward;
+            if(Room?.ViewerReady==true&&Vector3.Dot(normal,Room.Viewer.position-surface.Pose.position)<0)normal=-normal;
+            return normal;
         }
         Quaternion ResolveFrame(string name,Vector3? referenceFacing)
         {
@@ -96,17 +100,22 @@ namespace Seyra.SceneTools
                     var item=snapshot.Objects.First(o=>o.PhysicalId==id);
                     node["box"]=new JObject{["center"]=Vector(item.Box.Center),["size"]=Vector(item.Box.Size),["rotation"]=Vector(item.Box.Rotation.eulerAngles)};
                 }
+                if(surface!=null&&(entryKind=="wall"||entryKind=="opening"))
+                {
+                    node["width"]=surface.Polygon.Max(p=>p.x)-surface.Polygon.Min(p=>p.x);
+                    node["height"]=surface.Polygon.Max(p=>p.y)-surface.Polygon.Min(p=>p.y);
+                }
                 if(Room?.ViewerReady==true)
                 {
                     try{var delta=Quaternion.Inverse(SpatialGeometry.Yaw(Room.Viewer.forward))*(bounds.center-Room.Viewer.position);
-                        node["viewerRelative"]=new JObject{["position"]=Vector(delta),["distance"]=delta.magnitude,["side"]=Mathf.Abs(delta.x)<.1f?"center":delta.x>0?"right":"left",["depth"]=delta.z>=0?"front":"behind"};}
+                        node["viewerRelative"]=new JObject{["position"]=Vector(delta),["distance"]=delta.magnitude,["bearing"]=Mathf.Atan2(delta.x,delta.z)*Mathf.Rad2Deg,["side"]=Mathf.Abs(delta.x)<.1f?"center":delta.x>0?"right":"left",["depth"]=delta.z>=0?"front":"behind"};}
                     catch(ArgumentException){node["viewerRelative"]=null;}
                 }
                 items.Add(node);
             }
-            foreach(var surface in snapshot.Surfaces)Add(surface.PhysicalId,surface.Kind,surface.Labels,surface.Corners,surface.Kind=="wall"?surface.Pose.rotation*Vector3.forward:(Vector3?)null,surface);
+            foreach(var surface in snapshot.Surfaces)Add(surface.PhysicalId,surface.Kind,surface.Labels,surface.Corners,surface.Kind=="wall"?WallFacing(surface):(Vector3?)null,surface);
             foreach(var item in snapshot.Objects)Add(item.PhysicalId,"object",item.Labels,item.Box.Corners,item.Facing);
-            items=items.OrderBy(i=>(string)i["physicalId"],StringComparer.Ordinal).ThenBy(i=>(string)i["kind"],StringComparer.Ordinal).ToList();
+            items=items.OrderBy(i=>Room?.ViewerReady==true?Vector3.Distance(ReadVector(i["bounds"]["center"]),Room.Viewer.position):0f).ThenBy(i=>(string)i["physicalId"],StringComparer.Ordinal).ThenBy(i=>(string)i["kind"],StringComparer.Ordinal).ToList();
             return new JObject{["runtimeId"]=RuntimeId,["roomRevision"]=snapshot.Revision,["state"]=snapshot.State.ToString(),["simulated"]=snapshot.Simulated,["geometryKnownOnly"]=true,
                 ["objects"]=new JArray(items.Skip(offset).Take(limit)),["total"]=items.Count,["nextOffset"]=offset+limit<items.Count?new JValue(offset+limit):JValue.CreateNull()};
         }

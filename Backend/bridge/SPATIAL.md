@@ -109,14 +109,26 @@ MRUK releases native resources.
 `total`, `nextOffset`, `state`, `runtimeId`, `roomRevision`, `simulated` and
 `geometryKnownOnly:true`. Maximum limit 64; offset 0..1000000. Kind is
 `wall|floor|ceiling|opening|tabletop|object`. Label uses exact case-insensitive
-matching of original MRUK labels. Sort order is ordinal physicalId, then kind.
+matching of original MRUK labels. With a tracked viewer, sort by world distance
+from the viewer to the world AABB centre, then ordinal physicalId and kind.
+Without a tracked viewer, sort by ordinal physicalId, then kind.
 Compare revisions between pages; restart after any change.
 
 Each entry includes `physicalId:"physical:<anchor UUID>"`, `kind`, `labels`,
 `readOnly:true`, world AABB `bounds`, optional known `facing` and
-`viewerRelative:{position,distance,side,depth}` when a horizontal tracked viewer
+`viewerRelative:{position,distance,bearing,side,depth}` when a horizontal tracked viewer
 frame exists. Viewer positions are in metres, +X right, +Y up, +Z away from the
-viewer. Surfaces include `pose`, local polygon in metres and optional `supportId`;
+viewer. Bearing is horizontal degrees from forward, positive to the right
+(`atan2(x,z)`, -180..180). `side` is center when abs(x)<0.1 m, otherwise left/right;
+`depth` is front when z>=0, otherwise behind. These two fields retain the existing
+split direction contract instead of a single front/left/right/behind field.
+Wall `facing` points to the viewer's side of the plane using the same rule as
+physical reference resolution; without tracking it remains the captured normal.
+Surfaces include `pose`, local polygon in metres and optional `supportId`;
+wall/opening entries also include `width` and `height` in metres, the polygon's
+local X/Y extents (not a guarantee that a rectangle fits a concave polygon).
+`kind=tabletop` implicitly declares supportsContent and its pose/polygon provides
+the top height; no separate `supportsContent` or `topHeight` fields are emitted;
 volumes include oriented `box:{center,size,rotation}`. Rotations use Euler degrees.
 The tabletop and its supporting volume share physicalId; filter kind to distinguish
 them. Bounds resolution for such an ID uses the volume, so `above, gap=0` rests
