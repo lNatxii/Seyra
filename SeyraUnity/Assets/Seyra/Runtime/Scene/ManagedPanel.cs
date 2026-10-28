@@ -92,9 +92,10 @@ namespace Seyra.SceneTools
             t.GetComponent<TMP_SelectionCaret>() == null && t.GetComponent<TMP_SubMeshUI>() == null).Select(t => new JObject {
             ["id"] = t.GetInstanceID(), ["parent"] = t == transform ? 0 : t.parent.GetInstanceID(),
             ["name"] = t == transform ? "" : t.name, ["layer"] = t == transform ? 0 : t.gameObject.layer, ["tag"] = t == transform ? "" : t.tag,
-            // ISDK creates these transient interaction helpers in Start; they are not authored content.
+            // ISDK creates these transient interaction helpers in Start or on grab; they are not authored content.
             ["components"] = new JArray(t.GetComponents<Component>().Where(c => !(c is GeneratedObject) && !(c is Seyra.Spatial.SeyraBillboard) &&
-                !(c is Oculus.Interaction.InteractableTriggerBroadcaster) && !(c is Oculus.Interaction.MoveTowardsTargetProvider))
+                !(c is Oculus.Interaction.InteractableTriggerBroadcaster) && !(c is Oculus.Interaction.MoveTowardsTargetProvider) &&
+                !(c is Oculus.Interaction.RigidbodyKinematicLocker))
                 .Select(c => c == null ? 0 : c.GetInstanceID())) })).ToString(Newtonsoft.Json.Formatting.None);
 
         public bool IsIntact() => IsPresentation ? PresentationIsIntact() : content != null && body != null && surface != null &&

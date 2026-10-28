@@ -17,6 +17,7 @@ namespace Seyra.Spatial
         sealed class SurfaceOffset{public SpatialCandidate Candidate;public Pose Offset;}
         readonly Dictionary<Transform,Subscription> windows=new Dictionary<Transform,Subscription>();
         readonly Dictionary<Transform,SurfaceOffset> snapped=new Dictionary<Transform,SurfaceOffset>();
+        readonly HashSet<Transform> warnedRoots=new HashSet<Transform>();
         readonly HashSet<Transform> released=new HashSet<Transform>();
         SpatialPlacementService service;
         LineRenderer preview;
@@ -36,7 +37,7 @@ namespace Seyra.Spatial
         void OnDestroy()
         {
             foreach(var subscription in windows.Values)if(subscription.Frame!=null)subscription.Frame.GrabChanged-=subscription.Handler;
-            windows.Clear();snapped.Clear();released.Clear();
+            windows.Clear();snapped.Clear();released.Clear();warnedRoots.Clear();
             if(previewMaterial!=null)Destroy(previewMaterial);
         }
         public bool IsManaged(Transform root)=>root!=null&&Eligible(root);
@@ -57,7 +58,7 @@ namespace Seyra.Spatial
             {
                 if(root!=null&&Eligible(root)&&windows[root].Frame==Frame(root))continue;
                 var subscription=windows[root];if(subscription.Frame!=null)subscription.Frame.GrabChanged-=subscription.Handler;
-                windows.Remove(root);released.Remove(root);snapped.Remove(root);
+                windows.Remove(root);released.Remove(root);snapped.Remove(root);warnedRoots.Remove(root);
             }
             foreach(var root in snapped.Keys.ToArray())if(root==null||!windows.ContainsKey(root))snapped.Remove(root);
             foreach(var panel in FindObjectsByType<ManagedPanel>(FindObjectsSortMode.None))
@@ -92,10 +93,11 @@ namespace Seyra.Spatial
         string Release(Transform root)
         {
             if(!Eligible(root))return "unmanaged";
-            snapped.TryGetValue(root,out var previous);snapped.Remove(root);
             var snapshot=service.Snapshot;
             if(snapshot.State==RoomState.Loading||snapshot.State==RoomState.Suspended||snapshot.State==RoomState.WaitingForPermission)return "unchanged";
-            var request=Request(root);var current=new Pose(root.position,root.rotation);var reserved=service.Reservations(root);
+            if(!TryRequest(root,out var request)){HidePreview();return "unchanged";}
+            snapped.TryGetValue(root,out var previous);snapped.Remove(root);
+            var current=new Pose(root.position,root.rotation);var reserved=service.Reservations(root);
             var snap=snapshot.State==RoomState.Ready?Snap(snapshot,request,current,reserved):null;
             if(snap!=null)
             {
@@ -111,6 +113,19 @@ namespace Seyra.Spatial
             root.SetPositionAndRotation(last.Pose.position,last.Pose.rotation);
             if(previous!=null&&previous.Candidate==last)snapped[root]=previous;
             return "restored";
+        }
+        bool TryRequest(Transform root,out SpatialPlacementRequest request)
+        {
+            try
+            {
+                request=Request(root);warnedRoots.Remove(root);return true;
+            }
+            catch(InvalidOperationException exception)
+            {
+                request=null;
+                if(warnedRoots.Add(root))Debug.LogWarning($"Cannot measure window '{root.name}': {exception.Message}",root);
+                return false;
+            }
         }
         static SpatialPlacementRequest Request(Transform root)=>new SpatialPlacementRequest{Content=SpatialPlacementService.Measure(root),Readable=true};
         static PhysicalSurface Surface(RoomSnapshot snapshot,SpatialCandidate candidate)=>snapshot.Surfaces.FirstOrDefault(s=>s.PhysicalId==candidate.PhysicalId&&s.Kind==candidate.Destination);
@@ -130,8 +145,9 @@ namespace Seyra.Spatial
                 if(Grabbed(root))continue;
                 // A missing surface or an invalid recomputed pose is reported by NeedsPlacement; nothing moves.
                 var surface=Surface(snapshot,offset.Candidate);if(surface==null)continue;
+                if(!TryRequest(root,out var request)){HidePreview();continue;}
                 var pose=offset.Offset.GetTransformedBy(surface.Pose);
-                var candidate=new SpatialCandidate{Destination=offset.Candidate.Destination,PhysicalId=offset.Candidate.PhysicalId,Pose=pose,Box=SpatialPlacementPlanner.BoxAt(Request(root),pose)};
+                var candidate=new SpatialCandidate{Destination=offset.Candidate.Destination,PhysicalId=offset.Candidate.PhysicalId,Pose=pose,Box=SpatialPlacementPlanner.BoxAt(request,pose)};
                 if(SpatialPlacementPlanner.ValidateGeometry(snapshot,candidate,service.Reservations(root))!=null)continue;
                 root.SetPositionAndRotation(pose.position,pose.rotation);service.Register(root,candidate);offset.Candidate=candidate;
             }
@@ -142,7 +158,8 @@ namespace Seyra.Spatial
             if(root==null){HidePreview();return;}
             if(now<nextPreview)return;
             nextPreview=now+PreviewInterval;
-            var snapshot=service.Snapshot;var request=Request(root);var current=new Pose(root.position,root.rotation);var reserved=service.Reservations(root);
+            var snapshot=service.Snapshot;if(!TryRequest(root,out var request)){HidePreview();return;}
+            var current=new Pose(root.position,root.rotation);var reserved=service.Reservations(root);
             var snap=snapshot.State==RoomState.Ready?Snap(snapshot,request,current,reserved):null;
             if(snap!=null){DrawPreview(snap.Box,SnapColor);return;}
             var air=new SpatialCandidate{Destination="air",Pose=current,Box=SpatialPlacementPlanner.BoxAt(request,current)};

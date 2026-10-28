@@ -46,10 +46,9 @@ Surface attachment/snapping belongs to 22c.
 
 ## Application following (22d)
 
-`SpatialFollowController` on SeyraAssistantApp replaces the menu's active
-SeyraLazyFollow writer. It moves the chat/menu application anchor as one group;
-both native grab frames target that anchor and take priority over automatic motion.
-Releasing a grab pins the group; Seguirme restores adaptive following. Application
+`SpatialFollowController` on SeyraAssistantApp owns only the chat. The menu's
+SeyraLazyFollow independently owns its dock motion, including with the chat closed.
+Each native grab frame targets its own window. Releasing the chat pins only the chat; Seguirme restores adaptive following. Application
 windows and their ancestors reject generic scene mutation tools; they are not
 Generated content and have no scene-tool placement history or persistence.
 
@@ -66,7 +65,7 @@ beyond 90 degrees or room changes require explicit Reubicar.
 The planner captures one air destination at motion start. A conservative swept
 envelope checks captured furniture/planes and live reservations throughout the
 move; no automatic slide or jump is used when blocked. Reubicar explicitly commits
-a fresh air plan (including the menu envelope); failure keeps the current pose.
+a fresh air plan measuring only the chat (the menu is excluded from reservations); failure keeps the current pose.
 No-map success reports that physical validation was unavailable. Room state is
 shown in the menu. Escanear habitación is visible only on Android when AirOnly
 or Unavailable, and invokes the existing RoomContext loader with capture enabled
@@ -75,8 +74,8 @@ While a scan is in progress or has failed, its nonempty action status takes
 precedence over the general following status in the menu.
 
 The authoring setup patches the menu prefab and saves scene references without
-rebuilding the chat. Menu visibility no longer calls a disabled legacy follower
-when reappearing. Physical comfort, simultaneous native grabs, scrolling/input
+rebuilding the chat. Menu visibility calls its enabled lazy follower before reappearing;
+a centered chat farther than 2.1 m does not hide the menu. Physical comfort, simultaneous native grabs, scrolling/input
 on the headset and the system scan dialog need manual device validation; the
 basic Editor checks do not establish these results.
 

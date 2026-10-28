@@ -44,7 +44,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 01b. Superficie de herramientas cerrada para los perfiles Seyra
 
-**Estado:** Completed · Pendiente de revisión. Lista blanca validada con OpenCode real en ambos perfiles mediante GLM, lectura env denegada y salida truncada permitida con excepción acotada. Recorrido Allende completado en Unity sin execute, question ni permisos. Repetición con modelo DeepSeek pendiente por HTTP 429 de cuota. [Implementación y evidencias](Progress/Completed/01b-agent-tool-allowlist.md).
+**Estado:** Completed · Revisada (28 de octubre de 2026). Lista blanca validada con OpenCode real en ambos perfiles mediante GLM, lectura env denegada y salida truncada permitida con excepción acotada. Recorrido Allende completado en Unity sin execute, question ni permisos. Repetición con modelo DeepSeek pendiente por HTTP 429 de cuota. [Implementación y evidencias](Progress/Completed/01b-agent-tool-allowlist.md).
 
 **Entrega:** los perfiles `seyra` y `seyra_deepseek` pasan a lista blanca con `* deny` como primera regla: solo ven `seyra_*`, `websearch`, `webfetch` y `read`/`grep` para salidas truncadas, con `*.env` y `*.env.*` denegados. Desaparecen para el asistente el Code Mode (`execute`), los MCP heredados de la configuración global (`metavr`), `shell`, `question` y las skills.
 
@@ -118,7 +118,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06b. Compositor por voz: dictado a borrador y envío explícito
 
-**Estado:** Completed · Pendiente de revisión. Compositor de solo voz con borrador de solo lectura y envío explícito, validado en el Editor el 27 de octubre de 2026: 11 grupos de chat espacial y 15 de regresión aprobados. Prueba manual con micrófono del PC confirmada por el usuario el 27 de octubre de 2026: al dictar dos veces antes de enviar se utiliza el segundo dictado. Pendiente la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06b-voice-draft-composer.md).
+**Estado:** Completed · Revisada (28 de octubre de 2026). Compositor de solo voz con borrador de solo lectura y envío explícito, validado en el Editor el 27 de octubre de 2026: 11 grupos de chat espacial y 15 de regresión aprobados. Prueba manual con micrófono del PC confirmada por el usuario el 27 de octubre de 2026: al dictar dos veces antes de enviar se utiliza el segundo dictado. Pendiente la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06b-voice-draft-composer.md).
 
 **Entrega:** el compositor del chat espacial pasa a ser solo voz: la transcripción queda como borrador de solo lectura y se envía con Enviar. Sin envío automático tras dictar ni botón de borrar.
 
@@ -128,7 +128,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06c. Seguimiento perezoso del menú espacial
 
-**Estado:** Completed · Pendiente de revisión. Implementación validada en el Editor y funcionamiento manual confirmado por el usuario el 27 de octubre de 2026. Pendientes la validación física en visor (07) y la revisión del ajuste de amortiguación y su límite temporal. [Implementación, validación y limitaciones](Progress/Completed/06c-menu-lazy-follow.md).
+**Estado:** Completed · Revisada (28 de octubre de 2026). Implementación validada en el Editor y funcionamiento manual confirmado por el usuario el 27 de octubre de 2026. Pendientes la validación física en visor (07); amortiguación unificada (0,2 s, 1,8 m/s) con llegada medida en 0,914 s. [Implementación, validación y limitaciones](Progress/Completed/06c-menu-lazy-follow.md).
 
 **Entrega:** componente de lazy follow propio para el menú (el SDK 207.0.1 no trae uno): zona cómoda bajo la mirada, movimiento amortiguado, respeto del agarre y de la posición elegida al soltar, y "Reubicar" que coloca chat y menú.
 
@@ -138,7 +138,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06d. Ocultar el menú espacial cuando el chat está a la vista
 
-**Estado:** Completed · Pendiente de revisión. Validado en el Editor el 27 de octubre de 2026: 4 comprobaciones de visibilidad, 12 grupos de seguimiento y 11 de chat aprobados. Pendientes la prueba manual del usuario con Meta XR Simulator y la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06d-menu-hide-when-chat-visible.md).
+**Estado:** Completed · Revisada (28 de octubre de 2026). Validado en el Editor el 27 de octubre de 2026: 4 comprobaciones de visibilidad, 12 grupos de seguimiento y 11 de chat aprobados. Pendientes la prueba manual del usuario con Meta XR Simulator y la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06d-menu-hide-when-chat-visible.md).
 
 **Entrega:** el menú con seguimiento perezoso se oculta mientras el chat abierto está en la zona central de la vista y reaparece en su pose de reposo al apartar la mirada o cerrar el chat. Histéresis y retardos para evitar parpadeo; el seguimiento de 06c sigue activo mientras está oculto. El menú en la mano queda descartado en esta iteración.
 
@@ -176,7 +176,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** 22a implementada y validada en Editor · Pendiente de revisión: contexto e inventario MRUK, referencias físicas de solo lectura, bounds y colocación relativa en marcos world/viewer/reference con orientación y deshacer. 570 comprobaciones de habitación, 5.165 de regresión de bounds y recorrido MCP real aprobados. 22b implementada en Editor (planificador, reservas, tools e historial; conversación manual pendiente). 22d implementada en Editor: seguimiento del grupo chat/menú, fijado/reanudar, bloqueos, recolocación planificada y escaneo explícito; 11 comprobaciones básicas aprobadas, regresión completa del chat aprobada (11 grupos). Pendiente 22c acople al soltar ventanas; validación física pendiente de 07. Correcciones de revisión 22b/22d (puntos 1–5) aplicadas el 28 de octubre de 2026 · Pendiente de revisión. Compilación y suites solicitadas aprobadas: 15 de planificación, 50 de colocación, 12 de seguimiento y 11 grupos de chat. [Diseño](Progress/InProgress/22-room-spatial-placement.md).
+**Estado:** 22e Completed · Revisada (28 de octubre de 2026): integridad tras agarre corregida, chat y menú con seguimiento independiente y menú visible más allá de 2,1 m. Validado en Editor: WindowSnappingChecks 23, SpatialPlacementChecks 50, SpatialFollowChecks 14, LazyFollowChecks 12 grupos y MenuVisibilityChecks 5 grupos; prueba manual en simulador/visor pendiente. 22a implementada, validada en Editor y revisada el 28 de octubre de 2026 (correcciones en feat/22a-review-fixes: contrato de room_objects, RoomContext como único cargador de la habitación, también la del simulador en Editor, y omisión de anclas defectuosas; RoomChecks 689): contexto e inventario MRUK, referencias físicas de solo lectura, bounds y colocación relativa en marcos world/viewer/reference con orientación y deshacer. 570 comprobaciones de habitación, 5.165 de regresión de bounds y recorrido MCP real aprobados. 22b implementada en Editor (planificador, reservas, tools e historial; conversación manual pendiente). 22d implementada en Editor: seguimiento del grupo chat/menú, fijado/reanudar, bloqueos, recolocación planificada y escaneo explícito; 11 comprobaciones básicas aprobadas, regresión completa del chat aprobada (11 grupos). 22c implementada en Editor (acople al soltar ventanas, previsualización y revalidación por revisión de habitación) · Completed · Revisada (28 de octubre de 2026): 22 comprobaciones de acople y regresiones de colocación (50), layouts (16) y seguimiento (12) aprobadas; prueba manual con Meta XR Simulator pendiente del usuario. Validación física pendiente de 07. Correcciones de revisión 22b/22d (puntos 1–5) aplicadas y revisadas el 28 de octubre de 2026 (commit ffa8862 en feat/22-room-placement, sin merge a main). 22a revisada el 28 de octubre de 2026 con cambios solicitados; aplicados el mismo día en feat/22a-review-fixes (contrato de room_objects, RoomContext único dueño de la carga con la habitación del simulador en Editor, anclas singulares o cizalladas omitidas sin invalidar la habitación) · Completed · Pendiente de revisión: 689 comprobaciones de habitación y 50 de colocación aprobadas. Compilación y suites solicitadas aprobadas: 15 de planificación, 50 de colocación, 12 de seguimiento y 11 grupos de chat. [Diseño](Progress/Completed/22-room-spatial-placement.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
@@ -188,7 +188,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 23. Layouts espaciales para colecciones
 
-**Estado:** 23b Completed · Pendiente de revisión (28 de octubre de 2026): wall/surface, reservas y persistencia 5 implementados; validación básica aprobada (1303 de layouts puros, 44 de integración, 15 de planificación, 50 de colocación, 689 de habitación y 9 pruebas npm). 23a Completed · Revisada (28 de octubre de 2026). Corregidos los tres cambios de revisión: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de chat. Compilación y LayoutChecks aprobados (16 comprobaciones); ChatExecutionChecks con el fixture corregido: 15 grupos aprobados en una única ejecución. Layouts flotantes y persistencia 5 implementados; 23c y validación física pendientes. [Diseño](Progress/Completed/23-spatial-layouts.md).
+**Estado:** 23b Completed · Revisada (28 de octubre de 2026: cambio 1 de 11.4 aplicado, perWall informa capacidad de paredes no usadas; LayoutPlannerChecks ejecutada una vez, 1304 aprobadas): wall/surface, reservas y persistencia 5 implementados; validación básica aprobada (1303 de layouts puros, 44 de integración, 15 de planificación, 50 de colocación, 689 de habitación y 9 pruebas npm). 23a Completed · Revisada (28 de octubre de 2026). 23c, parte flotante, aplicada por Claude en el prompt (feat/23c-layout-prompt, commit de85636); ejemplos de pared y mesa añadidos tras 23b (feat/23c-room-layout-prompt, commit cca737e); pendiente la evaluación del catálogo con GLM y DeepSeek. Corregidos los tres cambios de revisión: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de chat. Compilación y LayoutChecks aprobados (16 comprobaciones); ChatExecutionChecks con el fixture corregido: 15 grupos aprobados en una única ejecución. Layouts flotantes y persistencia 5 implementados; 23c y validación física pendientes. [Diseño](Progress/Completed/23-spatial-layouts.md).
 
 **Orden:** 23a después de 22b; 23b después de 23a; 23c (prompt) al cerrar 23a, con la parte de pared tras 23b.
 
@@ -198,7 +198,21 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 05, 06c, 22a y 22b.
 
+### 24. Movimiento paramétrico de contenido generado
+
+**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/24-parametric-motion.md).
+
+**Orden:** después de 23a (comparten el mecanismo de Transforms controlados, el historial y la persistencia) y antes de 10a.
+
+**Entrega:** `motion_set`, `motion_remove` y `motion_control` para girar sobre sí mismo (spin), orbitar alrededor de un objeto o punto (orbit) y oscilar (bob), con pausa, reinicio, deshacer y persistencia. Pensado para maquetas vivas como un sistema solar.
+
+**Aceptación:** planetas que orbitan y giran configurados en pocas llamadas; una luna orbita un planeta en órbita; deshacer sin conflictos de historial; guardado y carga conservan las animaciones; las mutaciones sobre un canal animado se rechazan con un mensaje claro.
+
+**Dependencias:** 05 y 23a. Lo usa 10a.
+
 ### 10. Selección e interacción bidireccional con contenido virtual
+
+**Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto) In progress · diseño listo, después de 24. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Diseño 10a](Progress/InProgress/10a-interactive-objects.md).
 
 **Entrega:** seleccionar objetos o paneles y enviar su `entityId` como contexto explícito del siguiente mensaje. Añadir indicación visual de selección y manipulación manual básica mediante el rig existente.
 
