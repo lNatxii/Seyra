@@ -25,14 +25,14 @@ public static class SpatialFollowChecks
             var chat=chatGo.GetComponent<SeyraSpatialChatWindow>();chat.enabled=false;
             chatGo.transform.localPosition=new Vector3(0,1.45f,3);menuGo.transform.localPosition=new Vector3(0,1,3);
             var placement=SpatialPlacementService.ForScene(scene);var controller=app.AddComponent<SpatialFollowController>();
-            controller.Configure(head.transform,chat,chatGo.GetComponent<UIXRWindow>(),menuGo.GetComponent<UIXRWindow>(),placement);controller.UseTestTracking(true);
+            controller.Configure(head.transform,chat,chatGo.GetComponent<UIXRWindow>(),placement);controller.UseTestTracking(true);
             app.SetActive(true);controller.enabled=false;controller.enabled=true;
-            var menu=menuGo.GetComponent<SeyraSpatialMenu>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            var menu=menuGo.GetComponentInChildren<SeyraSpatialMenu>(true);var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
             typeof(SeyraSpatialMenu).GetField("roomActionStatus",flags).SetValue(menu,"Escaneando habitación…");menu.RefreshUI();
             var summary=(TMPro.TMP_Text)typeof(SeyraSpatialMenu).GetField("statusSummary",flags).GetValue(menu);
             Check(summary.text.Contains("Escaneando habitación…"),"Scan status must take precedence over follow status.");
             typeof(SeyraSpatialMenu).GetField("roomActionStatus",flags).SetValue(menu,"");
-            Check(menuGo.GetComponent<SeyraLazyFollow>().enabled,"The menu must own its lazy following.");
+            Check(menuGo.GetComponent<SeyraHandMenu>()!=null&&menuGo.GetComponent<SeyraLazyFollow>()==null,"The menu must own its hand anchor without lazy following.");
             controller.Tick(.1f);Check(controller.State==SpatialFollowController.FollowState.Waiting,"Out-of-range chat should wait.");
             var before=chatGo.transform.position;controller.Tick(.3f);Check(chatGo.transform.position==before,"Brief motion must not move the chat.");
             for(int i=0;i<20&&controller.State!=SpatialFollowController.FollowState.Moving;i++)controller.Tick(.1f);
@@ -47,12 +47,6 @@ public static class SpatialFollowChecks
             Check(controller.Recenter(),"Explicit recenter should use the air planner without a map.");
             Check(controller.Status.Contains("sin validación física"),"No-map recenter must declare its limit.");
             Check(menuGo.transform.position==menuPosition,"Recenter must move only the chat.");
-            var menuFollow=menuGo.GetComponent<SeyraLazyFollow>();
-            menuFollow.Head=head.transform;menuFollow.SnapToTarget();menuPosition=menuGo.transform.position;
-            chatGo.SetActive(false);head.transform.position+=Vector3.right*5;
-            int frame=Time.frameCount;
-            while(Time.frameCount<=frame+1)await Task.Delay(15);
-            Check(Vector3.Distance(menuGo.transform.position,menuFollow.ComputeTarget().position)<.001f&&menuGo.transform.position!=menuPosition,"The menu must follow with the chat closed.");
             return "Spatial follow basic checks passed: "+checks;
         }
         finally

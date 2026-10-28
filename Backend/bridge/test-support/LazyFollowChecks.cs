@@ -32,20 +32,12 @@ public static class LazyFollowChecks
     public static async Task<string> Run()
     {
         Check(Application.isPlaying, "LazyFollowChecks requires Play Mode.");
-        var menu = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>();
-        Check(menu != null, "Spatial menu is required.");
-        var follow = menu.GetComponent<SeyraLazyFollow>();
-        Check(follow != null, "Menu prefab must contain SeyraLazyFollow.");
-        var chat = menu.ChatXrWindow;
-        Check(chat != null && chat.GetComponent<SeyraLazyFollow>() == null, "Chat must remain stationary.");
+        var menu = new GameObject("LazyFollowCheckRoot");
+        var follow = menu.AddComponent<SeyraLazyFollow>();
+        var chat = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>(FindObjectsInactive.Include).GetComponent<UIXRWindow>();
         var originalHead = follow.Head;
-        // Isolate the chat controller and fallback recenter path while testing the
-        // menu follower shared implementation.
-        var spatialField = typeof(SeyraSpatialMenu).GetField("spatialFollow", BindingFlags.Instance | BindingFlags.NonPublic);
-        var spatial = (Seyra.Spatial.SpatialFollowController)spatialField.GetValue(menu);
+        var spatial = UnityEngine.Object.FindFirstObjectByType<Seyra.Spatial.SpatialFollowController>();
         bool spatialEnabled = spatial != null && spatial.enabled, followEnabled = follow.enabled;
-        var visibility = menu.GetComponent<SeyraMenuVisibility>();
-        bool autoHide = visibility != null && visibility.AutoHide;
         var originalMenuPose = new Pose(menu.transform.position, menu.transform.rotation);
         var originalChatPose = new Pose(chat.transform.position, chat.transform.rotation);
         bool chatActive = chat.gameObject.activeSelf;
@@ -54,9 +46,7 @@ public static class LazyFollowChecks
         try
         {
             if (spatial != null) spatial.enabled = false;
-            spatialField.SetValue(menu, null);
             follow.enabled = true;
-            if (visibility != null) visibility.AutoHide = false;
             fake.transform.position = new Vector3(0, 1.6f, 0);
             follow.Head = fake.transform;
             follow.ResetOffset();
@@ -153,13 +143,7 @@ public static class LazyFollowChecks
             fake.transform.position += Vector3.right;
             Check(chat.transform.position == originalChatPose.position && chat.transform.rotation == originalChatPose.rotation,
                 "Following must not move the chat.");
-            var button = (Button)typeof(SeyraSpatialMenu).GetField("recenterButton", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(menu);
-            button.onClick.Invoke();
-            AtTarget(follow);
-            Check(follow.RestOffset == new Vector3(0, -.4f, .8f), "Recenter must restore default offset.");
-            var chatTarget = fake.transform.position + fake.transform.forward * 1.2f - Vector3.up * .05f;
-            Check(Vector3.Distance(chat.transform.position, chatTarget) < .001f, "Recenter must use the same explicit head for chat.");
-            results.Add("stationary chat and recenter button uses shared head");
+            results.Add("following an isolated root does not move the chat");
 
             // Temporarily remove scene fallback sources and restore them even on failure.
             heldPosition = menu.transform.position;
@@ -194,10 +178,8 @@ public static class LazyFollowChecks
             menu.transform.SetPositionAndRotation(originalMenuPose.position, originalMenuPose.rotation);
             chat.transform.SetPositionAndRotation(originalChatPose.position, originalChatPose.rotation);
             chat.gameObject.SetActive(chatActive);
-            if (visibility != null) visibility.AutoHide = autoHide;
             UnityEngine.Object.Destroy(fake);
-            follow.enabled = followEnabled;
-            spatialField.SetValue(menu, spatial);
+            UnityEngine.Object.Destroy(menu);
             if (spatial != null) spatial.enabled = spatialEnabled;
         }
     }
