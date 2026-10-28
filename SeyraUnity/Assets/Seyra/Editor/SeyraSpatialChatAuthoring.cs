@@ -132,6 +132,7 @@ namespace Seyra.Editor
                 }
 
                 EditorSceneManager.MarkSceneDirty(scene);
+                SeyraSpatialFollowSetup.ConfigureScene(scene);
                 EditorSceneManager.SaveScene(scene);
                 Debug.Log("Seyra: Spatial Chat and Menu configured and saved in SeyraAssistant scene.");
             }
@@ -396,6 +397,7 @@ namespace Seyra.Editor
             serializedMenu.ApplyModifiedProperties();
 
             SeyraSpatialChatPresentation.Apply(menuGo);
+            SeyraSpatialFollowSetup.ConfigureMenu(menuGo);
             var prefab = PrefabUtility.SaveAsPrefabAsset(menuGo, MenuPrefabPath);
             UnityEngine.Object.DestroyImmediate(menuGo);
             return prefab;

@@ -22,7 +22,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get" };
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
@@ -58,6 +58,7 @@ namespace Seyra.SceneTools
                 if (!Application.isPlaying) throw new InvalidOperationException("Only available in Play Mode.");
                 if (!queries.Contains(tool) && completed.Count >= 4096) throw new InvalidOperationException("Mutation limit reached; restart Play Mode.");
                 ProtectRoomMutation(tool,args);
+                ProtectSpatialApplication(tool,args);
                 response["data"] = ExecuteRecorded(tool,args);
                 response["success"] = true;
             }
@@ -190,6 +191,7 @@ namespace Seyra.SceneTools
             var node=Node(go,0); var t=go.transform;
             int depth=0; for(var p=t.parent;p!=null;p=p.parent)depth++;
             node["depth"]=depth; node["runtimeId"]=RuntimeId;
+            var spatial=SpatialState(go);if(spatial!=null)node["spatial"]=spatial;
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
             var appearance=go.GetComponent<ManagedAppearance>();
             if(appearance!=null){node["appearance"]=AppearanceJson(appearance);node["appearanceIntact"]=appearance.IsIntact();}
@@ -270,6 +272,7 @@ namespace Seyra.SceneTools
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
             if(tool=="create_panel")return CreatePanel(args);
             if(tool=="update_panel")return UpdatePanel(args);
+            if(tool=="spatial_candidates"||tool=="spatial_place")return SpatialPlace(args,tool=="spatial_place");
             if(tool=="room_get")return RoomInfo(args);
             if(tool=="room_objects")return RoomObjects(args);
             if(tool=="scene_bounds")return GetBounds(args);
