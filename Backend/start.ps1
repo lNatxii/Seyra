@@ -22,11 +22,17 @@ foreach ($line in [IO.File]::ReadAllLines($envPath)) {
     if ($name -ceq 'OPENCODE_SERVER_PASSWORD') { $localServerPassword = $value }
     [Environment]::SetEnvironmentVariable($name, $value, 'Process')
 }
+if ([string]::IsNullOrWhiteSpace($env:META_API_KEY) -and -not [string]::IsNullOrWhiteSpace($env:MODEL_API_KEY)) {
+    $env:META_API_KEY = $env:MODEL_API_KEY
+}
+if ([string]::IsNullOrWhiteSpace($env:META_API_KEY) -or $env:META_API_KEY -eq 'TU_CLAVE') {
+    throw 'Add META_API_KEY (Meta Model API key from dev.meta.ai) to Backend/.env.local'
+}
 if ([string]::IsNullOrWhiteSpace($env:HELMCODE_API_KEY) -or $env:HELMCODE_API_KEY -eq 'TU_CLAVE') {
-    throw 'Add your actual HELMCODE_API_KEY to Backend/.env.local before starting.'
+    Write-Warning 'seyra_glm will not work without HELMCODE_API_KEY'
 }
 if ([string]::IsNullOrWhiteSpace($localServerPassword)) {
-    throw 'OPENCODE_SERVER_PASSWORD is missing from Backend/.env.local. Add your own HTTP password; it is separate from HELMCODE_API_KEY. OpenCode was not started.'
+    throw 'OPENCODE_SERVER_PASSWORD is missing from Backend/.env.local. Add your own HTTP password; it is separate from provider API keys. OpenCode was not started.'
 }
 # OpenCode 2 gives OPENCODE_PASSWORD priority over OPENCODE_SERVER_PASSWORD.
 # Use the file's shared password even if a different value was inherited.
