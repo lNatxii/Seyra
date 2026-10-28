@@ -4,7 +4,7 @@ Asistente espacial de realidad mixta para Meta Quest 3, con Unity, Meta XR SDK, 
 
 ## Meta AI
 
-El perfil por defecto `seyra` usa **Muse Spark** (`meta/muse-spark-1.3`) mediante **Meta Model API**, con el protocolo Responses. La configuración está implementada; la conversación real y las herramientas con este modelo están pendientes de validación con credenciales.
+El perfil por defecto `seyra` usa **Muse Spark** (`meta/muse-spark-1.3`) mediante **Meta Model API**, con el protocolo Responses. Integración validada en el Editor con conversación real, creación de cubos y etiquetas, colección de libros en arco y deshacer: 14 llamadas a herramientas confirmadas. La validación física en visor permanece pendiente.
 
 La clave `META_API_KEY` se configura exclusivamente en `Backend/.env.local` en el PC; no se distribuye a Unity ni al visor. `MODEL_API_KEY` se admite como alias en el proceso de arranque. Consulta [arranque, perfiles y permisos](Backend/README.md).
 
