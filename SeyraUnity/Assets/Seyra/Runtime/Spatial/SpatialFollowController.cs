@@ -77,7 +77,13 @@ namespace Seyra.Spatial
 #if UNITY_EDITOR
             if(testTracking)return head!=null;
 #endif
-            return !paused&&focused&&head!=null&&(placement.Room!=null?placement.Room.ViewerReady:OVRManager.isHmdPresent&&OVRPlugin.GetNodePositionTracked(OVRPlugin.Node.EyeCenter));
+            bool applicationFocused=focused;
+#if UNITY_EDITOR
+            // The external XR Simulator owns desktop focus while Unity still receives
+            // tracked XR input. Desktop window focus is not XR tracking validity.
+            applicationFocused=true;
+#endif
+            return !paused&&applicationFocused&&head!=null&&(placement.Room!=null?placement.Room.ViewerReady:OVRManager.isHmdPresent&&OVRPlugin.GetNodePositionTracked(OVRPlugin.Node.EyeCenter));
         }
         public void ResumeFollow(){pinned=false;ResetWait();lastInteraction=Time.unscaledTime;Status="Seguimiento adaptativo";}
         void LateUpdate()=>Tick(Time.unscaledDeltaTime);

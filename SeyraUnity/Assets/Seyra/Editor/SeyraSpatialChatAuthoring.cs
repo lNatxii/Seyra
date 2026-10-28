@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Seyra.Chat;
 using Seyra.UI;
 using Seyra.UI.Library;
@@ -383,12 +384,11 @@ namespace Seyra.Editor
             var toggle = Action("ToggleChatButton", "Abrir chat");
             var voice = Action("VoiceButton", "Voz");
             var bring = Action("BringChatButton", "Traer chat");
-            var scan = Action("ScanRoomButton", "Habitación");
             var menu = menuGo.AddComponent<SeyraSpatialMenu>();
             var serialized = new SerializedObject(menu);
             void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
-            Reference("toggleChatButton", toggle); Reference("toggleChatLabel", toggle.GetComponentInChildren<TMP_Text>(true));
-            Reference("voiceActionButton", voice); Reference("bringChatButton", bring); Reference("scanRoomButton", scan);
+            Reference("toggleChatButton", toggle);
+            Reference("voiceActionButton", voice); Reference("bringChatButton", bring);
             Reference("chatStatusDot", chatDot); Reference("runtimeStatusDot", runtimeDot); Reference("statusSummary", summary);
             serialized.ApplyModifiedPropertiesWithoutUndo();
             var handSettings = new SerializedObject(hand);
@@ -396,10 +396,69 @@ namespace Seyra.Editor
             var reference = ResolveMenuActionReference();
             handSettings.FindProperty("toggleMenuAction").objectReferenceValue = reference;
             handSettings.ApplyModifiedPropertiesWithoutUndo();
+            ConfigureHandMenuPresentation(root);
             Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)window.Canvas.transform);
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, MenuPrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
             return prefab;
+        }
+
+        public static void ConfigureHandMenuPresentation(GameObject root)
+        {
+            var menu = root.GetComponentInChildren<SeyraSpatialMenu>(true);
+            var window = menu.GetComponent<UIXRWindow>();
+            var grid = window.Content.GetComponentInChildren<GridLayoutGroup>(true);
+            foreach (var child in grid.GetComponentsInChildren<Button>(true).Where(b => b.name == "ScanRoomButton").ToArray())
+                UnityEngine.Object.DestroyImmediate(child.GetComponentInParent<UIInstance>()?.gameObject ?? child.gameObject);
+            window.Resize(new Vector2(300, 160));
+            var column = window.Content.GetComponent<VerticalLayoutGroup>();
+            column.padding = new RectOffset(16, 16, 12, 12); column.spacing = 8;
+            grid.cellSize = new Vector2(80, 80); grid.spacing = new Vector2(12, 0);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
+            var gridSize = grid.GetComponent<LayoutElement>(); gridSize.minHeight = gridSize.preferredHeight = 80;
+            var status = menu.GetComponentsInChildren<TMP_Text>(true).First(t => t.name == "StatusSummary");
+            status.text = "Chat sin conexión";
+            var rowSize = status.transform.parent.GetComponent<LayoutElement>(); rowSize.minHeight = rowSize.preferredHeight = 36;
+            var serialized = new SerializedObject(menu);
+            void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
+            Sprite Icon(string name)
+            {
+                var path = "Assets/Icons/" + name + "_200dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png";
+                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                return sprite != null ? sprite : throw new InvalidOperationException("A Sprite icon is required at " + path);
+            }
+            Image ConfigureAction(string name, Sprite sprite)
+            {
+                var button = grid.GetComponentsInChildren<Button>(true).First(b => b.name == name);
+                var view = button.GetComponent<UIActionButton>();
+                view.SetIcon(sprite);
+                foreach (var text in view.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
+                foreach (var size in view.GetComponentsInChildren<LayoutElement>(true))
+                { size.minWidth = size.minHeight = 0; size.preferredWidth = size.preferredHeight = 80; }
+                var icon = view.IconTransform;
+                var iconLayout = icon.parent.GetComponent<HorizontalLayoutGroup>();
+                iconLayout.childAlignment = TextAnchor.MiddleCenter; iconLayout.spacing = 0;
+                iconLayout.padding = new RectOffset();
+                iconLayout.childForceExpandWidth = iconLayout.childForceExpandHeight = false;
+                var iconSize = icon.GetComponent<LayoutElement>() ?? icon.gameObject.AddComponent<LayoutElement>();
+                iconSize.minWidth = iconSize.minHeight = iconSize.preferredWidth = iconSize.preferredHeight = 48;
+                iconSize.flexibleWidth = iconSize.flexibleHeight = 0;
+                var image = icon.GetComponent<Image>(); image.preserveAspect = true; image.raycastTarget = false;
+                return image;
+            }
+            var show = Icon("chat"); var hide = Icon("text_ad_off"); var mic = Icon("mic"); var micOff = Icon("mic_off");
+            Reference("toggleChatIcon", ConfigureAction("ToggleChatButton", show));
+            Reference("voiceIcon", ConfigureAction("VoiceButton", mic));
+            ConfigureAction("BringChatButton", Icon("recenter"));
+            Reference("showChatSprite", show); Reference("hideChatSprite", hide);
+            Reference("microphoneSprite", mic); Reference("microphoneOffSprite", micOff);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            foreach (var component in root.GetComponentsInChildren<Component>(true))
+            {
+                if (component == null) continue;
+                EditorUtility.SetDirty(component);
+                if (PrefabUtility.IsPartOfPrefabInstance(component)) PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+            }
         }
 
         public static UnityEngine.InputSystem.InputActionReference ResolveMenuActionReference()

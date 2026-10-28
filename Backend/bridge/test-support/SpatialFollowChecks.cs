@@ -27,11 +27,6 @@ public static class SpatialFollowChecks
             var placement=SpatialPlacementService.ForScene(scene);var controller=app.AddComponent<SpatialFollowController>();
             controller.Configure(head.transform,chat,chatGo.GetComponent<UIXRWindow>(),placement);controller.UseTestTracking(true);
             app.SetActive(true);controller.enabled=false;controller.enabled=true;
-            var menu=menuGo.GetComponentInChildren<SeyraSpatialMenu>(true);var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(SeyraSpatialMenu).GetField("roomActionStatus",flags).SetValue(menu,"Escaneando habitación…");menu.RefreshUI();
-            var summary=(TMPro.TMP_Text)typeof(SeyraSpatialMenu).GetField("statusSummary",flags).GetValue(menu);
-            Check(summary.text.Contains("Escaneando habitación…"),"Scan status must take precedence over follow status.");
-            typeof(SeyraSpatialMenu).GetField("roomActionStatus",flags).SetValue(menu,"");
             Check(menuGo.GetComponent<SeyraHandMenu>()!=null&&menuGo.GetComponent<SeyraLazyFollow>()==null,"The menu must own its hand anchor without lazy following.");
             controller.Tick(.1f);Check(controller.State==SpatialFollowController.FollowState.Waiting,"Out-of-range chat should wait.");
             var before=chatGo.transform.position;controller.Tick(.3f);Check(chatGo.transform.position==before,"Brief motion must not move the chat.");

@@ -26,6 +26,7 @@ namespace Seyra.Editor
             if (root.GetComponent<SeyraHandMenu>() == null || root.GetComponentInChildren<SeyraSpatialMenu>(true) == null)
                 throw new InvalidOperationException("Rebuild the hand menu prefab with Seyra/UI/Build Hand Menu Prefab first.");
             Reference(root.GetComponent<SeyraHandMenu>(), "toggleMenuAction", SeyraSpatialChatAuthoring.ResolveMenuActionReference());
+            SeyraSpatialChatAuthoring.ConfigureHandMenuPresentation(root);
         }
         public static void ConfigureScene(Scene scene)
         {
@@ -37,14 +38,14 @@ namespace Seyra.Editor
             var menu = app.GetComponentInChildren<SeyraSpatialMenu>(true);
             if (chat == null || menu == null) return;
             var placement = roots.SelectMany(r => r.GetComponentsInChildren<SpatialPlacementService>(true)).FirstOrDefault();
-            var room = roots.SelectMany(r => r.GetComponentsInChildren<RoomContext>(true)).FirstOrDefault();
             var controller = app.GetComponent<SpatialFollowController>() ?? app.AddComponent<SpatialFollowController>();
             var rig = roots.SelectMany(r => r.GetComponentsInChildren<OVRCameraRig>(true)).FirstOrDefault();
             Reference(controller, "head", rig?.centerEyeAnchor); Reference(controller, "chat", chat);
             Reference(controller, "chatWindow", chat.GetComponent<UIXRWindow>()); Reference(controller, "placement", placement);
             Reference(menu, "chatWindow", chat); Reference(menu, "chatXrWindow", chat.GetComponent<UIXRWindow>());
-            Reference(menu, "spatialFollow", controller); Reference(menu, "roomContext", room);
+            Reference(menu, "spatialFollow", controller);
             var hand = menu.GetComponentInParent<SeyraHandMenu>();
+            SeyraSpatialChatAuthoring.ConfigureHandMenuPresentation(hand.gameObject);
             Reference(hand, "head", rig?.centerEyeAnchor); Reference(hand, "leftControllerAnchor", rig?.leftControllerAnchor);
             // Reading Hand.Handedness in Edit Mode initializes its data chain. Inspect
             // the OVR source's serialized side instead, without starting providers.
