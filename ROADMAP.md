@@ -22,8 +22,8 @@ Capacidades implementadas que deben reutilizarse. La mayoría están validadas e
 | Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f). | Validación en Quest. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada. | Imágenes de internet (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
-| Espacio | Habitación MRUK, colocación en pared, mesa o aire, acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
+| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada (maqueta con etiquetas en 3 llamadas). | Imágenes de internet (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
+| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
+| 1 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. La hace el usuario; en paralelo se puede diseñar 26. |
 | 2 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
 | 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
