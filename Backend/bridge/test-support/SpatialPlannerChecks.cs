@@ -8,6 +8,20 @@ public static class SpatialPlannerChecks
     public static string Run()
     {
         int checks=0;void Check(bool value,string message){checks++;if(!value)throw new Exception(message);}
+        var readingRatio=(Func<SpatialPlacementRequest,SpatialCandidate,float>)Delegate.CreateDelegate(typeof(Func<SpatialPlacementRequest,SpatialCandidate,float>),typeof(SpatialPlacementPlanner).GetMethod("ReadingRatio",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic));
+        var readingRequest=new SpatialPlacementRequest();
+        var readingCandidate=new SpatialCandidate{AngularHeight=6,Distance=1.3f};
+        float legacyRatio=readingCandidate.AngularHeight/SpatialPlacementSettings.MinReadingAngle;
+        bool legacyMatches=readingRatio(readingRequest,readingCandidate)==legacyRatio;
+        readingRequest.ReadingTargets=Array.Empty<ReadingTarget>();
+        Check(legacyMatches&&readingRatio(readingRequest,readingCandidate)==legacyRatio,"Missing or empty reading targets must preserve the whole-box reading ratio.");
+        readingRequest.ReadingTargets=new[]{new ReadingTarget(.05f,SpatialPlacementSettings.MinLabelReadingAngle)};
+        Check(readingRatio(readingRequest,readingCandidate)>=1,"A 0.05 m label at 1.3 m must be readable.");
+        readingCandidate.Distance=3;
+        Check(readingRatio(readingRequest,readingCandidate)<1,"A 0.05 m label at 3 m must be too small to read.");
+        readingRequest.ReadingTargets=new[]{new ReadingTarget(.3f,SpatialPlacementSettings.MinReadingAngle)};
+        readingCandidate.Distance=2;
+        Check(readingRatio(readingRequest,readingCandidate)<1,"A 0.3 m panel at 2 m must remain below the 12 degree reading threshold.");
         var floor=new PhysicalSurface("floor","floor",new[]{"FLOOR"},new Pose(Vector3.zero,Quaternion.Euler(90,0,0)),new[]{new Vector2(-4,-4),new Vector2(4,-4),new Vector2(4,4),new Vector2(-4,4)});
         var wall=new PhysicalSurface("wall","wall",new[]{"WALL_FACE"},new Pose(new Vector3(0,1.5f,2),Quaternion.Euler(0,180,0)),new[]{new Vector2(-2,-1.5f),new Vector2(2,-1.5f),new Vector2(2,1.5f),new Vector2(-2,1.5f)});
         var room=new RoomSnapshot(1,"test",true,RoomState.Ready,new[]{floor,wall});

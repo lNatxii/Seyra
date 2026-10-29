@@ -5,12 +5,18 @@ using UnityEngine;
 
 namespace Seyra.Spatial
 {
+    public readonly struct ReadingTarget
+    {
+        public readonly float Height,MinAngle;
+        public ReadingTarget(float height,float minAngle){Height=height;MinAngle=minAngle;}
+    }
     public sealed class SpatialPlacementRequest
     {
         public Bounds Content;
         public string Destination="air",PhysicalId,PreviousSupport;
         public bool AllowAirFallback=true,Readable;
         public float MinScale=1;
+        public IReadOnlyList<ReadingTarget> ReadingTargets;
     }
     public sealed class SpatialCandidate
     {
@@ -94,11 +100,20 @@ namespace Seyra.Spatial
             result.Reason=result.Best==null?"No compatible placement was found.":!result.PhysicalValidation?"Air placement without physical room validation.":fallback?"No suitable support; air fallback checked only against captured geometry.":"Compatible with captured geometry; moved or new furniture is unknown.";
             return result;
         }
+        // Smallest ratio between a reading target's angular height and its required angle; >=1 is readable.
+        internal static float ReadingRatio(SpatialPlacementRequest request,SpatialCandidate candidate)
+        {
+            if(request.ReadingTargets==null||request.ReadingTargets.Count==0)return candidate.AngularHeight/SpatialPlacementSettings.MinReadingAngle;
+            float ratio=float.PositiveInfinity;
+            foreach(var target in request.ReadingTargets)
+                ratio=Mathf.Min(ratio,2*Mathf.Atan(target.Height*candidate.Scale*.5f/Mathf.Max(.0001f,candidate.Distance))*Mathf.Rad2Deg/target.MinAngle);
+            return ratio;
+        }
         internal static float Score(SpatialPlacementRequest request,SpatialCandidate candidate)
         {
             float orientation=(1-candidate.Yaw/90)*(1-candidate.Elevation/90);
             float distance=1-Mathf.Clamp01(Mathf.Max(SpatialPlacementSettings.PreferredMin-candidate.Distance,candidate.Distance-SpatialPlacementSettings.PreferredMax)/SpatialPlacementSettings.PreferredMin);
-            float readability=request.Readable?Mathf.Clamp01(candidate.AngularHeight/SpatialPlacementSettings.MinReadingAngle)*(1-candidate.Yaw/90):1;
+            float readability=request.Readable?Mathf.Clamp01(ReadingRatio(request,candidate))*(1-candidate.Yaw/90):1;
             return .30f*orientation+.20f*distance+.20f*readability+.15f*candidate.Scale+.15f*(request.PreviousSupport==candidate.PhysicalId?1:0);
         }
         static float minComponent(this Vector3 v)=>Mathf.Min(v.x,Mathf.Min(v.y,v.z));
@@ -172,7 +187,7 @@ namespace Seyra.Spatial
             float incidence=Vector3.Angle(request.Readable?-front:front,-delta);
             if(candidate.Destination=="wall"&&incidence>SpatialPlacementSettings.MaxYaw)return "OBLIQUE_WALL";
             candidate.AngularHeight=2*Mathf.Atan2(box.Size.y*.5f,Mathf.Max(.0001f,candidate.Distance))*Mathf.Rad2Deg;
-            if(request.Readable&&candidate.AngularHeight<SpatialPlacementSettings.MinReadingAngle)return "TOO_SMALL_TO_READ";
+            if(request.Readable&&ReadingRatio(request,candidate)<1)return "TOO_SMALL_TO_READ";
             return null;
         }
     }
