@@ -229,6 +229,7 @@ public static class SpatialChatChecks
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.WaitingForPermission, "WaitingForPermission state");
         var permPanel = Get<GameObject>(chat, "permissionPanel");
         Check(permPanel.activeSelf, "Permission panel is not visible when waiting for permission.");
+        Check(chat.Session.CurrentActivity == null, "Activity must be hidden while waiting for permission.");
 
         var allowBtn = Get<Button>(chat, "allowPermissionButton");
         Check(allowBtn != null && allowBtn.interactable, "Allow button not interactable.");
@@ -237,6 +238,10 @@ public static class SpatialChatChecks
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Permission turn completion");
         Check(chat.Session.Messages.Any(m => m.Role == "Tú" && m.Text == "permission"), "User message missing in history.");
         Check(chat.Session.Messages.Any(m => m.IsTool), "Tool execution row missing in history.");
+        var messagesContainer = Get<RectTransform>(chat, "messagesContainer");
+        Check(!messagesContainer.Cast<Transform>().Any(t => t.name.StartsWith("Msg_Herramienta_", StringComparison.Ordinal)), "Spatial chat must hide technical tool rows.");
+        Check(chat.Session.CurrentActivity == null && messagesContainer.Find("Msg_Seyra_activity") == null, "Completed turns must not retain an activity row.");
+        checks.Add("transparent spatial chat hides tools without removing session history, suppresses permission activity and removes completed activity");
         checks.Add("real send button click, permission panel display, allow once, tool summary and turn completion");
 
         // 8. Real Button-Driven Cancellation & Explicit Turn Closure

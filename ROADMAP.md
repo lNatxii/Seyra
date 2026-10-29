@@ -158,7 +158,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 06f. Chat sin maquinaria visible
 
-**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/06f-transparent-chat-activity.md).
+**Estado:** Completed · Pendiente de revisión. Chat con actividad transitoria y detalle técnico oculto por defecto; compilación C#, SpatialChatChecks (12 grupos) y ChatExecutionChecks (15 grupos) aprobados. Prueba manual en Quest pendiente. [Implementación y validación](Progress/Completed/06f-transparent-chat-activity.md).
 
 **Entrega:** el chat espacial muestra solo la conversación. Las llamadas a herramientas y los pasos intermedios del modelo se sustituyen por una línea de actividad transitoria ("Pensando…", "Mirando tu habitación…", "Colocando el contenido…"). Los fallos se explican sin JSON. Un interruptor de depuración recupera el detalle técnico. El prompt del agente ya pide no narrar la maquinaria (29 de octubre de 2026).
 

@@ -17,6 +17,7 @@ namespace Seyra.Chat
         public string Role { get; set; } // "Tú", "Seyra", "Herramienta", "Sistema"
         public string Text { get; set; }
         public bool IsTool { get; set; }
+        public bool IsWorkStep { get; set; }
         public string ToolName { get; set; }
         public string ToolStatus { get; set; }
         public string ToolDetail { get; set; }
@@ -73,6 +74,16 @@ namespace Seyra.Chat
         public event Action<string> PermissionStatusChanged;
         public event Action ControlsRefreshRequested;
         public event Action<string, string> EchoAdopted;
+        public event Action<string> ActivityChanged;
+
+        public string CurrentActivity { get; private set; }
+
+        void SetActivity(string value)
+        {
+            if (CurrentActivity == value) return;
+            CurrentActivity = value;
+            ActivityChanged?.Invoke(value);
+        }
 
         public string ServerUrl
         {
@@ -144,6 +155,7 @@ namespace Seyra.Chat
 
         public void Stop()
         {
+            SetActivity(null);
             lifetime?.Cancel();
             http?.Dispose();
             lifetime?.Dispose();
@@ -359,7 +371,12 @@ namespace Seyra.Chat
                     var sessionIdle = (long?)session["time"]?["idle"] ?? 0;
                     var outcome = (string)idle?["outcome"];
                     if (outcome == null && activeUserCreated > 0 && sessionIdle >= activeUserCreated) outcome = (string)session["outcome"];
-                    if (outcome != null && !terminalConfirmed) FinishTurn(outcome, turn);
+                    if (outcome != null && !terminalConfirmed)
+                    {
+                        FinishTurn(outcome, turn);
+                        // Session-level completion can arrive without an idle message.
+                        RenderMessages(messagesResponse);
+                    }
                     if (!terminalConfirmed)
                     {
                         await RefreshPermissionsAsync(token);
@@ -388,6 +405,7 @@ namespace Seyra.Chat
         void FinishTurn(string outcome, List<JObject> turnMessages)
         {
             terminalConfirmed = true;
+            SetActivity(null);
             ClearPermissions();
             if (outcome == "succeeded" && !unknownToolOutcome)
             {
@@ -402,7 +420,13 @@ namespace Seyra.Chat
             {
                 var failed = turnMessages.FirstOrDefault(m => m["error"] != null);
                 SetState(TurnState.Failed, unknownToolOutcome ? "Hay resultados de herramientas sin confirmar. Inspecciona la escena antes de repetir cambios y cierra el turno." : (string)failed?["error"]?["message"] ?? "Turn outcome: " + outcome);
-                UpsertMessage("turn-error-" + activeUserId, "Sistema", unknownToolOutcome ? "Resultado de herramienta sin confirmar. Inspecciona la escena antes de repetir cambios." : (string)failed?["error"]?["message"] ?? "Turn outcome: " + outcome);
+                var detail = ((string)failed?["error"]?["message"])?.Trim();
+                var friendlyError = "No he podido completar la petición.";
+                if (!string.IsNullOrEmpty(detail) && detail.Length <= 200 && !detail.StartsWith("{", StringComparison.Ordinal) && !detail.StartsWith("[", StringComparison.Ordinal))
+                    friendlyError += "\n" + detail;
+                UpsertMessage("turn-error-" + activeUserId, "Sistema", unknownToolOutcome
+                    ? "No he podido confirmar si se aplicó el último cambio. Revisa lo que ves antes de pedirlo otra vez."
+                    : friendlyError);
             }
         }
 
@@ -469,6 +493,7 @@ namespace Seyra.Chat
 
         void ResetTurn()
         {
+            SetActivity(null);
             activeUserId = pendingText = pendingEchoKey = submissionBaselineId = null;
             activeUserCreated = 0;
             cancelRequested = interruptAttempted = interruptAcknowledged = unknownToolOutcome = false;
@@ -518,6 +543,7 @@ namespace Seyra.Chat
             var next = values.FirstOrDefault();
             var changed = !JToken.DeepEquals(next, pendingPermission);
             pendingPermission = next;
+            if (next != null) SetActivity(null);
             PermissionChanged?.Invoke(next);
 
             if (next == null) return;
@@ -578,30 +604,60 @@ namespace Seyra.Chat
 
         void RenderMessages(IEnumerable<JObject> messageTokens)
         {
-            var trackOutcome = false;
-            foreach (var message in messageTokens)
+            string activity = null;
+            var tokens = messageTokens.ToList();
+            for (var start = 0; start < tokens.Count;)
             {
-                var id = (string)message["id"];
-                if (string.IsNullOrEmpty(id)) continue;
-                if ((string)message["type"] == "user")
+                var end = start + 1;
+                while (end < tokens.Count && (string)tokens[end]["type"] != "user") end++;
+                var group = tokens.GetRange(start, end - start);
+                var userId = (string)group[0]["type"] == "user" ? (string)group[0]["id"] : null;
+                var lastTextAssistant = group.LastOrDefault(m => (string)m["type"] == "assistant" &&
+                    (m["content"] as JArray)?.OfType<JObject>().Any(p => (string)p["type"] == "text" &&
+                        !string.IsNullOrWhiteSpace((string)p["text"])) == true);
+                var ended = userId != activeUserId || terminalConfirmed || group.Any(m => (string)m["type"] == "idle");
+                var showActivity = userId != null && userId == activeUserId && !ended && pendingPermission == null;
+                if (showActivity) activity = ChatActivityText.Thinking;
+                foreach (var message in group)
                 {
-                    trackOutcome = id == activeUserId;
-                    UpsertMessage("user-" + id, "Tú", (string)message["text"] ?? "");
+                    var id = (string)message["id"];
+                    if (string.IsNullOrEmpty(id)) continue;
+                    if ((string)message["type"] == "user")
+                    {
+                        UpsertMessage("user-" + id, "Tú", (string)message["text"] ?? "");
+                    }
+                    if ((string)message["type"] != "assistant") continue;
+                    var parts = (message["content"] as JArray ?? new JArray()).OfType<JObject>().ToArray();
+                    var text = string.Join("\n", parts.Where(p => (string)p["type"] == "text").Select(p => (string)p["text"]));
+                    var isWorkStep = message != lastTextAssistant || (!ended && parts.Any(p => (string)p["type"] == "tool"));
+                    if (!string.IsNullOrWhiteSpace(text)) UpsertMessage("assistant-" + id, "Seyra", text, isWorkStep: isWorkStep);
+                    for (var index = 0; index < parts.Length; index++)
+                    {
+                        var part = parts[index];
+                        if (showActivity)
+                        {
+                            if ((string)part["type"] == "text" && isWorkStep && !string.IsNullOrWhiteSpace((string)part["text"]))
+                                activity = ChatActivityText.Line((string)part["text"]);
+                            else if ((string)part["type"] == "tool")
+                            {
+                                var description = ChatActivityText.Describe((string)part["name"]);
+                                if (description != null)
+                                {
+                                    var status = (string)part["state"]?["status"];
+                                    activity = status == "pending" || status == "running" ? description : ChatActivityText.Thinking;
+                                }
+                            }
+                        }
+                        if ((string)part["type"] != "tool") continue;
+                        var key = "tool-" + id + "-" + ((string)part["id"] ?? index.ToString());
+                        var (summary, isUnknown) = ToolSummary(part, userId == activeUserId);
+                        if (isUnknown) unknownToolOutcome = true;
+                        UpsertMessage(key, "Herramienta", summary, true, (string)part["name"]);
+                    }
                 }
-                if ((string)message["type"] != "assistant") continue;
-                var parts = (message["content"] as JArray ?? new JArray()).OfType<JObject>().ToArray();
-                var text = string.Join("\n", parts.Where(p => (string)p["type"] == "text").Select(p => (string)p["text"]));
-                if (!string.IsNullOrWhiteSpace(text)) UpsertMessage("assistant-" + id, "Seyra", text);
-                for (var index = 0; index < parts.Length; index++)
-                {
-                    var part = parts[index];
-                    if ((string)part["type"] != "tool") continue;
-                    var key = "tool-" + id + "-" + ((string)part["id"] ?? index.ToString());
-                    var (summary, isUnknown) = ToolSummary(part, trackOutcome);
-                    if (isUnknown) unknownToolOutcome = true;
-                    UpsertMessage(key, "Herramienta", summary, true, (string)part["name"]);
-                }
+                start = end;
             }
+            SetActivity(activity);
         }
 
         (string Summary, bool UnknownOutcome) ToolSummary(JObject part, bool trackOutcome)
@@ -681,15 +737,17 @@ namespace Seyra.Chat
             }
         }
 
-        void UpsertMessage(string key, string role, string text, bool isTool = false, string toolName = null)
+        void UpsertMessage(string key, string role, string text, bool isTool = false, string toolName = null, bool isWorkStep = false)
         {
             if (messageByKey.TryGetValue(key, out var existing))
             {
-                if (existing.Text == text && existing.Role == role) return;
+                if (existing.Text == text && existing.Role == role && existing.IsWorkStep == isWorkStep &&
+                    existing.IsTool == isTool && existing.ToolName == toolName) return;
                 existing.Role = role;
                 existing.Text = text;
                 existing.IsTool = isTool;
                 existing.ToolName = toolName;
+                existing.IsWorkStep = isWorkStep;
                 MessageUpserted?.Invoke(existing);
                 return;
             }
@@ -700,7 +758,8 @@ namespace Seyra.Chat
                 Role = role,
                 Text = text,
                 IsTool = isTool,
-                ToolName = toolName
+                ToolName = toolName,
+                IsWorkStep = isWorkStep
             };
             messageByKey[key] = item;
             messages.Add(item);
@@ -709,6 +768,7 @@ namespace Seyra.Chat
 
         void ConnectionFailed(Exception error)
         {
+            SetActivity(null);
             sessionMissing = error is OpenCodeHttpException failure && failure.StatusCode == 404;
             SetConnected(false, sessionMissing ? "Sesión no disponible" : Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings));
             if (sessionMissing || (HasTurn && !terminalConfirmed))
