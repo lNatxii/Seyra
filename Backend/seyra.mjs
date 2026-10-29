@@ -232,6 +232,7 @@ export async function main(args = process.argv.slice(2)) {
   if (command === 'init-tls') {
     const directory = join(data, 'tls');
     if (!values.force && ['gateway.cert.pem', 'gateway.key.pem', 'gateway.pfx'].some(file => existsSync(join(directory, file)))) fail('TLS already exists. Use --force explicitly to rotate it, then pair devices again.');
+    require('reflect-metadata');
     const { X509CertificateGenerator, cryptoProvider } = require('@peculiar/x509');
     cryptoProvider.set(webcrypto);
     const algorithm = { name: 'ECDSA', namedCurve: 'P-256', hash: 'SHA-256' };
