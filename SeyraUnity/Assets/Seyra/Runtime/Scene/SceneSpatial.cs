@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Seyra.Spatial;
@@ -42,6 +43,17 @@ namespace Seyra.SceneTools
             var bounds=SpatialGeometry.Project(GeometryPoints(go).Select(p=>Quaternion.Inverse(root.rotation)*(p-root.position)),Quaternion.identity);
             var request=new SpatialPlacementRequest{Content=bounds,Destination=Text(args,"destination"),PhysicalId=args["physicalId"]==null?null:String(args["physicalId"],128),
                 AllowAirFallback=Bool(args,"allowAirFallback",true),MinScale=min,Readable=go.GetComponentInChildren<ManagedPanel>(true)!=null};
+            var readingTargets=new List<ReadingTarget>();
+            var corners=new Vector3[4];
+            foreach(var panel in go.GetComponentsInChildren<ManagedPanel>(true))
+            {
+                var surface=panel.Surface;if(surface==null)continue;
+                surface.GetWorldCorners(corners);
+                var content=panel.Content;
+                float minAngle=!panel.IsPresentation&&content.kind=="label"?SpatialPlacementSettings.MinLabelReadingAngle:SpatialPlacementSettings.MinReadingAngle;
+                readingTargets.Add(new ReadingTarget(Vector3.Distance(corners[0],corners[1]),minAngle));
+            }
+            request.ReadingTargets=readingTargets;
             var service=PlacementService;var room=service.Snapshot;
             if(args["expectedRoomRevision"]!=null&&(args["expectedRoomRevision"].Type!=JTokenType.Integer||(long)args["expectedRoomRevision"]<0))throw new ArgumentException("expectedRoomRevision must be a non-negative integer.");
             if(args["expectedRoomRevision"]!=null&&(long)args["expectedRoomRevision"]!=room.Revision)throw new RoomToolException("ROOM_REVISION_CONFLICT","The room changed. Query candidates again.");
