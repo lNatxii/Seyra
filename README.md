@@ -10,7 +10,7 @@ La clave `META_API_KEY` se configura exclusivamente en `Backend/.env.local` en e
 
 Los perfiles alternativos son `seyra_glm`, `seyra_deepseek` y `seyra_zai`, con las mismas instrucciones y permisos.
 
-Muse Voice Transcribe, visión con la cámara, SAM y Muse Image están previstos en el roadmap; no forman parte de esta integración.
+El dictado usa **Muse Voice Transcribe** a través de la pasarela HTTPS del PC, con parciales y texto final como borrador antes de Enviar. La prueba física en Quest permanece pendiente. En el Editor sin pasarela se conserva Wit.ai. Visión con la cámara, SAM y Muse Image siguen previstos en el roadmap.
 
 ## Puesta en marcha: conectar Quest o un móvil Android al backend del PC
 

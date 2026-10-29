@@ -298,7 +298,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 17. Entrada por voz con transcripción
 
-**Estado:** In progress · diseño listo (29 de octubre de 2026). Adelantada a P0: el dictado de plataforma del Quest no funciona en español fuera de EE. UU. Muse Voice Transcribe en tiempo real a través de la pasarela, con parciales en el borrador y la clave solo en el PC. [Diseño](Progress/InProgress/17-muse-voice-transcribe.md).
+**Estado:** Completed · Pendiente de revisión (29 de octubre de 2026). Dictado Muse mediante pasarela implementado en Unity, con captura PCM, certificado fijado, parciales y final como borrador. Relé validado por el usuario; compilación C#, 3 grupos Muse y 18 tests Node aprobados. SpatialChatChecks falla en una expectativa anterior del menú de mano; pruebas manuales de Editor y Quest pendientes. [Implementación y validación](Progress/Completed/17-muse-voice-transcribe.md).
 
 **Entrega:** pulsar para hablar, detener/cancelar y convertir audio a texto mediante Muse Voice Transcribe si el acceso está disponible. Mostrar el texto editable antes de enviarlo.
 
