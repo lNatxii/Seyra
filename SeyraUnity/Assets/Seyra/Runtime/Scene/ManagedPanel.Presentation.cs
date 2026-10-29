@@ -76,6 +76,7 @@ namespace Seyra.SceneTools
             }
             content = spec.Envelope; presentationJson = spec.ToJson().ToString(Newtonsoft.Json.Formatting.None); presentationView = next;
             window.Resize(content.CanvasSize);
+            next.ResizeMediaHeader();
             stage.SetActive(true);
             next.ActionRequested += PresentationAction;
             window.SetTheme(window.Themes.CurrentThemeIndex);

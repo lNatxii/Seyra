@@ -31,6 +31,14 @@ namespace Seyra.UI.Presentations
         public UIPhotoData image;
         [UICount(0, 20)] public string[] highlights = Array.Empty<string>();
     }
+    public sealed class MediaCardData : UIPresentationData
+    {
+        public override string Type => "mediaCard";
+        [UIRequired] public UIPhotoData image;
+        [UIRequired] public string body;
+        [UICount(0, 8)] public UIPropertyData[] facts = Array.Empty<UIPropertyData>();
+        [UICount(0, 6)] public string[] tags = Array.Empty<string>();
+    }
     public sealed class TechnicalSheetData : UIPresentationData
     {
         public override string Type => "technicalSheet";

@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Seyra.Runtime::Seyra.UI.Presentations.UIPresentationCatalog
   components: {fileID: 11400000, guid: 2ebb7cfecef383842b6cfd44dda8c2b4, type: 2}
   templates:
+  - type: mediaCard
+    prefab: {fileID: 4839899770902851479, guid: 4d47202e05905b44b84d308dc3309fa3, type: 3}
   - type: infoPanel
     prefab: {fileID: 4204243321277963019, guid: 2532f55e184fb7440884d43c6896240b, type: 3}
   - type: technicalSheet

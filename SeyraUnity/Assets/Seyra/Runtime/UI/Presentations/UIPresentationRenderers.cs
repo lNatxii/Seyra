@@ -13,9 +13,10 @@ namespace Seyra.UI.Presentations
         public static void Render(UIPresentationView view, UIPresentationData data)
         {
             // Long descriptions belong in the scrollable region, keeping the heading and Close reachable.
-            Text(view, data.description, view.Body);
+            if (!(data is MediaCardData)) Text(view, data.description, view.Body);
             switch (data)
             {
+                case MediaCardData d: MediaCard(view, d); break;
                 case InfoPanelData d: Info(view, d); break;
                 case TechnicalSheetData d: Technical(view, d); break;
                 case GalleryData d: Gallery(view, d); break;

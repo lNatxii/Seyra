@@ -18,6 +18,16 @@ namespace Seyra.UI.Presentations
         public UIPresentationData Data { get; private set; }
         public UIFactory Factory => factory;
         public RectTransform Body => scroll.content;
+        internal RectTransform Content => panel.Content;
+        internal UnityEngine.UI.ScrollRect Scroll => scroll;
+        internal void ResizeMediaHeader()
+        {
+            if (!(Data is MediaCardData)) return;
+            var header = panel.Content.Find("MediaHeader");
+            var canvas = GetComponentInParent<Canvas>(true);
+            if (header != null && canvas != null)
+                header.GetComponent<UnityEngine.UI.LayoutElement>().preferredHeight = ((RectTransform)canvas.transform).rect.height * .45f;
+        }
         public RectTransform Actions => panel.Actions;
         public int Revision { get; private set; }
         public int Index { get; private set; }

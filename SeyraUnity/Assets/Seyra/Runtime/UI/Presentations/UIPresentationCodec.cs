@@ -14,6 +14,7 @@ namespace Seyra.UI.Presentations
     {
         public static readonly IReadOnlyDictionary<string, Type> Types = new Dictionary<string, Type>(StringComparer.Ordinal)
         {
+            ["mediaCard"] = typeof(MediaCardData),
             ["infoPanel"] = typeof(InfoPanelData), ["technicalSheet"] = typeof(TechnicalSheetData),
             ["gallery"] = typeof(GalleryData), ["stepGuide"] = typeof(StepGuideData),
             ["documentViewer"] = typeof(DocumentViewerData), ["comparison"] = typeof(ComparisonData),

@@ -6,6 +6,36 @@ namespace Seyra.UI.Presentations
 {
     public static partial class UIPresentationRenderers
     {
+        static void MediaCard(UIPresentationView v, MediaCardData d)
+        {
+            var header = v.Factory.InstantiateContainer(v.Content, new UIElementOptions {
+                Name = "MediaHeader", Layout = new UILayoutOptions { PreferredHeight = 0, FlexibleHeight = 0 }
+            });
+            v.Scroll.transform.SetSiblingIndex(0);
+            var headerSlot = v.Factory.InstanceOf(header);
+            headerSlot.transform.SetSiblingIndex(0);
+            var size = headerSlot.GetComponent<UnityEngine.UI.LayoutElement>();
+            size.minHeight = 0; size.flexibleHeight = 0;
+            var background = header.gameObject.AddComponent<UnityEngine.UI.Image>(); background.raycastTarget = false;
+            header.gameObject.AddComponent<UIStyle>().Configure(v.Factory.Catalog.DefaultTheme, surface: UISurfaceRole.Surface);
+            v.ResizeMediaHeader();
+            if (v.TryMedia(d.image.imageRef, out var sprite))
+            {
+                var go = new GameObject("Image", typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.AspectRatioFitter));
+                go.transform.SetParent(header, false);
+                var rect = (RectTransform)go.transform;
+                rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+                var graphic = go.GetComponent<UnityEngine.UI.Image>(); graphic.sprite = sprite; graphic.preserveAspect = true; graphic.raycastTarget = false;
+                var aspect = go.GetComponent<UnityEngine.UI.AspectRatioFitter>();
+                aspect.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
+                aspect.aspectRatio = sprite.rect.width / sprite.rect.height;
+            }
+            else Text(v, "Imagen no disponible" + (d.image.alt.Length > 0 ? "\n" + d.image.alt : ""), header, UITextRole.Help);
+            Text(v, d.description, v.Body, UITextRole.Label);
+            Text(v, string.Join(" · ", d.tags), v.Body, UITextRole.Help);
+            Text(v, d.body, v.Body);
+            foreach (var fact in d.facts) Text(v, fact.label + ": " + fact.value, v.Body);
+        }
         static void Photo(UIPresentationView v, UIPhotoData image, RectTransform parent)
         {
             var photoKey = v.RegisterPhoto();

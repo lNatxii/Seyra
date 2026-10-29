@@ -67,7 +67,7 @@ namespace Seyra.Editor
                 var catalog = AssetDatabase.LoadAssetAtPath<UIPresentationCatalog>(CatalogPath);
                 if (catalog == null) { catalog = ScriptableObject.CreateInstance<UIPresentationCatalog>(); AssetDatabase.CreateAsset(catalog, CatalogPath); }
                 catalog.Configure(components, entries); EditorUtility.SetDirty(catalog); AssetDatabase.SaveAssets();
-                Debug.Log("Seyra: 12 uGUI presentations registered.");
+                Debug.Log($"Seyra: {entries.Count} uGUI presentations registered.");
             }
             finally { EditorSceneManager.ClosePreviewScene(scene); }
         }
