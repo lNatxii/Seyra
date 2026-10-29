@@ -1,5 +1,7 @@
 # Web presentation media (26)
 
+> **Disabled.** `webImagesEnabled = false` in `src/presentations.ts` makes the photo schema reject `imageSearch` and `imageUrl`, so no web image is searched or downloaded. Only registered catalog `imageRef` values are accepted. The pipeline below is kept for reference until a licensed image source is available.
+
 The bridge resolves web images before forwarding `ui_present`, `ui_update` or
 `layout_create`. Unity receives JPEG bytes through the existing authenticated
 tool transport and never downloads images from the internet.

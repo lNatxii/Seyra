@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · Pendiente de revisión. Búsqueda Meta, fuentes y tarjetas estáticas; 34/34 tests. Repetición con Muse pendiente. Base de 19. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · Pendiente de revisión. Imágenes web desactivadas (normas del hackathon); 26b con Pexels pausada sin claves. Base de 19. |
 | 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -280,6 +280,8 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 ### 26. Tarjetas con imagen de internet
 
 **Estado:** Completed · Pendiente de revisión (29 de octubre de 2026). Aplicados los cambios 11.3/11.4: búsqueda web de Meta, fuente visible de cada imagen, límite por host/reintento 429 y lazy_follow retirado del modelo. Suite final bridge 34/34; Unity validado en 11.4(b) con 242 comprobaciones. Pendiente repetir películas y tortilla con Muse, tras reiniciar backend y OpenCode. [Implementación y revisión](Progress/Completed/26-web-image-cards.md).
+
+**Estado 26b:** Future · pausada (30 de octubre de 2026). Pexels ha pausado la emisión de claves. Las imágenes web están desactivadas: el schema del bridge rechaza `imageSearch` e `imageUrl` (`webImagesEnabled = false`) y el prompt no usa imágenes, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
 
 **Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` es una consulta web resuelta por el buscador de Meta; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
