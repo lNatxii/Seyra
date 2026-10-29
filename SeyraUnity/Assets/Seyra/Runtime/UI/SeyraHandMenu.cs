@@ -18,6 +18,8 @@ namespace Seyra.UI
         [SerializeField] float showDot = .75f, hideDot = .55f, showDelay = .15f, hideDelay = .30f;
         // Semantic palm axes: thumb, fingers, outward normal (in meters).
         [SerializeField] Vector3 palmOffset = new Vector3(.04f, .10f, 0);
+        // World-space lift applied after the palm offset, independent of hand tilt (in meters).
+        [SerializeField] float palmWorldLift = .06f;
         [SerializeField] Vector3 controllerOffset = new Vector3(0, .08f, .05f);
         [SerializeField] UIXRWindow window;
         IHand hand;
@@ -132,7 +134,8 @@ namespace Seyra.UI
                     {
                         shown = gate.Tick(HandMenuPose.PalmFacing(lastPalm, palmNormalLocal, head.position), dt,
                             showDot, hideDot, showDelay, hideDelay);
-                        pose = HandMenuPose.AnchorPose(lastPalm, new Vector3(palmOffset.x, -palmOffset.z, palmOffset.y), head.position);
+                        var palmAnchor = lastPalm.position + lastPalm.rotation * new Vector3(palmOffset.x, -palmOffset.z, palmOffset.y);
+                        pose = HandMenuPose.AnchorPose(new Pose(palmAnchor + Vector3.up * palmWorldLift, lastPalm.rotation), Vector3.zero, head.position);
                     }
                     else gate.Reset();
                 }
