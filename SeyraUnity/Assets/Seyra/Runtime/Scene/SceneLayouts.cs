@@ -105,7 +105,8 @@ namespace Seyra.SceneTools
             string name;
             if(create)
             {
-                Keys(args,new[]{"name","layout","itemSize","items"},new[]{"behavior","centerSize","gap","params","parentId"});
+                Keys(args,new[]{"name","layout","itemSize","items"},new[]{"behavior","centerSize","gap","params","parentId","media"});
+                RegisterMediaArguments(args);
                 name=String(args["name"],256);items=args["items"] as JArray??throw new ArgumentException("items must be an array.");
                 specification=LayoutPlanner.Normalize(args,items.Count);
                 if((string)specification["layout"]=="anchor")targets=new JArray();

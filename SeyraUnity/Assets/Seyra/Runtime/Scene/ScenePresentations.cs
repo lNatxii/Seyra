@@ -9,6 +9,12 @@ namespace Seyra.SceneTools
     public sealed partial class SceneToolService
     {
         readonly UIPresentationCatalog presentations;
+        readonly RemoteMediaStore remoteMedia;
+        void RegisterMediaArguments(JObject args)
+        {
+            if (args["media"] != null)
+                remoteMedia.Register(args["media"] as JArray ?? throw new ArgumentException("media must be an array."));
+        }
         ManagedPanel PresentationTarget(JObject args)
         {
             var go = Find(args["entityId"]);
@@ -61,7 +67,8 @@ namespace Seyra.SceneTools
             }
             if (tool == "ui_present")
             {
-                Keys(args, new[] { "name", "parentId", "position", "rotation", "scale", "width", "height", "presentation" });
+                Keys(args, new[] { "name", "parentId", "position", "rotation", "scale", "width", "height", "presentation" }, new[] { "media" });
+                RegisterMediaArguments(args);
                 var spec = PresentationArguments(args);
                 var live = LiveContent().Select(t => t.GetComponent<ManagedPanel>()).Where(p => p != null && p.IsPresentation).ToArray();
                 if (live.Length >= 16 || live.Any(p => p.Presentation.Data.id == spec.Data.id)) throw new ArgumentException("Presentation ID already exists or the limit of 16 live presentations was reached.");
@@ -71,7 +78,8 @@ namespace Seyra.SceneTools
             }
             if (tool == "ui_update")
             {
-                Keys(args, new[] { "entityId", "width", "height", "presentation" });
+                Keys(args, new[] { "entityId", "width", "height", "presentation" }, new[] { "media" });
+                RegisterMediaArguments(args);
                 var target = PresentationTarget(args); var spec = PresentationArguments(args);
                 if (spec.Data.id != target.Presentation.Data.id) throw new ArgumentException("An update must preserve the presentation content ID.");
                 target.RequireIntact(); target.ApplyPresentation(spec); return Inspect(target.gameObject);

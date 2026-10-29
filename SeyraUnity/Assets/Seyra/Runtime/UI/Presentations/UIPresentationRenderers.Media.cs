@@ -32,7 +32,8 @@ namespace Seyra.UI.Presentations
                     v.Record("image.zoom");
                 });
             }
-            else Text(v, "Imagen no disponible: " + image.imageRef + (image.alt.Length > 0 ? "\n" + image.alt : ""), picture, UITextRole.Help);
+            else Text(v, "Imagen no disponible" + (image.imageRef.StartsWith("web:", System.StringComparison.Ordinal) ? "" : ": " + image.imageRef) +
+                (image.alt.Length > 0 ? "\n" + image.alt : ""), picture, UITextRole.Help);
             var caption = Column(v, card, "CaptionContainer");
             Text(v, image.title, caption, UITextRole.Label); Text(v, image.description, caption);
             if (image.alt.Length > 0) Text(v, image.alt, caption, UITextRole.Help, UIInkRole.Muted);

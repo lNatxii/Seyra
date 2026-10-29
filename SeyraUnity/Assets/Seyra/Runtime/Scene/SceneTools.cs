@@ -31,6 +31,8 @@ namespace Seyra.SceneTools
             uiCatalog = panelCatalog;
             presentations = presentationCatalog ?? Resources.Load<Seyra.UI.Presentations.UIPresentationCatalog>("SeyraUIPresentations");
             InitializeLifecycle(persistenceDirectory);
+            remoteMedia = generated.GetComponent<RemoteMediaStore>() ?? generated.gameObject.AddComponent<RemoteMediaStore>();
+            remoteMedia.Configure(storageDirectory);
         }
 
         public string Dispatch(string json)
