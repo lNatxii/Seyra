@@ -11,7 +11,7 @@ one source:
 
 | Source | Contract |
 | --- | --- |
-| `imageSearch` | Trimmed text, 2–200 characters, identifying an English Wikipedia article, including disambiguation when useful |
+| `imageSearch` | Trimmed text, 2–200 characters, containing a web search query (film title/year, dish name, etc.) |
 | `imageUrl` | Valid HTTP/HTTPS URL, at most 2048 characters; direct image or HTML page |
 | `imageRef` | Non-empty registered catalog reference; the model cannot supply a reference starting with `web:` |
 
@@ -24,20 +24,41 @@ At most 12 distinct sources (`imageSearch` text or `imageUrl`) may appear in one
 call. Exceeding this limit returns `success: false` with `INVALID_ARGUMENT` and
 message `At most 12 images per call`, before sending anything to Unity.
 
-## Wikipedia and download pipeline
+## Meta search and download pipeline
 
-`imageSearch` uses `https://en.wikipedia.org/w/api.php` with `action=query`,
-`format=json`, `generator=search`, `gsrsearch=<text>`, `gsrlimit=1`,
-`gsrnamespace=0` and `prop=info`. The first result title is URL-encoded into
-`https://en.wikipedia.org/api/rest_v1/page/summary/<title>`. Use
-`originalimage.source`, falling back to `thumbnail.source` only when absent.
-No search result or image produces `MEDIA_NOT_FOUND`. JSON responses are limited
-to 256 KiB. No API key is required.
+`imageSearch` sends a POST to `https://api.meta.ai/v1/responses`, authenticated
+with `META_API_KEY`. The body contains `model` (from `SEYRA_MEDIA_SEARCH_MODEL`,
+default `muse-spark-1.3`), `tools: [{type: "web_search", search_context_size: "low"}]`,
+`include: ["web_search_call.results"]`, `reasoning: {effort: "low"}`,
+`max_output_tokens: 2048` and
+`input: "Use web search now to find: <query>. Then reply with the single word done."`.
+No `tool_choice` is supplied. Responses are limited to 1 MiB and 6 seconds per
+search, with at most four searches active at once across resolver calls.
 
-All requests use `User-Agent: SeyraBridge/1.0 (personal assistant)`. Sources are
-resolved in parallel with an 8-second total deadline and 4 seconds per download,
+Read `output[]` entries of type `web_search_call`, taking the first eight
+`results[]` entries of type `text_result` with HTTP/HTTPS URLs. Download these
+pages and their images in parallel; choose the first decodable image in search
+order, skipping missing, unsupported (including SVG) or small images. An earlier
+result is awaited before choosing a later one, within the total deadline. No
+usable image produces `MEDIA_NOT_FOUND`. Wikipedia has no special API route;
+it can appear as an ordinary search result.
+
+For `youtube.com/watch?v=<id>` and `youtu.be/<id>`, fetch
+`https://img.youtube.com/vi/<id>/hqdefault.jpg` instead of the page. Its source
+remains the original YouTube page.
+
+The launcher passes its local environment to OpenCode. The MCP server now also
+explicitly sets `environment.META_API_KEY: "{env:META_API_KEY}"` in
+`Backend/opencode.json`, so MCP environment filtering does not remove the key.
+An isolated probe using a fictitious key verified that OpenCode's child bridge
+receives it; no real key or authenticated search is needed for tests.
+`createMediaResolver` accepts an injected `metaRequest` (fetch-compatible) and
+`env` in addition to the existing downloader and host checker.
+
+All requests use `User-Agent: SeyraBridge/1.0 (https://github.com/lNatxii/Seyra; personal assistant)` (overridable with `SEYRA_MEDIA_USER_AGENT`). Sources are
+resolved in parallel with a 10-second total deadline and 4 seconds per download,
 including its redirect chain. Only HTTP/HTTPS is accepted; credentials in URLs
-are rejected. Redirects are manual, at most three, and each destination is checked.
+are rejected. Redirects are manual, at most three, and each destination is checked. At most three downloads per hostname run concurrently across calls, including redirect hops. One retry is allowed after HTTP 429, waiting Retry-After seconds capped at 2 seconds (default 1 second), inside the total deadline.
 
 SSRF protection resolves all DNS addresses and rejects a host if any address is
 blocked: loopback, private, link-local, CGNAT, multicast or unspecified addresses,
@@ -60,13 +81,21 @@ JPEG quality 82 without source metadata. The ID is
 `web:` + `sha256(jpeg).hex.slice(0, 32)`.
 
 Two in-memory LRU caches hold up to 64 entries each for 15 minutes: source URL to
-converted JPEG and search text to image URL. Repeated references in a call share
+converted JPEG/source and search text to the selected JPEG/source. Repeated references in a call share
 the download/conversion, and outgoing media entries are deduplicated by ID.
 
 ## Internal transport and failures
 
 The bridge replaces successful `imageSearch`/`imageUrl` fields with `imageRef`.
 Failures become `imageRef: "web:unavailable"`; the rest of the card is preserved.
+
+Successful photos also gain bridge-only `source` and `sourceUrl`. `source` is
+`<hostname without www> · <page title, at most 80 characters>`. For search results,
+the title and URL come from the selected search page, not the JPEG URL. Direct
+imageUrl uses its final URL and photo title; HTML uses its page URL and HTML title
+(falling back to the photo title). The strict model photo schema excludes both
+fields. Unity display/validation of these fields is the separate review step
+11.4(b); this bridge change alone does not complete that integration.
 The model never supplies the internal optional `media` argument:
 
 ```json
@@ -91,7 +120,9 @@ unchanged. Image failures do not turn an otherwise successful tool into an error
 
 | Code | Meaning |
 | --- | --- |
-| `MEDIA_NOT_FOUND` | Wikipedia has no matching article or image |
+| `MEDIA_NOT_CONFIGURED` | META_API_KEY is missing |
+| `MEDIA_SEARCH_<status>` | Meta search returned an unsuccessful HTTP status |
+| `MEDIA_NOT_FOUND` | No search result provides a usable image |
 | `MEDIA_BLOCKED_HOST` | Forbidden host, scheme or URL credentials |
 | `MEDIA_TIMEOUT` | Per-download or total deadline exceeded |
 | `MEDIA_TOO_LARGE` | Response exceeds its byte limit |
@@ -101,7 +132,7 @@ unchanged. Image failures do not turn an otherwise successful tool into an error
 | `MEDIA_NO_IMAGE` | HTML has no supported image reference |
 
 Do not retry failed images automatically. Preserve the cards and their alternate
-text. OpenCode's MCP execution timeout is 25000 ms, covering bridge resolution
+text. OpenCode's MCP execution timeout is 25000 ms, covering the 10-second bridge resolution budget
 and Unity's default 10-second confirmation deadline.
 
 ## Unity storage and persistence v5

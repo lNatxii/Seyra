@@ -8,29 +8,15 @@ import { tools } from '../dist/tools.js';
 const imageUrl = 'https://images.example.test/poster.jpg';
 const pageUrl = 'https://images.example.test/film';
 const searchText = 'Iron Man 2008 film';
-const articleTitle = 'Iron Man (2008 film)';
-const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(articleTitle)}`;
-// Offline snapshots retain the generator=search and REST summary response shapes.
-const searchResponse = {
-  batchcomplete: '',
-  query: { pages: { '1168906': { pageid: 1168906, ns: 0, title: articleTitle, index: 1,
-    contentmodel: 'wikitext', pagelanguage: 'en', pagelanguagehtmlcode: 'en', pagelanguagedir: 'ltr' } } },
-};
-const summaryResponse = {
-  type: 'standard', title: articleTitle, displaytitle: '<i>Iron Man</i> (2008 film)',
-  namespace: { id: 0, text: '' }, wikibase_item: 'Q192724', titles: { canonical: articleTitle, normalized: articleTitle, display: articleTitle },
-  thumbnail: { source: 'https://images.example.test/thumbnail.jpg', width: 203, height: 300 },
-  originalimage: { source: imageUrl, width: 800, height: 1200 }, lang: 'en', dir: 'ltr',
-};
 const checkTestHost = async () => ({ address: '127.0.0.1', family: 4 });
-const json = value => ({ body: Buffer.from(JSON.stringify(value)), contentType: 'application/json' });
+const metaResponse = results => new Response(JSON.stringify({ output: [{ type: 'web_search_call', results }] }), { status: 200 });
 const makeImage = (width = 800, height = 1200) => sharp({
   create: { width, height, channels: 3, background: { r: 40, g: 90, b: 150 } },
 }).jpeg().toBuffer();
 
-function offlineResolver(routes, requests = []) {
+function offlineResolver(routes, requests = [], extra = {}) {
   return createMediaResolver({
-    checkHost: checkTestHost,
+    ...extra, checkHost: checkTestHost,
     download: async (url, { checkHost, signal }) => {
       signal.throwIfAborted();
       await checkHost(url.hostname);
@@ -50,41 +36,80 @@ function assertFailure(result, source, code) {
   assert.equal('imageUrl' in result.args.image, false);
 }
 
-test('media imageSearch resolves offline Wikipedia originalimage to a bounded JPEG with matching hash', async () => {
-  const query = new URL('https://en.wikipedia.org/w/api.php');
-  query.search = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: searchText,
-    gsrlimit: '1', gsrnamespace: '0', prop: 'info' }).toString();
+test('Meta search skips an imageless page and cites the next valid result in search order', async () => {
+  const empty = 'https://www.example.test/empty';
   const requests = [];
   const resolve = offlineResolver(new Map([
-    [query.href, json(searchResponse)], [summaryUrl, json(summaryResponse)],
+    [empty, { body: Buffer.from('<html><head><title>No image</title></head></html>'), contentType: 'text/html' }],
+    [pageUrl, { body: Buffer.from(`<html><meta property="og:image" content="${imageUrl}"></html>`), contentType: 'text/html' }],
     [imageUrl, { body: await makeImage(), contentType: 'image/jpeg' }],
-  ]), requests);
+  ]), requests, { env: { META_API_KEY: 'fixture-key', SEYRA_MEDIA_SEARCH_MODEL: 'fixture-model' }, metaRequest: async (url, options) => {
+    assert.equal(url, 'https://api.meta.ai/v1/responses');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.Authorization, 'Bearer fixture-key');
+    assert.deepEqual(JSON.parse(options.body), { model: 'fixture-model', tools: [{ type: 'web_search', search_context_size: 'low' }],
+      include: ['web_search_call.results'], reasoning: { effort: 'low' }, max_output_tokens: 2048,
+      input: `Use web search now to find: ${searchText}. Then reply with the single word done.` });
+    return metaResponse([{ type: 'text_result', title: 'Empty', url: empty }, { type: 'text_result', title: 'Film poster', url: pageUrl }]);
+  } });
   const result = await resolve('ui_present', { image: { imageSearch: searchText, title: 'Iron Man' } });
-  assert.deepEqual(requests, [query.href, summaryUrl, imageUrl]);
   assert.deepEqual(result.failures, []);
+  assert.equal(result.args.image.source, 'images.example.test · Film poster');
+  assert.equal(result.args.image.sourceUrl, pageUrl);
   assert.equal(result.media.length, 1);
-  const media = result.media[0];
-  assert.match(media.id, /^web:[0-9a-f]{32}$/);
-  assert.equal(result.args.image.imageRef, media.id);
-  assert.equal('imageSearch' in result.args.image, false);
-  assert.equal(media.mime, 'image/jpeg');
-  const bytes = Buffer.from(media.data, 'base64');
+  const media = result.media[0], bytes = Buffer.from(media.data, 'base64');
   const metadata = await sharp(bytes).metadata();
   assert.equal(metadata.format, 'jpeg');
-  assert.ok(metadata.width > 0 && metadata.width <= 512);
-  assert.ok(metadata.height > 0 && metadata.height <= 512);
-  assert.equal(media.width, metadata.width);
-  assert.equal(media.height, metadata.height);
+  assert.ok(metadata.width <= 512 && metadata.height <= 512);
+  assert.equal(media.width, metadata.width); assert.equal(media.height, metadata.height);
   assert.equal(media.id, `web:${createHash('sha256').update(bytes).digest('hex').slice(0, 32)}`);
+  assert.equal(result.args.image.imageRef, media.id);
+  assert.ok(requests.includes(empty) && requests.includes(pageUrl));
 });
 
-test('media imageSearch without Wikipedia results reports MEDIA_NOT_FOUND', async () => {
-  const resolve = createMediaResolver({ checkHost: checkTestHost, download: async (url, { checkHost }) => {
-    await checkHost(url.hostname);
-    assert.equal(url.searchParams.get('generator'), 'search');
-    return { ...json({ batchcomplete: '' }), url: url.href };
-  } });
+test('Meta search uses YouTube hqdefault without downloading the consent page', async () => {
+  const video = 'https://www.youtube.com/watch?v=Abc123_-xyz';
+  const thumbnail = 'https://img.youtube.com/vi/Abc123_-xyz/hqdefault.jpg';
+  const requests = [];
+  const resolve = offlineResolver(new Map([[thumbnail, { body: await makeImage(), contentType: 'image/jpeg' }]]), requests,
+    { env: { META_API_KEY: 'fixture-key' }, metaRequest: async () => metaResponse([{ type: 'text_result', title: 'Recipe', url: video }]) });
+  const result = await resolve('ui_present', { image: { imageSearch: 'recipe' } });
+  assert.deepEqual(result.failures, []); assert.deepEqual(requests, [thumbnail]);
+  assert.equal(result.args.image.sourceUrl, video); assert.equal(result.args.image.source, 'youtube.com · Recipe');
+});
+
+test('Meta search without a key reports MEDIA_NOT_CONFIGURED without a request', async () => {
+  const resolve = createMediaResolver({ env: {}, metaRequest: async () => { throw new Error('Must not request Meta without a key.'); } });
+  assertFailure(await resolve('ui_present', { image: { imageSearch: searchText } }), { search: searchText }, 'MEDIA_NOT_CONFIGURED');
+});
+
+test('Meta search without results reports MEDIA_NOT_FOUND', async () => {
+  const resolve = createMediaResolver({ env: { META_API_KEY: 'fixture-key' }, metaRequest: async () => metaResponse([]) });
   assertFailure(await resolve('ui_present', { image: { imageSearch: searchText } }), { search: searchText }, 'MEDIA_NOT_FOUND');
+});
+
+test('media retries one 429 with Retry-After and resolves the following 200', async () => {
+  let attempts = 0;
+  const body = await makeImage();
+  const resolve = createMediaResolver({ checkHost: checkTestHost, download: async (url, options) => {
+    assert.equal(options.userAgent, 'SeyraBridge/1.0 (https://github.com/lNatxii/Seyra; personal assistant)');
+    if (++attempts === 1) throw new MediaError('MEDIA_HTTP_429', undefined, '0');
+    return { body, url: url.href, contentType: 'image/jpeg' };
+  } });
+  const result = await resolve('ui_present', { image: { imageUrl } });
+  assert.deepEqual(result.failures, []); assert.equal(attempts, 2); assert.equal(result.media.length, 1);
+});
+
+test('media never downloads more than three images concurrently per host', async () => {
+  let active = 0, peak = 0;
+  const body = await makeImage();
+  const resolve = createMediaResolver({ checkHost: checkTestHost, download: async url => {
+    active++; peak = Math.max(peak, active);
+    try { await new Promise(resolve => setTimeout(resolve, 15)); return { body, url: url.href, contentType: 'image/jpeg' }; }
+    finally { active--; }
+  } });
+  const result = await resolve('layout_create', { images: Array.from({ length: 6 }, (_, i) => ({ imageUrl: `https://images.example.test/${i}.jpg` })) });
+  assert.deepEqual(result.failures, []); assert.equal(peak, 3); assert.equal(active, 0);
 });
 
 test('media HTML og:image resolves to the same id as the direct image', async () => {
@@ -157,4 +182,5 @@ test('ui_present accepts mediaCard and rejects photos with multiple sources or r
     { imageSearch: searchText, imageUrl },
   ]) assert.equal(schema.safeParse(withImage(image)).success, false);
   assert.equal(schema.safeParse(withImage({ imageRef: `web:${'a'.repeat(32)}` })).success, false);
+  assert.equal(schema.safeParse(withImage({ imageSearch: searchText, source: 'Injected', sourceUrl: pageUrl })).success, false);
 });

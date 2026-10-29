@@ -13,6 +13,9 @@
           "{env:SEYRA_BACKEND_DIR}/bridge/dist/index.js"
         ],
         "cwd": "{env:SEYRA_BACKEND_DIR}",
+        "environment": {
+          "META_API_KEY": "{env:META_API_KEY}"
+        },
         "disabled": false,
         "codemode": false,
         "timeout": {

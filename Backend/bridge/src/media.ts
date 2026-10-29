@@ -3,18 +3,44 @@ import { isIP } from 'node:net';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import sharp from 'sharp';
 
-const USER_AGENT = 'SeyraBridge/1.0 (personal assistant)';
+const USER_AGENT = 'SeyraBridge/1.0 (https://github.com/lNatxii/Seyra; personal assistant)';
 const MAX_BYTES = 4 * 1024 * 1024;
 export class MediaError extends Error {
-  constructor(public readonly code: string, message = code) { super(message); }
+  constructor(public readonly code: string, message = code, public readonly retryAfter?: string) { super(message); }
 }
 export interface MediaEntry { id: string; mime: 'image/jpeg'; width: number; height: number; data: string }
 export type MediaFailure = { search: string; code: string } | { url: string; code: string };
 export type HostChecker = (hostname: string) => Promise<{ address: string; family: number }>;
 export interface DownloadResponse { body: Buffer; contentType: string; url: string }
-export type MediaDownloader = (url: URL, options: { signal: AbortSignal; maxBytes: number; checkHost: HostChecker }) => Promise<DownloadResponse>;
+export type MediaDownloader = (url: URL, options: { signal: AbortSignal; maxBytes: number; checkHost: HostChecker; userAgent: string }) => Promise<DownloadResponse>;
+
+class Slots {
+  private active = new Map<string, number>();
+  private queues = new Map<string, (() => void)[]>();
+  async run<T>(key: string, limit: number, signal: AbortSignal, task: () => Promise<T>): Promise<T> {
+    signal.throwIfAborted();
+    if ((this.active.get(key) ?? 0) >= limit) {
+      await new Promise<void>((resolve, reject) => {
+        const queue = this.queues.get(key) ?? []; this.queues.set(key, queue);
+        const start = () => { signal.removeEventListener('abort', abort); resolve(); };
+        const abort = () => { const index = queue.indexOf(start); if (index >= 0) queue.splice(index, 1); reject(new MediaError('MEDIA_TIMEOUT')); };
+        queue.push(start); signal.addEventListener('abort', abort, { once: true });
+      });
+    } else this.active.set(key, (this.active.get(key) ?? 0) + 1);
+    try { signal.throwIfAborted(); return await task(); }
+    finally {
+      const next = this.queues.get(key)?.shift();
+      if (next) next(); else { this.active.set(key, (this.active.get(key) ?? 1) - 1); this.queues.delete(key); }
+    }
+  }
+}
+const hostSlots = new Slots();
+const searchSlots = new Slots();
+interface SearchSource { title: string; url: string }
+interface ResolvedImage { entry: MediaEntry; source: SearchSource }
 
 function blocked(address: string): boolean {
   if (isIP(address) === 4) {
@@ -56,9 +82,9 @@ export const downloadMedia: MediaDownloader = async (initial, options) => {
     safeUrl(url.href);
     const host = await bounded(options.checkHost(url.hostname), signal);
     signal.throwIfAborted();
-    const response = await new Promise<{ body: Buffer; contentType: string; location?: string; status: number }>((resolve, reject) => {
+    const response = await hostSlots.run(url.hostname, 3, signal, () => new Promise<{ body: Buffer; contentType: string; location?: string; status: number }>((resolve, reject) => {
       const requestOptions: http.RequestOptions & { autoSelectFamily: boolean } = {
-        method: 'GET', signal, agent: false, autoSelectFamily: false, headers: { 'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity' },
+        method: 'GET', signal, agent: false, autoSelectFamily: false, headers: { 'User-Agent': options.userAgent, 'Accept-Encoding': 'identity' },
         lookup: (_hostname, _options, callback) => callback(null, host.address, host.family),
       };
       const request = (url.protocol === 'https:' ? https : http).request(url, requestOptions, res => {
@@ -67,7 +93,7 @@ export const downloadMedia: MediaDownloader = async (initial, options) => {
         if (status >= 300 && status < 400) {
           res.destroy(); resolve({ body: Buffer.alloc(0), contentType, location: res.headers.location, status }); return;
         }
-        if (status < 200 || status >= 300) { res.destroy(); reject(new MediaError(`MEDIA_HTTP_${status}`)); return; }
+        if (status < 200 || status >= 300) { res.destroy(); reject(new MediaError(`MEDIA_HTTP_${status}`, undefined, res.headers['retry-after'])); return; }
         const limit = /text\/html/i.test(contentType) ? Math.min(options.maxBytes, 1024 * 1024) : options.maxBytes;
         if (Number(res.headers['content-length']) > limit) { res.destroy(); reject(new MediaError('MEDIA_TOO_LARGE')); return; }
         const chunks: Buffer[] = []; let length = 0;
@@ -81,7 +107,7 @@ export const downloadMedia: MediaDownloader = async (initial, options) => {
         res.on('aborted', () => reject(new MediaError('MEDIA_UNSUPPORTED')));
       });
       request.on('error', reject); request.end();
-    });
+    }));
     if (response.status >= 300 && response.status < 400) {
       if (!response.location || redirects >= 3) throw new MediaError('MEDIA_UNSUPPORTED');
       url = safeUrl(response.location, url.href); continue;
@@ -93,7 +119,7 @@ export const downloadMedia: MediaDownloader = async (initial, options) => {
 function bounded<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise((resolve, reject) => {
     const abort = () => reject(new MediaError('MEDIA_TIMEOUT'));
-    if (signal.aborted) { abort(); return; }
+    if (signal.aborted) { void promise.catch(() => {}); abort(); return; }
     signal.addEventListener('abort', abort, { once: true });
     promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
   });
@@ -134,11 +160,13 @@ function htmlImage(html: string): string | undefined {
 }
 
 /** Each factory has isolated caches; production always uses the real host checker. */
-export function createMediaResolver(dependencies: { checkHost?: HostChecker; download?: MediaDownloader } = {}) {
+export function createMediaResolver(dependencies: { checkHost?: HostChecker; download?: MediaDownloader; metaRequest?: typeof fetch; env?: NodeJS.ProcessEnv } = {}) {
   const checkHost = dependencies.checkHost ?? checkPublicHost;
   const download = dependencies.download ?? downloadMedia;
-  const images = new Cache<MediaEntry>();
-  const searches = new Cache<string>();
+  const metaRequest = dependencies.metaRequest ?? fetch;
+  const env = dependencies.env ?? process.env;
+  const images = new Cache<ResolvedImage>();
+  const searches = new Cache<ResolvedImage>();
   return async function resolveMedia<T extends Record<string, unknown>>(tool: string, args: T): Promise<{ args: T; media: MediaEntry[]; failures: MediaFailure[] }> {
     if (!['ui_present', 'ui_update', 'layout_create'].includes(tool)) return { args, media: [], failures: [] };
     const copy = structuredClone(args);
@@ -158,36 +186,94 @@ export function createMediaResolver(dependencies: { checkHost?: HostChecker; dow
     }
     collect(copy);
     if (sources.size > 12) throw new MediaError('INVALID_ARGUMENT', 'At most 12 images per call');
-    const signal = AbortSignal.timeout(8000);
-    const pending = new Map<string, Promise<MediaEntry>>();
+    const signal = AbortSignal.timeout(10000);
+    const pending = new Map<string, Promise<ResolvedImage>>();
     async function get(url: string, maxBytes: number): Promise<DownloadResponse> {
-      const downloadSignal = AbortSignal.any([signal, AbortSignal.timeout(4000)]);
-      const result = await bounded(download(safeUrl(url), { signal: downloadSignal, maxBytes, checkHost }), downloadSignal);
-      if (result.body.length > maxBytes) throw new MediaError('MEDIA_TOO_LARGE');
-      return result;
+      const target = safeUrl(url);
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const run = async () => {
+            const downloadSignal = AbortSignal.any([signal, AbortSignal.timeout(4000)]);
+            return bounded(download(target, { signal: downloadSignal, maxBytes, checkHost, userAgent: env.SEYRA_MEDIA_USER_AGENT || USER_AGENT }), downloadSignal);
+          };
+          const result = download === downloadMedia ? await run() : await hostSlots.run(target.hostname, 3, signal, run);
+          if (result.body.length > maxBytes) throw new MediaError('MEDIA_TOO_LARGE');
+          return result;
+        } catch (error) {
+          if (attempt || !(error instanceof MediaError) || error.code !== 'MEDIA_HTTP_429') throw error;
+          const parsed = error.retryAfter === undefined ? 1 : Number(error.retryAfter);
+          const seconds = Number.isFinite(parsed) ? Math.max(0, Math.min(2, parsed)) : 1;
+          await delay(seconds * 1000, undefined, { signal });
+        }
+      }
     }
-    async function search(text: string): Promise<string> {
+    async function search(text: string): Promise<ResolvedImage> {
+      const key = env.META_API_KEY?.trim();
+      if (!key) throw new MediaError('MEDIA_NOT_CONFIGURED');
       const cached = searches.get(text); if (cached) return cached;
-      const query = new URL('https://en.wikipedia.org/w/api.php');
-      query.search = new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrsearch: text, gsrlimit: '1', gsrnamespace: '0', prop: 'info' }).toString();
-      const found = JSON.parse((await get(query.href, 256 * 1024)).body.toString());
-      const pages = Object.values(found.query?.pages ?? {}) as { title?: string; index?: number }[];
-      const title = pages.sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0]?.title;
-      if (!title) throw new MediaError('MEDIA_NOT_FOUND');
-      const summary = JSON.parse((await get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, 256 * 1024)).body.toString());
-      const url = summary.originalimage?.source ?? summary.thumbnail?.source;
-      if (typeof url !== 'string') throw new MediaError('MEDIA_NOT_FOUND');
-      safeUrl(url); searches.set(text, url); return url;
+      const found = await searchSlots.run('meta', 4, signal, async () => {
+        const searchSignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
+        return bounded((async () => {
+          const response = await metaRequest('https://api.meta.ai/v1/responses', {
+            method: 'POST', redirect: 'error', signal: searchSignal,
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'User-Agent': env.SEYRA_MEDIA_USER_AGENT || USER_AGENT },
+            body: JSON.stringify({ model: env.SEYRA_MEDIA_SEARCH_MODEL || 'muse-spark-1.3',
+              tools: [{ type: 'web_search', search_context_size: 'low' }], include: ['web_search_call.results'],
+              reasoning: { effort: 'low' }, max_output_tokens: 2048,
+              input: `Use web search now to find: ${text}. Then reply with the single word done.` }),
+          });
+          if (!response.ok) { await response.body?.cancel(); throw new MediaError(`MEDIA_SEARCH_${response.status}`); }
+          const reader = response.body?.getReader();
+          if (!reader) throw new MediaError('MEDIA_NOT_FOUND');
+          const chunks: Uint8Array[] = []; let length = 0;
+          try {
+            while (true) {
+              const chunk = await reader.read(); if (chunk.done) break;
+              length += chunk.value.byteLength;
+              if (length > 1024 * 1024) { await reader.cancel(); throw new MediaError('MEDIA_TOO_LARGE'); }
+              chunks.push(chunk.value);
+            }
+          } finally { reader.releaseLock(); }
+          return JSON.parse(Buffer.concat(chunks).toString()) as { output?: { type?: string; results?: { type?: string; title?: string; url?: string }[] }[] };
+        })(), searchSignal);
+      });
+      const candidates = (found.output ?? []).filter(item => item.type === 'web_search_call').flatMap(item => item.results ?? [])
+        .filter(item => item.type === 'text_result' && typeof item.url === 'string' && /^https?:\/\//i.test(item.url)).slice(0, 8);
+      const tasks = candidates.map(async candidate => {
+        try {
+          const page = safeUrl(candidate.url!);
+          const host = page.hostname.replace(/^www\./, '');
+          const videoId = host === 'youtu.be' ? page.pathname.slice(1).split('/')[0] :
+            (host === 'youtube.com' || host === 'm.youtube.com') && page.pathname === '/watch' ? page.searchParams.get('v') : null;
+          const url = videoId && /^[\w-]{11}$/.test(videoId) ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : page.href;
+          const image = await resolveUrl(url);
+          return { entry: image.entry, source: { title: candidate.title ?? '', url: page.href } };
+        } catch { return null; }
+      });
+      for (const task of tasks) {
+        const image = await task;
+        if (image) { searches.set(text, image); return image; }
+      }
+      signal.throwIfAborted();
+      throw new MediaError('MEDIA_NOT_FOUND');
     }
-    async function convert(url: string): Promise<MediaEntry> {
+    function resolveUrl(url: string): Promise<ResolvedImage> {
+      let task = pending.get(url);
+      if (!task) { task = bounded(convert(url), signal); pending.set(url, task); }
+      return task;
+    }
+    async function convert(url: string): Promise<ResolvedImage> {
       const cached = images.get(url); if (cached) return cached;
       let result = await get(url, MAX_BYTES);
+      const source: SearchSource = { title: '', url: result.url };
       if (!imageMagic(result.body)) {
         if (!/text\/html/i.test(result.contentType) && !/^\s*(?:<!doctype\s+html|<html|<head|<meta)/i.test(result.body.toString('utf8', 0, 512))) throw new MediaError('MEDIA_UNSUPPORTED');
         if (result.body.length > 1024 * 1024) throw new MediaError('MEDIA_TOO_LARGE');
-        const source = htmlImage(result.body.toString());
-        if (!source) throw new MediaError('MEDIA_NO_IMAGE');
-        result = await get(safeUrl(source, result.url).href, MAX_BYTES);
+        const html = result.body.toString();
+        source.title = (/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/gi, '&');
+        const imageLink = htmlImage(html);
+        if (!imageLink) throw new MediaError('MEDIA_NO_IMAGE');
+        result = await get(safeUrl(imageLink, result.url).href, MAX_BYTES);
         if (!imageMagic(result.body)) throw new MediaError('MEDIA_UNSUPPORTED');
       }
       const image = sharp(result.body, { limitInputPixels: 40_000_000, animated: false });
@@ -196,15 +282,19 @@ export function createMediaResolver(dependencies: { checkHost?: HostChecker; dow
       const output = await image.rotate().resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer({ resolveWithObject: true });
       signal.throwIfAborted();
       const entry: MediaEntry = { id: `web:${createHash('sha256').update(output.data).digest('hex').slice(0, 32)}`, mime: 'image/jpeg', width: output.info.width, height: output.info.height, data: output.data.toString('base64') };
-      images.set(url, entry); return entry;
+      const resolved = { entry, source };
+      images.set(url, resolved); return resolved;
     }
     const results = await Promise.all([...sources.values()].map(async source => {
       try {
-        const url = source.kind === 'search' ? await search(source.value) : source.value;
-        let task = pending.get(url);
-        if (!task) { task = bounded(convert(url), signal); pending.set(url, task); }
-        const entry = await task;
-        for (const target of source.targets) { delete target.imageSearch; delete target.imageUrl; target.imageRef = entry.id; }
+        const image = source.kind === 'search' ? await search(source.value) : await resolveUrl(source.value);
+        const { entry } = image;
+        for (const target of source.targets) {
+          delete target.imageSearch; delete target.imageUrl; target.imageRef = entry.id;
+          const domain = new URL(image.source.url).hostname.replace(/^www\./, '');
+          const title = (image.source.title || String(target.title ?? domain)).replace(/\s+/g, ' ').trim().slice(0, 80);
+          target.source = `${domain} · ${title}`; target.sourceUrl = image.source.url;
+        }
         return { entry };
       } catch (error) {
         const code = signal.aborted || error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name) ? 'MEDIA_TIMEOUT' : error instanceof MediaError ? error.code : 'MEDIA_UNSUPPORTED';
