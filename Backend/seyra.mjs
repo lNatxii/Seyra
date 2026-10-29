@@ -1,10 +1,11 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, chmodSync } from 'node:fs';
 import { resolve, join, dirname, delimiter } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { homedir } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
 import { createRequire } from 'node:module';
 import { createHash, randomBytes, randomUUID, webcrypto, X509Certificate } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import tls from 'node:tls';
 
@@ -120,15 +121,114 @@ function pushPairing(root, values) {
   console.log(`Paired file pushed to ${serial}; local copy deleted.`);
 }
 
+function portNumber(value) {
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535) fail('Port must be an integer from 1 to 65535.');
+  return String(Number(value));
+}
+
+function launch(command, args, options) {
+  const child = spawn(command, args, { stdio: 'inherit', windowsHide: true, ...options });
+  child.completion = new Promise(resolve => {
+    child.once('error', () => resolve(1));
+    child.once('exit', (code, signal) => resolve(code ?? (signal === 'SIGINT' ? 130 : 1)));
+  });
+  return child;
+}
+
+async function stopChild(child, tree = false) {
+  if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+  if (windows && tree) {
+    // Terminate the shell, OpenCode and its stdio MCP descendants together.
+    try { execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }); } catch { /* Already stopped. */ }
+  } else if (!windows && tree) {
+    try { process.kill(-child.pid, 'SIGTERM'); } catch { /* Already stopped. */ }
+  } else child.kill();
+  if (await Promise.race([child.completion.then(() => true), delay(2000).then(() => false)])) return;
+  if (windows) {
+    try { execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }); } catch { /* Already stopped. */ }
+  } else {
+    try { tree ? process.kill(-child.pid, 'SIGKILL') : child.kill('SIGKILL'); } catch { /* Already stopped. */ }
+  }
+  await child.completion;
+}
+
+async function start(root, values) {
+  const envPath = join(root, '.env.local');
+  if (!existsSync(envPath)) fail('Backend/.env.local is missing. See README.md to create the file.');
+  const local = parseEnvironment(readFileSync(envPath, 'utf8'));
+  const env = { ...process.env, ...local };
+  if (!env.META_API_KEY?.trim() && env.MODEL_API_KEY?.trim()) env.META_API_KEY = env.MODEL_API_KEY;
+  if (!env.META_API_KEY?.trim() || env.META_API_KEY === 'TU_CLAVE') fail('Add META_API_KEY (Meta Model API key from dev.meta.ai) to Backend/.env.local');
+  if (!env.HELMCODE_API_KEY?.trim() || env.HELMCODE_API_KEY === 'TU_CLAVE') console.warn('seyra_glm will not work without HELMCODE_API_KEY');
+  if (!local.OPENCODE_SERVER_PASSWORD?.trim()) fail('OPENCODE_SERVER_PASSWORD is missing from Backend/.env.local. Add your own HTTP password; it is separate from provider API keys. OpenCode was not started.');
+  env.OPENCODE_PASSWORD = local.OPENCODE_SERVER_PASSWORD;
+  if (!findExecutable('opencode2')) fail('opencode2 was not found in PATH. Install the OpenCode v2 CLI before continuing.');
+  if (!existsSync(join(backend, 'bridge/node_modules'))) fail('Bridge dependencies are missing. Run npm ci --prefix Backend/bridge from the repository root.');
+  const port = portNumber(values.port);
+  const gatewayPort = portNumber(values['gateway-port']);
+  if (values.gateway && values['no-gateway']) fail('Use either --gateway or --no-gateway.');
+  const build = launch('npm', ['run', 'build'], { cwd: join(backend, 'bridge'), shell: windows, env });
+  if (await build.completion !== 0) fail('Could not build the bridge. OpenCode was not started.');
+  env.SEYRA_BACKEND_DIR = backend.replace(/\\/g, '/');
+  env.SEYRA_OPENCODE_DATA_DIR = join(homedir(), '.local/share/opencode').replace(/\\/g, '/');
+  // Explicit config keeps an alternate root isolated from local repository secrets.
+  env.OPENCODE_CONFIG = join(backend, 'opencode.json');
+  const directory = join(root, '.seyra/tls');
+  const hasCertificate = existsSync(join(directory, 'gateway.pfx')) || existsSync(join(directory, 'gateway.cert.pem')) && existsSync(join(directory, 'gateway.key.pem'));
+  const useGateway = values.gateway || !values['no-gateway'] && hasCertificate;
+  delete env.SEYRA_BRIDGE_INTERNAL_TOKEN;
+  let gateway;
+  let openCode;
+  let stopping;
+  let requestedSignal;
+  const stop = () => stopping ??= (async () => { await stopChild(openCode, true); await stopChild(gateway); })();
+  const interrupt = signal => { requestedSignal = signal; void stop(); };
+  const onInterrupt = () => interrupt('SIGINT');
+  const onTerminate = () => interrupt('SIGTERM');
+  process.on('SIGINT', onInterrupt); process.on('SIGTERM', onTerminate);
+  try {
+    if (useGateway) {
+      if (!hasCertificate) fail('Gateway TLS is missing. Run init-tls first.');
+      const fingerprint = await certificateFingerprint(loadTls(root));
+      if (requestedSignal) return 130;
+      env.SEYRA_BRIDGE_INTERNAL_TOKEN = randomBytes(32).toString('base64url');
+      Object.assign(env, { SEYRA_GATEWAY_HOST: values['gateway-host'], SEYRA_GATEWAY_PORT: gatewayPort, SEYRA_OPENCODE_PORT: port, SEYRA_DATA_ROOT: join(root, '.seyra') });
+      gateway = launch(process.execPath, [join(backend, 'bridge/dist/gateway.js')], { cwd: root, env });
+      const earlyExit = await Promise.race([gateway.completion.then(() => true), delay(500).then(() => false)]);
+      if (earlyExit) fail('Gateway failed to start.');
+      if (requestedSignal) return 130;
+      console.log(`Gateway: https://${values['gateway-host']}:${gatewayPort}`);
+      for (const addresses of Object.values(networkInterfaces())) for (const address of addresses ?? []) {
+        if (address.family === 'IPv4' && !address.internal && !address.address.startsWith('169.254.')) console.log(`LAN candidate: https://${address.address}:${gatewayPort}`);
+      }
+      console.log(`Certificate SHA-256: ${fingerprint}`);
+    }
+    if (requestedSignal) return 130;
+    // Arguments are fixed strings and validated numeric ports. No user text enters a shell.
+    openCode = launch('opencode2', ['serve', '--hostname', '127.0.0.1', '--port', port, '--print-logs'], { cwd: root, env, shell: windows, detached: !windows });
+    const result = await Promise.race([
+      openCode.completion,
+      ...(gateway ? [gateway.completion.then(() => { if (!requestedSignal) console.error('Gateway stopped unexpectedly.'); return 1; })] : []),
+    ]);
+    return requestedSignal ? requestedSignal === 'SIGINT' ? 130 : 143 : result;
+  } finally {
+    await stop();
+    process.off('SIGINT', onInterrupt); process.off('SIGTERM', onTerminate);
+  }
+}
+
 export async function main(args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
     root: { type: 'string', default: backend }, name: { type: 'string' }, url: { type: 'string' },
     force: { type: 'boolean' }, package: { type: 'string' }, serial: { type: 'string' },
+    port: { type: 'string', default: '4096' }, gateway: { type: 'boolean' }, 'no-gateway': { type: 'boolean' },
+    'gateway-host': { type: 'string', default: '0.0.0.0' }, 'gateway-port': { type: 'string', default: '8443' },
   } });
   const [command] = positionals;
   if (positionals.length !== 1) fail('Usage: node Backend/seyra.mjs <start|init-tls|pair|list|revoke|push> [options]');
   const root = resolve(values.root);
   const data = join(root, '.seyra');
+  if (command === 'start') { process.exitCode = await start(root, values); return; }
   if (command === 'init-tls') {
     const directory = join(data, 'tls');
     if (!values.force && ['gateway.cert.pem', 'gateway.key.pem', 'gateway.pfx'].some(file => existsSync(join(directory, file)))) fail('TLS already exists. Use --force explicitly to rotate it, then pair devices again.');
