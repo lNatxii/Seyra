@@ -58,6 +58,18 @@ public static class PanelChecks
             Require(JToken.DeepEquals(updatedData, updated["panel"]), "Full panel replacement lost data.");
             Require(JToken.DeepEquals(created["transform"], updated["transform"]), "Content editing changed pose.");
             Undo(updated); Require(JToken.DeepEquals(original, Get(id)["panel"]), "Undo did not restore panel content.");
+            var longText = Data(text: string.Join("\n", Enumerable.Range(1, 40).Select(line => "Scroll indicator line " + line)));
+            var longUpdate = Ok("update_panel", new JObject { ["entityId"] = id, ["panel"] = longText });
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(panel.Surface); Canvas.ForceUpdateCanvases();
+            var panelScroll = panel.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true);
+            var indicator = panelScroll.GetComponent<UIScrollIndicator>();
+            var track = panelScroll.viewport.Find("ScrollIndicatorTrack");
+            Require(indicator != null && track != null && track.gameObject.activeSelf, "Long panel text must show a scroll indicator track.");
+            Undo(longUpdate);
+            var shortUpdate = Ok("update_panel", new JObject { ["entityId"] = id, ["panel"] = Data(text: "One line.") });
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(panel.Surface); Canvas.ForceUpdateCanvases();
+            Require(panelScroll.GetComponent<UIScrollIndicator>() != null && !track.gameObject.activeSelf, "Single-line panel text must hide the scroll indicator.");
+            Undo(shortUpdate);
             var label = Ok("create_panel", CreateArgs("ManagedLabel", Data("label"))); var labelId = (string)label["entityId"];
             Require(Owned(labelId).GetComponent<ManagedPanel>().Window == null, "A label created a window.");
             var primitive = Ok("create_primitive", new JObject { ["name"] = "Reference", ["parentId"] = "Generated", ["primitiveType"] = "cube",

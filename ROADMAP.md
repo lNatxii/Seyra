@@ -40,7 +40,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
 | 5 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 6 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 7 | 30. Indicador de scroll | 60 | Esfuerzo bajo; deja claro que el texto continúa en tarjetas y chat. |
+| 7 | 30. Indicador de scroll | 60 | Completed · Pendiente de revisión. Indicador por eventos en paneles, presentaciones y chat; PanelChecks 229 aprobadas. Prueba Quest pendiente. |
 | 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
 | 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
 | 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
@@ -319,7 +319,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 30. Indicador de scroll en paneles, tarjetas y chat
 
-**Estado:** In progress · diseño listo. Prioridad media (puntuación 60). [Diseño](Progress/InProgress/30-scroll-indicator.md).
+**Estado:** Completed · Pendiente de revisión (2026-10-29). UIScrollIndicator con pista, pulgar y degradado en paneles, presentaciones y conversación/permisos del chat, sin modificar prefabs ni escenas. Compilación con 0 errores; PanelChecks 229 comprobaciones aprobadas. Prueba física en Quest pendiente. [Implementación y validación](Progress/Completed/30-scroll-indicator.md).
 
 **Entrega:** barra fina con el pulgar y degradado con flecha cuando hay más texto abajo, en paneles de texto, presentaciones (incluida `mediaCard`) y chat espacial. Solo visual, añadido en tiempo de ejecución sin regenerar prefabs.
 

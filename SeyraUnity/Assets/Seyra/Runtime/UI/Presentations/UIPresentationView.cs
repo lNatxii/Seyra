@@ -45,6 +45,7 @@ namespace Seyra.UI.Presentations
         {
             if (Data != null || data.Type != kind) throw new InvalidOperationException("Incompatible or already populated presentation adapter.");
             Data = data; media = resolver; factory.Configure(components, (RectTransform)transform);
+            UIScrollIndicator.Ensure(scroll, components.DefaultTheme);
             panel.Title = data.title; panel.Description = "";
             panel.Actions.gameObject.SetActive(true);
             panel.Actions.GetComponent<UIAdaptiveRow>().Configure(components.DefaultTheme);

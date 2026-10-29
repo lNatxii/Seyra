@@ -154,7 +154,11 @@ namespace Seyra.UI.Library
             }).View<UIFoldout>();
         }
         public UnityEngine.UI.ScrollRect InstantiateScrollView(RectTransform parent = null, UIElementOptions options = null)
-            => Instantiate(UITemplateIds.ScrollView, parent, options).View<UnityEngine.UI.ScrollRect>();
+        {
+            var scroll = Instantiate(UITemplateIds.ScrollView, parent, options).View<UnityEngine.UI.ScrollRect>();
+            UIScrollIndicator.Ensure(scroll, catalog.DefaultTheme);
+            return scroll;
+        }
         public UIListItemView InstantiateListItem(RectTransform parent = null, UIListItemOptions options = null, UnityAction onAction = null)
         {
             options = options ?? new UIListItemOptions();

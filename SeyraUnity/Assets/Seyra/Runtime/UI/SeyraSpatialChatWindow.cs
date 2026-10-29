@@ -177,6 +177,8 @@ namespace Seyra.UI
 
         void Awake()
         {
+            UIScrollIndicator.Ensure(conversationScroll, presentationTheme);
+            UIScrollIndicator.Ensure(permissionScroll, presentationTheme);
             if (reconnectButton != null) reconnectButton.onClick.AddListener(OnReconnectClicked);
             if (closeWindowButton != null) closeWindowButton.onClick.AddListener(OnCloseWindowClicked);
             if (sendButton != null) sendButton.onClick.AddListener(OnSendClicked);
