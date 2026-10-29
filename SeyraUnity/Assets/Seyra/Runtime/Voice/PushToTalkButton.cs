@@ -67,6 +67,7 @@ namespace Seyra.Voice
             dictation.Changed += Refresh;
             dictation.Final += OnFinalTranscription;
             dictation.Failed += OnDictationFailed;
+            dictation.Ended += OnDictationEnded;
             dictation.Partial += OnPartialTranscription;
         }
 
@@ -76,6 +77,7 @@ namespace Seyra.Voice
             dictation.Changed -= Refresh;
             dictation.Final -= OnFinalTranscription;
             dictation.Failed -= OnDictationFailed;
+            dictation.Ended -= OnDictationEnded;
             dictation.Partial -= OnPartialTranscription;
         }
 
@@ -160,6 +162,8 @@ namespace Seyra.Voice
             chat?.SetVoiceHint(notice);
             Refresh();
         }
+
+        void OnDictationEnded() => chat?.CancelDictationPreview();
 
         void Update()
         {

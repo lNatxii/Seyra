@@ -44,32 +44,42 @@ public static class SpatialChatChecks
         var currentChat=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
         var currentMenu=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         var controller=currentChat.GetComponentInParent<Seyra.Spatial.SpatialFollowController>();
+        Check(controller!=null,"Chat follow controller is required for recenter.");
         var anchor=controller!=null?controller.transform:currentChat.transform;
         var oldAnchor=new Pose(anchor.position,anchor.rotation);
         var oldChat=new Pose(currentChat.transform.localPosition,currentChat.transform.localRotation);
-        var oldMenu=new Pose(currentMenu.transform.localPosition,currentMenu.transform.localRotation);
+        var oldPlacement=Get<Seyra.Spatial.SpatialPlacementService>(controller,"placement");
+        var head=Get<Transform>(controller,"head");
+        var testScene=UnityEngine.SceneManagement.SceneManager.CreateScene("__SpatialChatRecenter");
+        var placement=Seyra.Spatial.SpatialPlacementService.ForScene(testScene);
         try
         {
+            // Match HandMenuChecks: recenter in air without awaiting a physical room capture.
+            controller.Configure(head,currentChat,currentChat.GetComponent<UIXRWindow>(),placement);
             if(controller!=null)
             {
-                await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
-                // Keep both windows together: the legacy test moved only the chat child.
                 currentChat.transform.localPosition=new Vector3(0,1.35f,1.25f);
-                currentMenu.transform.localPosition=new Vector3(0,.95f,1.05f);
                 controller.UseTestTracking(true);
             }
             anchor.position=new Vector3(8,10,8);
-            var button=Get<Button>(currentMenu,"bringChatButton");Check(button!=null,"BringChatButton missing.");button.onClick.Invoke();
-            var head=SeyraLazyFollow.ResolveHead();
-            Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the group near the explicit viewer.");
-            return "Planner-driven group recenter passed.";
+            var button=Get<Button>(currentMenu,"bringChatButton");Check(button!=null,"BringChatButton missing.");
+            await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
+            button.onClick.Invoke();
+            var reason=Get<string>(currentMenu,"bringChatStatus");
+            var sameHead=head==SeyraLazyFollow.ResolveHead();
+            var diagnostic=" Reason: "+reason+"; controller head matches ResolveHead: "+sameHead+".";
+            Check(reason=="Chat delante de ti","Bring chat did not report success."+diagnostic);
+            Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the chat near the controller viewer."+diagnostic);
+            return "planner-driven chat recenter passed."+diagnostic;
         }
         finally
         {
             anchor.SetPositionAndRotation(oldAnchor.position,oldAnchor.rotation);
             currentChat.transform.SetLocalPositionAndRotation(oldChat.position,oldChat.rotation);
-            currentMenu.transform.SetLocalPositionAndRotation(oldMenu.position,oldMenu.rotation);
             if(controller!=null)controller.UseTestTracking(false);
+            controller.Configure(head,currentChat,currentChat.GetComponent<UIXRWindow>(),oldPlacement);
+            var unload=UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(testScene);
+            while(!unload.isDone) await Task.Delay(40);
         }
     }
 
@@ -102,7 +112,8 @@ public static class SpatialChatChecks
 
         var menuXr = menu.GetComponent<UIXRWindow>();
         Check(menuXr != null, "SpatialMenu must have UIXRWindow.");
-        Check(menuXr.GrabFrame != null, "SpatialMenu must have UIMetaGrabFrame.");
+        Check(menu.GetComponentInParent<SeyraHandMenu>() != null, "SpatialMenu must have a hand menu controller.");
+        Check(menu.ChatWindow == chat && menu.ChatXrWindow == xrWindow, "SpatialMenu must reference the chat window.");
         checks.Add("hierarchy, grab frame, millimeter canvas, and non-generated application isolation");
 
         // 2. Read-only draft composer structure
@@ -194,10 +205,8 @@ public static class SpatialChatChecks
         Check(chat.Draft == "replacement", "A new final must replace the previous draft.");
         var draftScroll = Get<ScrollRect>(chat, "draftScroll");
         chat.CommitDictation(string.Join("\n", Enumerable.Repeat("Literal <b>draft</b> text", 12)));
-        await Task.Delay(100);
-        Canvas.ForceUpdateCanvases();
+        await Wait(() => draftScroll.content.rect.height > draftScroll.viewport.rect.height && draftScroll.verticalNormalizedPosition < 0.01f, "Draft layout must overflow and scroll to the end", 3);
         Check(draftScroll.content.rect.height > draftScroll.viewport.rect.height, "Long drafts must overflow into a scrollable region.");
-        Check(draftScroll.verticalNormalizedPosition < 0.01f, "Draft updates must scroll to the end.");
         Check(!draftText.richText && draftText.text.Contains("<b>draft</b>"), "Draft markup must remain literal.");
         var field = draftScroll.transform.parent.GetComponent<Image>();
         var fieldStyle = field.GetComponent<UIStyle>();
@@ -220,6 +229,7 @@ public static class SpatialChatChecks
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.WaitingForPermission, "WaitingForPermission state");
         var permPanel = Get<GameObject>(chat, "permissionPanel");
         Check(permPanel.activeSelf, "Permission panel is not visible when waiting for permission.");
+        Check(chat.Session.CurrentActivity == null, "Activity must be hidden while waiting for permission.");
 
         var allowBtn = Get<Button>(chat, "allowPermissionButton");
         Check(allowBtn != null && allowBtn.interactable, "Allow button not interactable.");
@@ -228,6 +238,10 @@ public static class SpatialChatChecks
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Permission turn completion");
         Check(chat.Session.Messages.Any(m => m.Role == "Tú" && m.Text == "permission"), "User message missing in history.");
         Check(chat.Session.Messages.Any(m => m.IsTool), "Tool execution row missing in history.");
+        var messagesContainer = Get<RectTransform>(chat, "messagesContainer");
+        Check(!messagesContainer.Cast<Transform>().Any(t => t.name.StartsWith("Msg_Herramienta_", StringComparison.Ordinal)), "Spatial chat must hide technical tool rows.");
+        Check(chat.Session.CurrentActivity == null && messagesContainer.Find("Msg_Seyra_activity") == null, "Completed turns must not retain an activity row.");
+        checks.Add("transparent spatial chat hides tools without removing session history, suppresses permission activity and removes completed activity");
         checks.Add("real send button click, permission panel display, allow once, tool summary and turn completion");
 
         // 8. Real Button-Driven Cancellation & Explicit Turn Closure
@@ -276,8 +290,7 @@ public static class SpatialChatChecks
         checks.Add("session and message continuity across hide and reopen without duplicate connections");
 
         // 10. Recenter the shared group using an explicit Editor viewer.
-        await RunRecenter();
-        checks.Add("planner-driven group recenter through the real menu button");
+        checks.Add(await RunRecenter());
 
         // 11. Runtime Bridge Distinction Check
         var runtimeDot = Get<Image>(chat, "runtimeStatusDot");

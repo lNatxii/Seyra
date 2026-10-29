@@ -53,6 +53,7 @@ namespace Seyra.UI
         [SerializeField] GameObject messageRowPrefab;
         [SerializeField] SeyraUITheme presentationTheme;
         [SerializeField] Material messageSurfaceMaterial;
+        [SerializeField] bool showTechnicalDetail = false;
 
         [Header("Composer & Controls")]
         [SerializeField] TMP_Text draftText;
@@ -235,6 +236,7 @@ namespace Seyra.UI
             session.ConnectionChanged += OnConnectionChanged;
             session.StateChanged += OnStateChanged;
             session.MessageUpserted += OnMessageUpserted;
+            session.ActivityChanged += OnActivityChanged;
             session.PermissionChanged += OnPermissionChanged;
             session.PermissionStatusChanged += OnPermissionStatusChanged;
             session.ControlsRefreshRequested += RefreshControls;
@@ -246,6 +248,7 @@ namespace Seyra.UI
             session.ConnectionChanged -= OnConnectionChanged;
             session.StateChanged -= OnStateChanged;
             session.MessageUpserted -= OnMessageUpserted;
+            session.ActivityChanged -= OnActivityChanged;
             session.PermissionChanged -= OnPermissionChanged;
             session.PermissionStatusChanged -= OnPermissionStatusChanged;
             session.ControlsRefreshRequested -= RefreshControls;
@@ -285,6 +288,35 @@ namespace Seyra.UI
         void OnMessageUpserted(ChatMessageItem item)
         {
             RenderOrUpdateRow(item);
+            MoveActivityToEnd();
+            ScrollToBottom();
+        }
+
+        void RemoveRow(string key)
+        {
+            if (!renderedRows.TryGetValue(key, out var row)) return;
+            renderedRows.Remove(key);
+            if (row == null) return;
+            row.SetActive(false);
+            row.transform.SetParent(null, false);
+            Destroy(row);
+        }
+
+        void MoveActivityToEnd()
+        {
+            if (renderedRows.TryGetValue("activity", out var row) && row != null)
+                row.transform.SetAsLastSibling();
+        }
+
+        void OnActivityChanged(string text)
+        {
+            if (showTechnicalDetail || text == null)
+                RemoveRow("activity");
+            else
+            {
+                RenderOrUpdateRow(new ChatMessageItem { Key = "activity", Role = "Seyra", Text = text });
+                MoveActivityToEnd();
+            }
             ScrollToBottom();
         }
 
@@ -372,12 +404,18 @@ namespace Seyra.UI
                     RenderOrUpdateRow(item);
                 }
             }
+            OnActivityChanged(session?.CurrentActivity);
             ScrollToBottom();
         }
 
         void RenderOrUpdateRow(ChatMessageItem item)
         {
             if (messagesContainer == null || item == null) return;
+            if (!showTechnicalDetail && (item.IsTool || item.IsWorkStep))
+            {
+                RemoveRow(item.Key);
+                return;
+            }
 
             if (renderedRows.TryGetValue(item.Key, out var rowObject) && rowObject != null)
             {
@@ -480,6 +518,13 @@ namespace Seyra.UI
 
             if (roleText != null) roleText.text = item.Role;
             if (bodyText != null) bodyText.text = item.Text;
+            if (item.Key == "activity" && bodyText != null)
+            {
+                var style = bodyText.GetComponent<UIStyle>();
+                if (style == null) style = bodyText.gameObject.AddComponent<UIStyle>();
+                style.Configure(presentationTheme, UITextRole.Body, UIInkRole.Muted);
+                if (style.Theme == null) bodyText.color = new Color(.4f, .45f, .46f);
+            }
 
             LayoutRebuilder.MarkLayoutForRebuild((RectTransform)row.transform);
         }
