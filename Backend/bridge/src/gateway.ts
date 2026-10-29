@@ -5,6 +5,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
+import { createAsrRelay } from './asr.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 type Device = { id: string; tokenSha256: string; revoked: boolean };
@@ -35,6 +36,7 @@ async function body(request: IncomingMessage, maximum: number) {
 }
 export function createGateway(options: Options) {
   if (!options.password || !options.internalToken) throw new Error('Gateway credentials are missing.');
+  const relay = createAsrRelay({ apiKey: process.env.META_API_KEY, url: process.env.NODE_ENV === 'test' ? process.env.SEYRA_ASR_URL : undefined });
   let active: Session | undefined;
   const failures = new Map<string, { start: number; count: number; blockedUntil: number }>();
   function closeSession(session: Session) {
@@ -70,6 +72,7 @@ export function createGateway(options: Options) {
   async function handle(request: IncomingMessage, response: ServerResponse) {
     const device = await authenticate(request, response); if (!device) return;
     const url = new URL(request.url ?? '/', 'https://gateway');
+    if (await relay.handle(device, request, response, url)) return;
     const path = url.pathname;
     if (path === '/_seyra/bridge/hello' && request.method === 'POST') {
       await body(request, 1024);
@@ -143,7 +146,7 @@ export function createGateway(options: Options) {
     for (const [ip, record] of failures) if (Date.now() - Math.max(record.start + 60000, record.blockedUntil) > 0) failures.delete(ip);
   }, 2000);
   sweep.unref();
-  server.on('close', () => { clearInterval(sweep); if (active) closeSession(active); });
+  server.on('close', () => { relay.close(); clearInterval(sweep); if (active) closeSession(active); });
   return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

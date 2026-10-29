@@ -1,5 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Meta.WitAi.Configuration;
 using Meta.WitAi.Data.Configuration;
 using Meta.WitAi.Dictation;
@@ -7,14 +11,13 @@ using Meta.WitAi.Requests;
 using Oculus.Voice.Dictation;
 using Oculus.Voice.Dictation.Configuration;
 using Seyra.Configuration;
+using Seyra.Networking;
 using UnityEngine;
 
 namespace Seyra.Voice
 {
     /// <summary>
-    /// Voice dictation provider using Meta Voice SDK.
-    /// In Editor / Standalone: uses PC microphone and Wit.ai with SEYRA_CLIENT_TOKEN from .env.local.
-    /// On Android / Quest: uses native Meta platform dictation integration.
+    /// Gateway dictation uses Muse; the Editor can use Wit.ai in direct mode.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class VoiceDictation : MonoBehaviour
@@ -32,6 +35,24 @@ namespace Seyra.Voice
         Coroutine preparing;
         int generation;
         WitConfiguration runtimeConfiguration;
+        SeyraConnectionSettings settings;
+        bool useMuse, useWit;
+        MicrophonePcmCapture capture;
+        MuseOperation muse;
+        readonly ConcurrentQueue<Action> inbox = new ConcurrentQueue<Action>();
+#if UNITY_ANDROID && !UNITY_EDITOR
+        UnityEngine.Android.PermissionCallbacks microphonePermission;
+#endif
+
+        sealed class MuseOperation
+        {
+            public readonly CancellationTokenSource Lifetime = new CancellationTokenSource();
+            public readonly List<byte> Audio = new List<byte>();
+            public readonly object Gate = new object();
+            public MuseTranscriptionClient Client;
+            public volatile bool Stopping, Terminal;
+            public string Id;
+        }
 
         public event Action Changed;
         public event Action<string> Partial, Final, Failed;
@@ -45,16 +66,16 @@ namespace Seyra.Voice
 
         void Awake()
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            Provider = "Meta · dictado del visor";
-            if (Application.platform == RuntimePlatform.Android)
-            {
-                CreateService(null, true);
-            }
-#else
-            Provider = "Wit.ai · micrófono del PC";
-#endif
+            SelectProvider();
             Evaluate();
+        }
+
+        void SelectProvider()
+        {
+            settings = SeyraConnectionSettings.Load();
+            useMuse = settings.IsGateway && settings.CanConnect;
+            useWit = !useMuse && Application.isEditor;
+            Provider = useMuse ? "Muse Voice Transcribe · pasarela" : useWit ? "Wit.ai · micrófono del PC" : "Sin proveedor de voz";
         }
 
         void OnDisable() => Cancel();
@@ -72,17 +93,13 @@ namespace Seyra.Voice
         public void Evaluate()
         {
             if (Busy) return;
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-            var available = service != null && service.HasPlatformIntegrations;
-            SetStatus(available ? Idle : "El dictado de plataforma no está disponible en este dispositivo.", available);
-#else
+            if (useMuse) { SetStatus(Idle, true); return; }
+            if (!useWit) { SetStatus(ConnectionErrors.Describe(null, settings), false); return; }
             var configured = SeyraEnvironmentCredentials.HasWitToken;
             SetStatus(configured ? Idle : "Configura SEYRA_CLIENT_TOKEN en Backend/.env.local para usar dictado.", configured);
-#endif
         }
 
-        void CreateService(WitConfiguration configuration, bool platform)
+        void CreateService(WitConfiguration configuration)
         {
             ReleaseService();
             var host = new GameObject("DictationHost");
@@ -94,8 +111,8 @@ namespace Seyra.Voice
             {
                 witConfiguration = configuration,
                 maxRecordingTime = maximumSeconds,
-                minKeepAliveTimeInSeconds = platform ? 0.5f : maximumSeconds + 1f,
-                minTranscriptionKeepAliveTimeInSeconds = platform ? 0.5f : maximumSeconds + 1f,
+                minKeepAliveTimeInSeconds = maximumSeconds + 1f,
+                minTranscriptionKeepAliveTimeInSeconds = maximumSeconds + 1f,
                 transcribeOnly = true,
                 preferredActivationOffset = 0,
                 dictationConfiguration = new DictationConfiguration
@@ -105,8 +122,8 @@ namespace Seyra.Voice
                     inputType = "text_default"
                 }
             };
-            service.DoNotFallbackToWit = platform;
-            service.UsePlatformIntegrations = platform;
+            service.DoNotFallbackToWit = false;
+            service.UsePlatformIntegrations = false;
 
             int current = generation;
             service.DictationEvents.OnStartListening.AddListener(() => { if (current == generation) Started(); });
@@ -117,13 +134,6 @@ namespace Seyra.Voice
 
             host.SetActive(true);
 
-            if (platform)
-            {
-                service.UsePlatformIntegrations = true;
-                var fallback = host.GetComponent<WitDictation>();
-                if (fallback != null && service.HasPlatformIntegrations)
-                    Destroy(fallback);
-            }
         }
 
         void ReleaseService()
@@ -148,29 +158,190 @@ namespace Seyra.Voice
             finalReceived = false;
             finalText = "";
             Transcription = "";
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-            SetStatus(ListeningText, true);
-#else
-            SetStatus("Conectando con Wit.ai… Mantén pulsado", true);
-#endif
+            ++generation;
+            SetStatus(useMuse ? "Conectando…" : "Conectando con Wit.ai… Mantén pulsado", true);
             Changed?.Invoke();
 
             try
             {
-#if UNITY_ANDROID && !UNITY_EDITOR
-                ActivateRequest();
-#else
+                if (useMuse) { BeginMuse(); return; }
                 ReleaseService();
                 if (runtimeConfiguration != null) Destroy(runtimeConfiguration);
                 runtimeConfiguration = CreateRuntimeConfiguration(maximumSeconds);
                 preparing = StartCoroutine(PrepareEditorCapture());
-#endif
             }
             catch (Exception error)
             {
                 Errored("Activate", error.Message);
             }
+        }
+
+        void BeginMuse()
+        {
+            int current = generation;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone))
+            {
+                microphonePermission = new UnityEngine.Android.PermissionCallbacks();
+                microphonePermission.PermissionGranted += _ =>
+                {
+                    if (current == generation && accepting && listening) StartMuseCapture(current);
+                };
+                microphonePermission.PermissionDenied += _ =>
+                {
+                    if (current == generation) Errored("Micrófono", "Permiso de micrófono denegado. Actívalo en Ajustes → Privacidad.");
+                };
+                UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Microphone, microphonePermission);
+                return;
+            }
+#endif
+            StartMuseCapture(current);
+        }
+
+        void StartMuseCapture(int current)
+        {
+            try
+            {
+                capture = new MicrophonePcmCapture();
+                capture.Start();
+                muse = new MuseOperation { Client = new MuseTranscriptionClient(settings) };
+                limit = StartCoroutine(StopAtLimit());
+                _ = RunMuseAsync(muse, current);
+            }
+            catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+        }
+
+        void Update()
+        {
+            for (int i = 0; i < 64 && inbox.TryDequeue(out var action); i++) action();
+            if (capture == null || !accepting) return;
+            try { EnqueueAudio(capture.Poll()); }
+            catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+        }
+
+        void EnqueueAudio(byte[] pcm)
+        {
+            if (pcm.Length == 0 || muse == null) return;
+            lock (muse.Gate)
+            {
+                if (muse.Audio.Count + pcm.Length > 96000) throw new ConnectionException("ASR_BACKLOG");
+                muse.Audio.AddRange(pcm);
+            }
+        }
+
+        void DispatchMuse(int current, Action action)
+        {
+            inbox.Enqueue(() => { if (current == generation && accepting) action(); });
+        }
+
+        async Task RunMuseAsync(MuseOperation operation, int current)
+        {
+            Task sending = null, polling = null;
+            bool completed = false;
+            try
+            {
+                operation.Id = await operation.Client.StartAsync(operation.Lifetime.Token).ConfigureAwait(false);
+                operation.Lifetime.Token.ThrowIfCancellationRequested();
+                DispatchMuse(current, Started);
+                sending = SendMuseAsync(operation);
+                polling = PollMuseAsync(operation, current);
+                // Observe the first failure immediately, then cancel the other loop in finally.
+                await await Task.WhenAny(sending, polling).ConfigureAwait(false);
+                await Task.WhenAll(sending, polling).ConfigureAwait(false);
+                completed = true;
+            }
+            catch (Exception error)
+            {
+                if (!operation.Lifetime.IsCancellationRequested)
+                    DispatchMuse(current, () => Errored("Muse", DescribeMuseError(error)));
+            }
+            finally
+            {
+                operation.Terminal = true;
+                operation.Lifetime.Cancel();
+                if (sending != null && polling != null)
+                    try { await Task.WhenAll(sending, polling).ConfigureAwait(false); } catch (Exception) { }
+                if (!completed && operation.Id != null)
+                {
+                    using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+                        try { await operation.Client.CancelAsync(operation.Id, timeout.Token).ConfigureAwait(false); } catch (Exception) { }
+                }
+                operation.Client.Dispose();
+                operation.Lifetime.Dispose();
+                lock (operation.Gate) operation.Audio.Clear();
+            }
+        }
+
+        async Task SendMuseAsync(MuseOperation operation)
+        {
+            var token = operation.Lifetime.Token;
+            while (!operation.Terminal)
+            {
+                token.ThrowIfCancellationRequested();
+                byte[] audio;
+                bool stopping;
+                lock (operation.Gate)
+                {
+                    int count = Math.Min(65536, operation.Audio.Count);
+                    audio = operation.Audio.GetRange(0, count).ToArray();
+                    operation.Audio.RemoveRange(0, count);
+                    stopping = operation.Stopping;
+                }
+                if (audio.Length > 0)
+                    await operation.Client.SendAudioAsync(operation.Id, audio, token).ConfigureAwait(false);
+                else if (stopping)
+                {
+                    await operation.Client.StopAsync(operation.Id, token).ConfigureAwait(false);
+                    return;
+                }
+                await Task.Delay(100, token).ConfigureAwait(false);
+            }
+        }
+
+        async Task PollMuseAsync(MuseOperation operation, int current)
+        {
+            int version = -1;
+            while (!operation.Terminal)
+            {
+                var state = await operation.Client.PollAsync(operation.Id, version, operation.Lifetime.Token).ConfigureAwait(false);
+                if (state.Error != null) throw new ConnectionException(MuseTranscriptionClient.IsAsrCode(state.Error) ? state.Error : "ASR_UPSTREAM");
+                if (state.Done)
+                {
+                    operation.Terminal = true;
+                    DispatchMuse(current, () => Completed(state.Final));
+                    return;
+                }
+                if (state.Version > version && !string.IsNullOrEmpty(state.Partial))
+                    DispatchMuse(current, () => Partially(state.Partial));
+                version = state.Version;
+            }
+        }
+
+        void ReleaseMuse()
+        {
+            capture?.Dispose(); capture = null;
+            var operation = muse; muse = null;
+            if (operation == null) return;
+            try { operation.Lifetime.Cancel(); } catch (ObjectDisposedException) { }
+            lock (operation.Gate) operation.Audio.Clear();
+        }
+
+        string DescribeMuseError(Exception error)
+        {
+            var code = (error as ConnectionException)?.Code ?? error.Message;
+            switch (code)
+            {
+                case "ASR_NOT_CONFIGURED": return "El backend no tiene META_API_KEY";
+                case "ASR_UPSTREAM": return "Muse Voice Transcribe no respondió. Vuelve a intentarlo";
+                case "ASR_RATE_LIMITED": return "Límite de transcripciones alcanzado. Espera un momento";
+                case "ASR_TIMEOUT": return "La transcripción tardó demasiado";
+                case "ASR_IDLE": case "ASR_BACKLOG": return "Se cortó el audio. Vuelve a dictar";
+                case "MIC_NOT_STARTED": return "No se pudo iniciar el micrófono. Revisa los permisos de micrófono.";
+                case "MIC_READ_FAILED": case "MIC_BUFFER_OVERRUN": return "Se cortó el audio del micrófono. Vuelve a dictar";
+            }
+            if (error is OpenCodeHttpException httpError && httpError.StatusCode == 410)
+                return "La sesión de voz caducó. Vuelve a dictar";
+            return ConnectionErrors.Describe(error, settings);
         }
 
         WitConfiguration CreateRuntimeConfiguration(float maxSec)
@@ -221,6 +392,21 @@ namespace Seyra.Voice
             finishing = true;
             StopLimitTimer();
 
+            if (useMuse)
+            {
+                if (finalReceived) { PublishFinal(); return; }
+                try
+                {
+                    if (capture != null) { EnqueueAudio(capture.Stop()); capture = null; }
+                    if (muse != null) muse.Stopping = true;
+                    else { Cancel(); return; } // Permission was still pending; no session exists.
+                    SetStatus(Processing, Available);
+                    if (accepting && pending == null) pending = StartCoroutine(ResetIfSilent(15f));
+                }
+                catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+                return;
+            }
+
             if (preparing != null)
             {
                 Errored("Audio", "La grabación todavía se estaba preparando. Mantén pulsado hasta que aparezca Escuchando.");
@@ -250,6 +436,8 @@ namespace Seyra.Voice
 
         public void Cancel()
         {
+            ++generation;
+            ReleaseMuse();
             accepting = listening = finishing = false;
             finalReceived = false;
             StopTimers();
@@ -295,6 +483,7 @@ namespace Seyra.Voice
         void Completed(string transcription)
         {
             if (!accepting || finalReceived) return;
+            if (useMuse) ReleaseMuse();
             finalReceived = true;
             finalText = transcription?.Trim() ?? "";
             Transcription = finalText;
@@ -307,6 +496,7 @@ namespace Seyra.Voice
 
         void PublishFinal()
         {
+            ReleaseMuse();
             accepting = listening = finishing = false;
             StopTimers();
             SetStatus(finalText.Length > 0 ? Idle : "No se ha reconocido voz. Mantén pulsado y vuelve a hablar.", Available);
@@ -318,6 +508,8 @@ namespace Seyra.Voice
         void Errored(string type, string message)
         {
             if (!accepting) return;
+            ++generation;
+            ReleaseMuse();
             accepting = listening = finishing = false;
             finalReceived = false;
             StopTimers();
@@ -418,7 +610,7 @@ namespace Seyra.Voice
             try
             {
                 ConfigureEditorMicrophone();
-                CreateService(runtimeConfiguration, false);
+                CreateService(runtimeConfiguration);
                 ActivateRequest();
             }
             catch (Exception error)
@@ -454,7 +646,7 @@ namespace Seyra.Voice
         {
             Cancel();
             ReleaseService();
-            Provider = "Wit.ai · micrófono del PC";
+            SelectProvider();
             Evaluate();
             Changed?.Invoke();
         }
