@@ -1,32 +1,51 @@
 # Seyra — Roadmap de desarrollo
 
-Propuesta de referencia · 27 de octubre de 2026.
+Propuesta de referencia · 27 de octubre de 2026 · Revisada el 29 de octubre de 2026.
 
 ## Objetivo y criterio de prioridad
 
 Seyra debe permitir conversar en realidad mixta, crear y modificar contenido espacial con herramientas verificables y utilizar imágenes del entorno para ofrecer explicaciones y anotaciones útiles.
 
-El orden numérico es el orden recomendado de desarrollo. P0 entrega un asistente espacial funcional; P1 incorpora comprensión del entorno físico; P2 mejora la experiencia multimodal. Las dependencias indicadas son condiciones de entrada. No se considera terminada una feature solo porque compile: debe cumplir sus criterios de aceptación en el flujo real.
+El número de cada feature es su identificador, no su orden. El orden de trabajo vigente está en "Orden recomendado". P0 entrega un asistente espacial funcional; P1 incorpora comprensión del entorno físico; P2 mejora la experiencia multimodal. Las dependencias indicadas son condiciones de entrada. No se considera terminada una feature solo porque compile: debe cumplir sus criterios de aceptación en el flujo real.
 
 Se desarrolla en `Seyra/`.
 
 Este documento fija prioridad, orden, dependencias y criterios de aceptación. El diseño detallado de cada feature, su estado de implementación, limitaciones y validación están en [Progress/](Progress/README.md): un archivo por feature que se mueve entre `Future/`, `InProgress/` y `Completed/`. La línea **Estado** de cada sección enlaza a ese archivo.
 
-## Punto de partida
+## Estado actual (29 de octubre de 2026)
 
-Estas capacidades ya están implementadas y deben reutilizarse. Su existencia no implica que todo el recorrido esté validado por el usuario ni en un visor:
+Capacidades implementadas que deben reutilizarse. La mayoría están validadas en el Editor; la validación física en Quest sigue pendiente en casi todas (07).
 
-| Área | Estado actual | Trabajo pendiente |
+| Área | Implementado | Pendiente |
 | --- | --- | --- |
-| XR | Escena con passthrough y rig de interacción completo. | Validación de la experiencia y conectividad en dispositivo. |
-| Chat | Cliente básico de OpenCode, conexión, mensajes y panel para aceptar/rechazar permisos. | Validación con el servidor real, presentación de actividad y recuperación de sesión. |
-| Tools | MCP, schemas, validación, bridge y confirmación desde Unity. | Ampliar capacidades usando el mismo circuito. |
-| Escena | Jerarquía paginada, búsquedas, IDs, componentes y Transform. | Contexto compacto y selección desde la UI. |
-| Contenido | Contenedores, primitivas, renombrado, reparenting, eliminación recuperable y deshacer. | Colores, colocación relativa, paneles espaciales e interacción manual. |
-| Persistencia | Slots explícitos con IDs de objetos, jerarquía, primitivas y Transform. | Nuevos tipos de contenido y controles accesibles al usuario. |
-| Modelos | Perfiles GLM y DeepSeek mediante OpenCode. | Integración y validación de Muse Spark. |
+| Conexión | Pasarela HTTPS con emparejamiento por dispositivo, CLI multiplataforma (`seyra.mjs`) y logs reducidos a `warn`. | Revisión de 07 y 08; pruebas físicas en Quest. |
+| Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f). | Validación en Quest. |
+| Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
+| Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
+| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada. | Imágenes de internet (26), marcar tarjetas (27), movimiento (24). |
+| Espacio | Habitación MRUK, colocación en pared, mesa o aire, acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
+| Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
+
+## Orden recomendado
+
+Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
+
+| # | Feature | Puntuación | Motivo |
+| --- | --- | --- | --- |
+| 1 | 25. Cierre de `scene_build`/`scene_edit` | 95 | Implementada y en `main`; solo falta la prueba con Muse y la revisión. |
+| 2 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
+| 3 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
+| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
+| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 6 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
+| 7 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
+| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
+| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
+| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -40,7 +59,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Aceptación:** recorrido reproducible desde una sesión nueva; decisiones del panel confirmadas por el servidor cuando corresponda; errores visibles y sin reenvíos de mutaciones ambiguas; registro de los pasos y resultados. La regla `seyra_*: allow` permanece y no se amplían permisos de shell ni archivos.
 
-**Dependencias:** ninguna. Es el siguiente trabajo recomendado.
+**Dependencias:** ninguna.
 
 ### 01b. Superficie de herramientas cerrada para los perfiles Seyra
 
@@ -130,6 +149,8 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Estado:** Completed · Revisada (28 de octubre de 2026). Implementación validada en el Editor y funcionamiento manual confirmado por el usuario el 27 de octubre de 2026. Pendientes la validación física en visor (07); amortiguación unificada (0,2 s, 1,8 m/s) con llegada medida en 0,914 s. [Implementación, validación y limitaciones](Progress/Completed/06c-menu-lazy-follow.md).
 
+**Nota (29 de octubre de 2026):** el seguimiento del menú quedó sustituido por el menú de mano (06e); el componente de lazy follow sigue en uso para el chat y los layouts.
+
 **Entrega:** componente de lazy follow propio para el menú (el SDK 207.0.1 no trae uno): zona cómoda bajo la mirada, movimiento amortiguado, respeto del agarre y de la posición elegida al soltar, y "Reubicar" que coloca chat y menú.
 
 **Aceptación:** el menú vuelve a su sitio tras girar o desplazarse, no se mueve con giros breves ni mientras se agarra; el chat no se mueve solo.
@@ -139,6 +160,8 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 ### 06d. Ocultar el menú espacial cuando el chat está a la vista
 
 **Estado:** Completed · Revisada (28 de octubre de 2026). Validado en el Editor el 27 de octubre de 2026: 4 comprobaciones de visibilidad, 12 grupos de seguimiento y 11 de chat aprobados. Pendientes la prueba manual del usuario con Meta XR Simulator y la validación física en visor (07). [Implementación y evidencias](Progress/Completed/06d-menu-hide-when-chat-visible.md).
+
+**Nota (29 de octubre de 2026):** sustituida por 06e. El menú ya no flota delante del usuario, así que esta ocultación no se aplica.
 
 **Entrega:** el menú con seguimiento perezoso se oculta mientras el chat abierto está en la zona central de la vista y reaparece en su pose de reposo al apartar la mirada o cerrar el chat. Histéresis y retardos para evitar parpadeo; el seguimiento de 06c sigue activo mientras está oculto. El menú en la mano queda descartado en esta iteración.
 
@@ -210,7 +233,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** 22e Completed · Revisada (28 de octubre de 2026): integridad tras agarre corregida, chat y menú con seguimiento independiente y menú visible más allá de 2,1 m. Validado en Editor: WindowSnappingChecks 23, SpatialPlacementChecks 50, SpatialFollowChecks 14, LazyFollowChecks 12 grupos y MenuVisibilityChecks 5 grupos; prueba manual en simulador/visor pendiente. 22a implementada, validada en Editor y revisada el 28 de octubre de 2026 (correcciones en feat/22a-review-fixes: contrato de room_objects, RoomContext como único cargador de la habitación, también la del simulador en Editor, y omisión de anclas defectuosas; RoomChecks 689): contexto e inventario MRUK, referencias físicas de solo lectura, bounds y colocación relativa en marcos world/viewer/reference con orientación y deshacer. 570 comprobaciones de habitación, 5.165 de regresión de bounds y recorrido MCP real aprobados. 22b implementada en Editor (planificador, reservas, tools e historial; conversación manual pendiente). 22d implementada en Editor: seguimiento del grupo chat/menú, fijado/reanudar, bloqueos, recolocación planificada y escaneo explícito; 11 comprobaciones básicas aprobadas, regresión completa del chat aprobada (11 grupos). 22c implementada en Editor (acople al soltar ventanas, previsualización y revalidación por revisión de habitación) · Completed · Revisada (28 de octubre de 2026): 22 comprobaciones de acople y regresiones de colocación (50), layouts (16) y seguimiento (12) aprobadas; prueba manual con Meta XR Simulator pendiente del usuario. Validación física pendiente de 07. Correcciones de revisión 22b/22d (puntos 1–5) aplicadas y revisadas el 28 de octubre de 2026 (commit ffa8862 en feat/22-room-placement, sin merge a main). 22a revisada el 28 de octubre de 2026 con cambios solicitados; aplicados el mismo día en feat/22a-review-fixes (contrato de room_objects, RoomContext único dueño de la carga con la habitación del simulador en Editor, anclas singulares o cizalladas omitidas sin invalidar la habitación) · Completed · Pendiente de revisión: 689 comprobaciones de habitación y 50 de colocación aprobadas. Compilación y suites solicitadas aprobadas: 15 de planificación, 50 de colocación, 12 de seguimiento y 11 grupos de chat. [Diseño](Progress/Completed/22-room-spatial-placement.md).
+**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
@@ -222,9 +245,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 23. Layouts espaciales para colecciones
 
-**Estado:** 23b Completed · Revisada (28 de octubre de 2026: cambio 1 de 11.4 aplicado, perWall informa capacidad de paredes no usadas; LayoutPlannerChecks ejecutada una vez, 1304 aprobadas): wall/surface, reservas y persistencia 5 implementados; validación básica aprobada (1303 de layouts puros, 44 de integración, 15 de planificación, 50 de colocación, 689 de habitación y 9 pruebas npm). 23a Completed · Revisada (28 de octubre de 2026). 23c, parte flotante, aplicada por Claude en el prompt (feat/23c-layout-prompt, commit de85636); ejemplos de pared y mesa añadidos tras 23b (feat/23c-room-layout-prompt, commit cca737e); pendiente la evaluación del catálogo con GLM y DeepSeek. Corregidos los tres cambios de revisión: MOTION_DRIVEN, rechazo de layout_apply a anchor desde otra disposición y arranque del fixture de chat. Compilación y LayoutChecks aprobados (16 comprobaciones); ChatExecutionChecks con el fixture corregido: 15 grupos aprobados en una única ejecución. Layouts flotantes y persistencia 5 implementados; 23c y validación física pendientes. [Diseño](Progress/Completed/23-spatial-layouts.md).
-
-**Orden:** 23a después de 22b; 23b después de 23a; 23c (prompt) al cerrar 23a, con la parte de pared tras 23b.
+**Estado:** 23a y 23b Completed · Revisada (28 de octubre de 2026); 23c (guía del prompt) aplicada. Layouts flotantes, de pared y de mesa con persistencia v5. Validado en Editor (LayoutChecks 44 el 29 de octubre de 2026 con simulador; planificador 1304). Uso real con Muse Spark comprobado el 29 de octubre de 2026 (libros, recetas en pared, películas). Pendiente la validación física en Quest. [Diseño](Progress/Completed/23-spatial-layouts.md).
 
 **Entrega:** herramientas `layout_plan`, `layout_create` y `layout_apply` que crean o reorganizan N tarjetas del mismo tamaño en una llamada, con las disposiciones arc, plane, hub, surround, anchor, wall y surface, y los comportamientos fijo, alineado, billboard y lazy follow. El sistema calcula las poses, también el reparto entre paredes. El prompt sustituye la receta manual de colecciones por una guía de decisión con ejemplos.
 
@@ -234,11 +255,11 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 25. Composición y edición de escena en una llamada
 
-**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/25-scene-build-batch.md).
+**Estado:** In progress · en implementación. Pasos 1–7 en `main` (29 de octubre de 2026): herramientas, checks (SceneBatchChecks 40, LayoutChecks 44), 23 tests del bridge y guía en el prompt. El contrato pasó a lista plana con `parentKey` porque el proveedor Meta rechaza esquemas JSON recursivos. Primera prueba con Muse: maqueta en el aire en 52 s y 9 pasos (antes 131 s y 36). Pendiente repetir la prueba con el prompt nuevo y la revisión. [Diseño](Progress/InProgress/25-scene-build-batch.md).
 
-**Orden:** antes de 24 (comparten `SceneHistory.cs` y `SceneTools.cs`). Requiere antes el arreglo del bridge que acepta errores estructurados (`resultSchema`).
+**Orden:** antes de 24 (comparten `SceneHistory.cs` y `SceneTools.cs`).
 
-**Entrega:** `scene_build` crea un árbol de contenedores, primitivas con apariencia y etiquetas, con colocación relativa entre nodos y colocación del conjunto (aire, mesa o pared), en una llamada atómica. `scene_edit` aplica hasta 64 cambios sobre objetos existentes en una llamada. Ambas se deshacen como una operación.
+**Entrega:** `scene_build` crea una composición de contenedores, primitivas con apariencia y etiquetas (lista plana de nodos con `parentKey`), con colocación relativa entre nodos y colocación del conjunto (aire, mesa o pared), en una llamada atómica. `scene_edit` aplica hasta 64 cambios sobre objetos existentes en una llamada. Ambas se deshacen como una operación.
 
 **Aceptación:** una maqueta del sistema solar con etiquetas se crea con 3 llamadas como máximo (antes, 36 llamadas y 131 s el 29 de octubre de 2026); cambiar varias paredes es una llamada; un error no deja nada creado ni modificado; deshacer, guardado y carga conservan la composición.
 
@@ -254,7 +275,37 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Aceptación:** planetas que orbitan y giran configurados en pocas llamadas; una luna orbita un planeta en órbita; deshacer sin conflictos de historial; guardado y carga conservan las animaciones; las mutaciones sobre un canal animado se rechazan con un mensaje claro.
 
-**Dependencias:** 05 y 23a. Lo usa 10a.
+**Dependencias:** 05, 23a y 25. Lo usa 10a.
+
+### 26. Tarjetas con imagen de internet
+
+**Estado:** sin diseñar. Prioridad alta (puntuación 85).
+
+**Entrega:** un tipo de tarjeta (`imageCard` o una ampliación de `infoPanel`) con título, texto e imagen obtenida de una URL de internet, utilizable sola, con `ui_present` y en `layout_create`. El backend descarga la imagen de una URL que el modelo encontró con `websearch`/`webfetch`, valida tipo (JPEG/PNG/WebP) y tamaño, la reduce y la guarda en caché. Unity la recibe por la pasarela autenticada como un recurso de medios con identificador, no por una URL directa.
+
+**Aceptación:** «muéstrame las películas de la fase tres» crea tarjetas con su póster y su resumen; una URL caída, no permitida o demasiado grande muestra la tarjeta sin imagen y lo indica en `missingMedia`, sin bloquear la creación; memoria de texturas acotada y liberada al borrar; guardar/cargar conserva la referencia y recupera la imagen de la caché. Unity nunca descarga directamente de internet.
+
+**Dependencias:** 05 (presentaciones), 07 (pasarela) y 23 (layouts). Base de 19. Hoy las imágenes solo salen de sprites registrados en el catálogo (`Backend/bridge/PRESENTATIONS.md`).
+
+### 27. Tarjetas que se pueden marcar
+
+**Estado:** sin diseñar. Prioridad media-alta (puntuación 72).
+
+**Entrega:** un interruptor opcional en las tarjetas de texto y de presentación (por ejemplo, «Vista», «Hecho», «Comprado»), con estado local persistente como el progreso de `checklist`. El modelo puede leer el estado (`scene_get`/`ui_get`) cuando el usuario pregunta («¿qué pelis me quedan?») y fijarlo al crear las tarjetas.
+
+**Aceptación:** pulsar el interruptor cambia su estado al momento sin abrir un turno de chat; el estado se conserva al ocultar, mover, guardar y cargar; el modelo lo consulta en lugar de preguntar al usuario; recrear una tarjeta con el mismo contenido no pierde la marca si se usa `update_panel`/`ui_update` con conservación explícita.
+
+**Dependencias:** 05 y 23. Comparte la mecánica de interacción local de las presentaciones.
+
+### 28. Contenido dentro de la habitación
+
+**Estado:** sin diseñar. Prioridad media (puntuación 66).
+
+**Entrega:** ninguna colocación automática (layouts en el aire, `spatial_place` en aire, `scene_build` con `placement`, seguimiento del chat) deja contenido detrás de una pared o fuera del suelo capturado. MRUK 207 cierra la habitación aunque las paredes tengan aberturas: `MRUKRoom.GetRoomOutline()` devuelve el contorno del suelo e `IsPositionInRoom()` comprueba un punto. El planificador acerca el contenido, reduce el radio de los layouts o lo coloca en otra dirección; si no cabe, lo informa.
+
+**Aceptación:** en una habitación pequeña, un arco de tarjetas o una maqueta en el aire quedan dentro con un margen comprobado; sin habitación capturada se mantiene el comportamiento actual y se declara; la validación usa las habitaciones de prueba de MRUK en el Editor.
+
+**Dependencias:** 22, 23 y 25. Comprobar en el diseño el comportamiento de `GetRoomOutline` con varias plantas o habitaciones (High Fidelity scene).
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 
@@ -320,7 +371,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 17. Entrada por voz con transcripción
 
-**Estado:** Completed · Revisada (29 de octubre de 2026). Dictado Muse mediante pasarela implementado en Unity, con captura PCM, certificado fijado, parciales y final como borrador. Relé validado por el usuario; compilación C#, 3 grupos Muse y 18 tests Node aprobados. SpatialChatChecks falla en una expectativa anterior del menú de mano; pruebas manuales de Editor y Quest pendientes. [Implementación y validación](Progress/Completed/17-muse-voice-transcribe.md).
+**Estado:** Completed · Revisada (29 de octubre de 2026). Dictado Muse mediante pasarela implementado en Unity, con captura PCM, certificado fijado, parciales y final como borrador. Relé validado por el usuario; compilación C#, 3 grupos Muse y 18 tests Node aprobados. La regresión de SpatialChatChecks se corrigió en 06f (12 grupos aprobados), incluido el fin de dictado vacío sin sondeo. Prueba en Quest pendiente. [Implementación y validación](Progress/Completed/17-muse-voice-transcribe.md).
 
 **Entrega:** pulsar para hablar, detener/cancelar y convertir audio a texto mediante Muse Voice Transcribe si el acceso está disponible. Mostrar el texto editable antes de enviarlo.
 
@@ -342,7 +393,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Aceptación:** tamaño y memoria acotados; recurso guardado y recuperable con el panel; errores o enlaces caducados no producen contenido vacío sin explicación. Sin generar modelos 3D ni editar texturas de objetos físicos en esta entrega.
 
-**Dependencias:** 05, 08 y 09. Amplía la persistencia para gestionar archivos asociados.
+**Dependencias:** 05, 08 y 26 (reutiliza su caché y entrega de imágenes por la pasarela). Amplía la persistencia para gestionar archivos asociados.
 
 ### 20. Memoria contextual compacta de sesión
 
