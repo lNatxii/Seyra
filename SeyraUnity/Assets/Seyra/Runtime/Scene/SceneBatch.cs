@@ -144,7 +144,17 @@ namespace Seyra.SceneTools
                 {
                     placement = (JObject)placement.DeepClone(); placement["entityId"] = rootId;
                     var placed = BatchCall("spatial_place", placement);
-                    if ((bool?)placed["applied"] != true) throw new RoomToolException("PLACEMENT_REJECTED", (string)placed["reason"] ?? "No compatible placement.");
+                    if ((bool?)placed["applied"] != true)
+                    {
+                        string message = (string)placed["reason"] ?? "No compatible placement.";
+                        if (placed["rejected"] is JArray rejected && rejected.Count > 0)
+                        {
+                            var reasons = rejected.GroupBy(item => (string)item["reason"], StringComparer.Ordinal)
+                                .Select(group => group.Key + " x" + group.Count() + " (" + string.Join(", ", group.Select(item => (string)item["physicalId"] ?? "air").Distinct(StringComparer.Ordinal).Take(4)) + ")");
+                            message += " Rejected: " + string.Join("; ", reasons) + ".";
+                        }
+                        throw new RoomToolException("PLACEMENT_REJECTED", message.Length > 1024 ? message.Substring(0, 1024) : message);
+                    }
                     result["placement"] = placed;
                 }
                 return result;

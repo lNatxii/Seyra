@@ -86,6 +86,19 @@ public static class SceneBatchChecks
             Check((bool)placed["placement"]["applied"], "Air placement must apply.");
             var placedRoot = root.GetComponentsInChildren<GeneratedObject>().First(item => item.EntityId == (string)placed["rootId"]).transform;
             Check(Vector3.Dot(placedRoot.position - testHead.transform.position, testHead.transform.forward) > 0, "Air root must be in front of the viewer.");
+            Ok("undo", new JObject { ["scope"] = "request" });
+            var airLabel = (JObject)label.DeepClone();
+            airLabel["panel"]["height"] = .05;
+            var labeled = Ok("scene_build", new JObject { ["name"] = "Labeled air sphere", ["nodes"] = new JArray(Sphere("sun"), airLabel), ["placement"] = new JObject { ["destination"] = "air" } });
+            Check((bool)labeled["placement"]["applied"], "A sphere with a 0.05 m label must support air placement.");
+            Ok("undo", new JObject { ["scope"] = "request" });
+            var tinyLabel = (JObject)airLabel.DeepClone();
+            tinyLabel.Remove("relativeTo");
+            tinyLabel["panel"]["height"] = .02;
+            tinyLabel["panel"]["fontSize"] = 20;
+            var rejected = Call("scene_build", new JObject { ["name"] = "Unreadable air label", ["nodes"] = new JArray(tinyLabel), ["placement"] = new JObject { ["destination"] = "air" } });
+            string rejectionMessage = (string)rejected["error"]?["message"];
+            Check(!(bool)rejected["success"] && (string)rejected["error"]?["code"] == "PLACEMENT_REJECTED" && rejectionMessage != null && rejectionMessage.Contains("Rejected:") && rejectionMessage.Contains("TOO_SMALL_TO_READ"), "An unreadable label must report its placement rejection reasons: " + rejected);
             return "Scene batch basic checks passed: " + checks + "; scene_build 64 nodes: " + elapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " ms";
         }
         catch (Exception error) { Debug.LogError("SceneBatchChecks failed: " + error); throw; }
