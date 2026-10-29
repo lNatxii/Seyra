@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","layout_create","layout_apply"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
 
         void InitializeLifecycle(string directory)
         {
@@ -208,9 +208,9 @@ namespace Seyra.SceneTools
                 if(tool=="spatial_place"&&(bool?)result["applied"]!=true)return result;
                 var after=Capture();
                 var operationId="op_"+Guid.NewGuid().ToString("N");
-                history.Add(new HistoryEntry{Id=operationId,Tool=tool,GroupId=tool=="layout_create"||tool=="layout_apply"?(string)result["requestGroupId"]:activeRequest,EntityId=(string)result["entityId"],Before=before,After=after});
+                history.Add(new HistoryEntry{Id=operationId,Tool=tool,GroupId=tool=="scene_build"||tool=="layout_create"||tool=="layout_apply"?(string)result["requestGroupId"]:activeRequest,EntityId=(string)result["entityId"],Before=before,After=after});
                 result["operationId"]=operationId;result["operationRequestGroupId"]=activeRequest;
-                if(tool=="layout_create"||tool=="layout_apply")result["operationIds"]=new JArray(operationId);
+                if(tool=="scene_build"||tool=="layout_create"||tool=="layout_apply")result["operationIds"]=new JArray(operationId);
                 return result;
             }
             catch {try{ApplySnapshot(before);}catch{throw new SceneRollbackException();}throw;}

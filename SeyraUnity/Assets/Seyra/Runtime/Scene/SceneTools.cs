@@ -66,6 +66,7 @@ namespace Seyra.SceneTools
             {
                 response["success"] = false;
                 response["error"] = new JObject { ["code"] = error is LayoutToolException layoutError ? layoutError.Code : error.Message.StartsWith("LAYOUT_BEHAVIOR_INVALID:",StringComparison.Ordinal) ? "LAYOUT_BEHAVIOR_INVALID" : error.Message.StartsWith("LAYOUT_SIZE_INVALID:",StringComparison.Ordinal) ? "LAYOUT_SIZE_INVALID" : error is RoomToolException roomError ? roomError.Code : error is SceneRollbackException ? "ROLLBACK_FAILED" : error is ArgumentException ? "INVALID_ARGUMENT" : "TOOL_FAILED", ["message"] = error.Message.Substring(0,Math.Min(4096,error.Message.Length)) };
+                if(error.Data.Contains("sceneBatchIndex"))response["error"]["index"]=(int)error.Data["sceneBatchIndex"];
                 if(error is LayoutToolException layoutFailure && layoutFailure.Details!=null)foreach(var detail in layoutFailure.Details.Properties())response["error"][detail.Name]=detail.Value.DeepClone();
             }
             var result = response.ToString(Formatting.None);
@@ -271,6 +272,7 @@ namespace Seyra.SceneTools
         }
         JObject Execute(string tool,JObject args)
         {
+            if(tool=="scene_build"||tool=="scene_edit")return ExecuteBatch(tool,args);
             if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
             if(tool=="create_panel")return CreatePanel(args);
