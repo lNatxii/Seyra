@@ -1,6 +1,6 @@
 import https from 'node:https';
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -9,7 +9,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 type Device = { id: string; tokenSha256: string; revoked: boolean };
 type Session = { id: string; device: string; socket: WebSocket; lastPoll: number; queue: string[]; bytes: number; delivered: Set<string>; poll?: ServerResponse; timer?: NodeJS.Timeout };
-type Options = { pfx: Buffer; passphrase: string; devicesFile: string; password: string; internalToken: string; openCodePort?: number; bridgePort?: number };
+type Options = ({ cert: Buffer; key: Buffer; pfx?: never; passphrase?: never } | { pfx: Buffer; passphrase: string; cert?: never; key?: never })
+  & { devicesFile: string; password: string; internalToken: string; openCodePort?: number; bridgePort?: number };
 const hash = (text: string) => createHash('sha256').update(text).digest();
 const send = (response: ServerResponse, status: number, body?: unknown) => {
   if (response.destroyed || response.writableEnded) return;
@@ -134,7 +135,7 @@ export function createGateway(options: Options) {
       upstream.end(content);
     });
   }
-  const server = https.createServer({ pfx: options.pfx, passphrase: options.passphrase, minVersion: 'TLSv1.2', maxHeaderSize: 16384 },
+  const server = https.createServer({ cert: options.cert, key: options.key, pfx: options.pfx, passphrase: options.passphrase, minVersion: 'TLSv1.2', maxHeaderSize: 16384 },
     (request, response) => { void handle(request, response).catch(error => send(response, error.message === 'BODY_TOO_LARGE' ? 413 : error instanceof SyntaxError ? 400 : 502)); });
   server.on('upgrade', (_, socket) => { socket.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n'); });
   const sweep = setInterval(() => {
@@ -149,7 +150,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const root = process.env.SEYRA_DATA_ROOT ?? join(process.cwd(), '.seyra');
   const port = Number(process.env.SEYRA_GATEWAY_PORT ?? 8443);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid gateway port.');
-  const server = createGateway({ pfx: readFileSync(join(root, 'tls/gateway.pfx')), passphrase: readFileSync(join(root, 'tls/gateway.pass'), 'utf8').trim(),
+  const certificate = join(root, 'tls/gateway.cert.pem');
+  const key = join(root, 'tls/gateway.key.pem');
+  const credentials = existsSync(certificate) && existsSync(key)
+    ? { cert: readFileSync(certificate), key: readFileSync(key) }
+    : { pfx: readFileSync(join(root, 'tls/gateway.pfx')), passphrase: readFileSync(join(root, 'tls/gateway.pass'), 'utf8').trim() };
+  const server = createGateway({ ...credentials,
     devicesFile: join(root, 'devices.json'), password: process.env.OPENCODE_SERVER_PASSWORD ?? '', internalToken: process.env.SEYRA_BRIDGE_INTERNAL_TOKEN ?? '',
     openCodePort: Number(process.env.SEYRA_OPENCODE_PORT ?? 4096) });
   server.listen(port, process.env.SEYRA_GATEWAY_HOST ?? '0.0.0.0', () => console.log(`Seyra HTTPS gateway ready on port ${port}`));
