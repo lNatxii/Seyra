@@ -197,7 +197,7 @@ public static class SpatialChatChecks
         Check(chat.Draft == "replacement", "A new final must replace the previous draft.");
         var draftScroll = Get<ScrollRect>(chat, "draftScroll");
         chat.CommitDictation(string.Join("\n", Enumerable.Repeat("Literal <b>draft</b> text", 12)));
-        await Wait(() => draftScroll.verticalNormalizedPosition < 0.01f, "Draft updates must scroll to the end", 3);
+        await Wait(() => draftScroll.content.rect.height > draftScroll.viewport.rect.height && draftScroll.verticalNormalizedPosition < 0.01f, "Draft layout must overflow and scroll to the end", 3);
         Check(draftScroll.content.rect.height > draftScroll.viewport.rect.height, "Long drafts must overflow into a scrollable region.");
         Check(!draftText.richText && draftText.text.Contains("<b>draft</b>"), "Draft markup must remain literal.");
         var field = draftScroll.transform.parent.GetComponent<Image>();
