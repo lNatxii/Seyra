@@ -168,7 +168,7 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ### 07b. CLI multiplataforma del backend
 
-**Estado:** Completed · Revisada (29 de octubre de 2026) (29 de octubre de 2026). CLI y envoltorios validados en Windows con raíz temporal, MCP y HTTPS conectados y puertos libres tras Ctrl+C. Suite ejecutada una vez: 12/13, fallo inicial del polyfill corregido y recorrido PEM/emparejamiento comprobado después sin repetir la suite. Pendientes push con dispositivo real, macOS y Linux. [Implementación y límites](Progress/Completed/07b-backend-cli.md).
+**Estado:** Completed · Revisada (29 de octubre de 2026). CLI y envoltorios validados en Windows con raíz temporal, MCP y HTTPS conectados y puertos libres tras Ctrl+C. Suite ejecutada una vez: 12/13, fallo inicial del polyfill corregido y recorrido PEM/emparejamiento comprobado después sin repetir la suite. Pendientes push con dispositivo real, macOS y Linux. [Implementación y límites](Progress/Completed/07b-backend-cli.md).
 
 **Entrega:** `node Backend/seyra.mjs` con `start`, `init-tls`, `pair`, `list`, `revoke` y `push` (copia el emparejamiento al dispositivo con adb) en Windows, macOS y Linux; `opencode.json` sin rutas del PC del usuario; `start.ps1` y `seyra-device.ps1` como envoltorios.
 
