@@ -11,16 +11,62 @@ using Object = UnityEngine.Object;
 
 namespace Seyra.SceneTools
 {
-    // Owned by Generated so reconnecting the service does not orphan native resources.
+    // Separate scene resource; never part of the persisted Generated hierarchy.
     [DisallowMultipleComponent]
     public sealed class RemoteMediaStore : MonoBehaviour, IUIMediaResolver
     {
         const int MaxBytes = 1024 * 1024;
         const int TextureLimit = 48;
         static readonly Regex ValidId = new Regex(@"\Aweb:[0-9a-f]{32}\z", RegexOptions.CultureInvariant);
+        static readonly Dictionary<Transform, RemoteMediaStore> stores = new Dictionary<Transform, RemoteMediaStore>();
+        [SerializeField] Transform generatedRoot;
+        int owners;
         readonly Dictionary<string, Sprite> loaded = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         readonly LinkedList<string> recency = new LinkedList<string>();
         string directory;
+
+        public static RemoteMediaStore For(Transform generatedRoot)
+        {
+            if (generatedRoot == null) return null;
+            if (stores.TryGetValue(generatedRoot, out var store) && store != null) return store;
+            // Recover scene-owned stores after an Editor domain reload.
+            store = Object.FindObjectsByType<RemoteMediaStore>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .FirstOrDefault(candidate => candidate.generatedRoot == generatedRoot);
+            if (store != null) stores[generatedRoot] = store;
+            return store;
+        }
+
+        internal static RemoteMediaStore Acquire(Transform generatedRoot, string persistenceDirectory)
+        {
+            var store = For(generatedRoot);
+            if (store == null)
+            {
+                var go = new GameObject("SeyraRemoteMedia");
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, generatedRoot.gameObject.scene);
+                store = go.AddComponent<RemoteMediaStore>();
+                store.generatedRoot = generatedRoot;
+                stores[generatedRoot] = store;
+            }
+            store.Configure(persistenceDirectory); store.owners++;
+            return store;
+        }
+
+        internal void ReleaseOwner()
+        {
+            if (--owners <= 0) DestroyStore();
+        }
+        internal void DestroyStore()
+        {
+            if (!ReferenceEquals(generatedRoot, null) && stores.TryGetValue(generatedRoot, out var store) && store == this) stores.Remove(generatedRoot);
+            // Do not rediscover an object awaiting Unity's deferred destruction.
+            generatedRoot = null;
+            ClearResources();
+            DestroyResource(gameObject);
+        }
+        void LateUpdate()
+        {
+            if (generatedRoot == null) DestroyStore();
+        }
 
         internal void Configure(string persistenceDirectory)
         {
@@ -152,7 +198,7 @@ namespace Seyra.SceneTools
         void Trim(string requested = null)
         {
             if (loaded.Count <= TextureLimit) return;
-            var used = new HashSet<string>(GetComponentsInChildren<ManagedPanel>(true).SelectMany(panel => panel.MediaReferences()), StringComparer.Ordinal);
+            var used = new HashSet<string>(generatedRoot.GetComponentsInChildren<ManagedPanel>(true).SelectMany(panel => panel.MediaReferences()), StringComparer.Ordinal);
             if (requested != null) used.Add(requested);
             var current = recency.First;
             while (loaded.Count > TextureLimit && current != null)
@@ -178,6 +224,11 @@ namespace Seyra.SceneTools
             var texture = sprite.texture; DestroyResource(sprite); DestroyResource(texture);
         }
         void OnDestroy()
+        {
+            if (!ReferenceEquals(generatedRoot, null) && stores.TryGetValue(generatedRoot, out var store) && store == this) stores.Remove(generatedRoot);
+            ClearResources();
+        }
+        void ClearResources()
         {
             foreach (var sprite in loaded.Values) Release(sprite);
             loaded.Clear(); recency.Clear();

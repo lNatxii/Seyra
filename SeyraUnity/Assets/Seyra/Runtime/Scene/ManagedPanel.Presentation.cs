@@ -57,7 +57,9 @@ namespace Seyra.SceneTools
             {
                 preparingPresentation = spec;
                 next = Instantiate(templates.Get(spec.Data.Type), stage.transform, false);
-                var resolver = new PresentationMediaResolver(GetComponentInParent<RemoteMediaStore>(true), templates);
+                var generatedRoot = transform;
+                while (generatedRoot != null && generatedRoot.GetComponent<GeneratedObject>()?.Kind != "root") generatedRoot = generatedRoot.parent;
+                var resolver = new PresentationMediaResolver(RemoteMediaStore.For(generatedRoot), templates);
                 next.FillValidated(spec.Data, templates.Components, resolver, () => SetPresentationVisible(false));
                 if (state != null) next.RestoreState(state);
                 next.ExportState(state != null ? (bool)state["visible"] : presentationVisible);

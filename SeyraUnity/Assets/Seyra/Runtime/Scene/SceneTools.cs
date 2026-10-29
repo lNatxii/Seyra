@@ -15,7 +15,7 @@ using Object = UnityEngine.Object;
 namespace Seyra.SceneTools
 {
     // Generated content has persistent logical IDs; external inspected objects keep runtime-only identities.
-    public sealed partial class SceneToolService
+    public sealed partial class SceneToolService : IDisposable
     {
         public string RuntimeId { get; } = Guid.NewGuid().ToString("N");
         readonly Transform generated;
@@ -31,12 +31,20 @@ namespace Seyra.SceneTools
             uiCatalog = panelCatalog;
             presentations = presentationCatalog ?? Resources.Load<Seyra.UI.Presentations.UIPresentationCatalog>("SeyraUIPresentations");
             InitializeLifecycle(persistenceDirectory);
-            remoteMedia = generated.GetComponent<RemoteMediaStore>() ?? generated.gameObject.AddComponent<RemoteMediaStore>();
-            remoteMedia.Configure(storageDirectory);
+            remoteMedia = RemoteMediaStore.Acquire(generated, storageDirectory);
+        }
+
+        bool disposed;
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            if (remoteMedia != null) remoteMedia.ReleaseOwner();
         }
 
         public string Dispatch(string json)
         {
+            if (disposed) throw new ObjectDisposedException(nameof(SceneToolService));
             using var reader = new JsonTextReader(new StringReader(json)) { DateParseHandling = DateParseHandling.None, MaxDepth = 32 };
             var request = JObject.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
             while (reader.Read()) throw new ArgumentException("Unexpected trailing JSON content.");

@@ -47,7 +47,7 @@ namespace Seyra.SceneTools
         }
         void OnDisable()
         {
-            bridge?.Dispose();bridge=null;Tools=null;
+            bridge?.Dispose();bridge=null;Tools?.Dispose();Tools=null;
             if(owner==this)owner=null;
             BridgeStatus="Desconectado";
         }

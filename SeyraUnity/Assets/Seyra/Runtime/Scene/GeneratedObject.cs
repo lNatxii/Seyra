@@ -21,5 +21,9 @@ namespace Seyra.SceneTools
 
         internal void Initialize(string id,string objectKind,string shape,string group)
         {entityId=id;kind=objectKind;primitiveType=shape;requestGroupId=group;}
+        void OnDestroy()
+        {
+            if (kind == "root") RemoteMediaStore.For(transform)?.DestroyStore();
+        }
     }
 }
