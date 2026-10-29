@@ -232,6 +232,18 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 05, 06c, 22a y 22b.
 
+### 25. Composición y edición de escena en una llamada
+
+**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/25-scene-build-batch.md).
+
+**Orden:** antes de 24 (comparten `SceneHistory.cs` y `SceneTools.cs`). Requiere antes el arreglo del bridge que acepta errores estructurados (`resultSchema`).
+
+**Entrega:** `scene_build` crea un árbol de contenedores, primitivas con apariencia y etiquetas, con colocación relativa entre nodos y colocación del conjunto (aire, mesa o pared), en una llamada atómica. `scene_edit` aplica hasta 64 cambios sobre objetos existentes en una llamada. Ambas se deshacen como una operación.
+
+**Aceptación:** una maqueta del sistema solar con etiquetas se crea con 3 llamadas como máximo (antes, 36 llamadas y 131 s el 29 de octubre de 2026); cambiar varias paredes es una llamada; un error no deja nada creado ni modificado; deshacer, guardado y carga conservan la composición.
+
+**Dependencias:** 03, 04, 05, 22 y 23.
+
 ### 24. Movimiento paramétrico de contenido generado
 
 **Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/24-parametric-motion.md).
