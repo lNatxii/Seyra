@@ -102,7 +102,8 @@ public static class SpatialChatChecks
 
         var menuXr = menu.GetComponent<UIXRWindow>();
         Check(menuXr != null, "SpatialMenu must have UIXRWindow.");
-        Check(menuXr.GrabFrame != null, "SpatialMenu must have UIMetaGrabFrame.");
+        Check(menu.GetComponentInParent<SeyraHandMenu>() != null, "SpatialMenu must have a hand menu controller.");
+        Check(menu.ChatWindow == chat && menu.ChatXrWindow == xrWindow, "SpatialMenu must reference the chat window.");
         checks.Add("hierarchy, grab frame, millimeter canvas, and non-generated application isolation");
 
         // 2. Read-only draft composer structure
