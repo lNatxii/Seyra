@@ -1,6 +1,6 @@
 # Semantic presentations
 
-Phase 3 adds twelve complete typed contracts: `infoPanel`, `technicalSheet`,
+There are thirteen complete typed contracts: `mediaCard`, `infoPanel`, `technicalSheet`,
 `gallery`, `stepGuide`, `documentViewer`, `comparison`, `checklist`, `diagnostic`,
 `choiceSelector`, `parameterForm`, `dataView` and `workPlan`.
 One request fills the entire presentation. Prefab children are implementation
@@ -45,9 +45,22 @@ Ordinary transform undo preserves newer local input. Local input and visibility
 do not create separate scene undo entries. Deletion uses the existing trash and
 restores the original window with its current local state.
 
-## Persistence v4
+## Media cards
 
-Scene slots now write v4 and still read v1–v3. Each presentation is one node with
+`mediaCard` requires `image` (a photo) and non-empty `body` (at most 4000
+characters), plus the common `id`, `title` and optional `description`. Optional
+`facts` has at most 8 `UIPropertyData` label/value entries (unit defaults to empty);
+`tags` has at most 6 entries (model schema: non-empty, at most 40 characters each).
+Recommended size is 0.42 × 0.62 metres. The image header is outside the ScrollRect,
+with preferred height 45% of the canvas and zero flexible height. It preserves
+aspect ratio, offers no zoom control and keeps its height when the image is
+missing. Description (Label), tags separated by ` · ` (Help), body and
+`label: value` facts are inside the scroll. Image resolution uses `TryMedia` so
+`missingMedia` includes failures. See [web media](MEDIA.md) for sources and limits.
+
+## Persistence v5
+
+Scene slots write v5 and still read v1–v4. Each presentation is one node with
 `panel: null` and `presentation: {content, state}`. Content contains version=1,
 width, height and the typed presentation. State has its own version=1. Unity
 validates both before staging a load; unknown keys, invalid references, invalid
@@ -58,13 +71,18 @@ hierarchy of separately editable generated objects.
 
 ## Assets and scope
 
-The twelve presentation prefabs keep stable GUIDs and serialized bindings, with
+The thirteen presentation prefabs keep stable GUIDs and serialized bindings, with
 their renderers and builder. Build the UI library to regenerate its presentation
-catalog too. No dedicated presentation host, room service or separate persistence store
-is required. Replacement prepares an inactive view before retiring the old one.
+catalog too. Presentations use the existing scene services and slot persistence;
+remote JPEGs use the separate disk cache described in [MEDIA.md](MEDIA.md).
+Replacement prepares an inactive view before retiring the old one.
 
-Images resolve only from registered catalog sprites. Missing references render
-alternate content and appear in missingMedia. The document viewer displays
-provided structured content; it does not parse PDFs. Work plans do not execute
-tasks. There is no remote download, CAD renderer, room recognition or spatial chat
-in this phase. Physical headset comfort and interaction remain to be validated.
+Photos accept exactly one registered `imageRef`, `imageSearch` (English Wikipedia
+article) or HTTP/HTTPS `imageUrl`. The bridge downloads, validates and converts web
+images; Unity receives internal JPEG `media` only on `ui_present`, `ui_update`
+and `layout_create`. The model cannot supply `web:` references. Missing references
+render alternate content and appear in `missingMedia`; successful tool results
+may include `data.mediaFailures`. See [the media contract](MEDIA.md).
+`ui_media_list` lists only registered catalog sprites. The document viewer keeps
+registered `imageRef` only and does not parse PDFs. Work plans do not execute
+tasks. Physical headset comfort and interaction remain to be validated.

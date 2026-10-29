@@ -22,7 +22,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Confirmar el dictado por voz en Quest. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada (maqueta con etiquetas en 3 llamadas). | Imágenes de internet (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
+| Contenido | Primitivas con apariencia, paneles, trece presentaciones con imágenes web (26, pendiente de revisión), layouts de tarjetas, `scene_build` y `scene_edit`. | Prueba Muse/Quest de imágenes (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 26. Tarjetas con imagen de internet | 85 | Diseño listo. Mejora visible en pelis, libros y recetas; base de 19. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · Pendiente de revisión. Implementación y checks Unity aprobados; prueba del usuario con Muse pendiente. Base de 19. |
 | 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -279,13 +279,13 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 26. Tarjetas con imagen de internet
 
-**Estado:** In progress · diseño listo. Tipo nuevo `mediaCard` (imagen fija arriba, texto desplazable) e `imageUrl` en las presentaciones con imagen; el bridge descarga, valida y reduce a JPEG, y Unity recibe la imagen en la propia llamada. El prompt limita las imágenes a carátulas, productos, platos, ingredientes, pasos e instrucciones. [Diseño](Progress/InProgress/26-web-image-cards.md).
+**Estado:** Completed · Pendiente de revisión (2026-10-29). Imágenes con imageSearch/imageUrl, bridge seguro, mediaCard y catálogo de 13 tipos; 237 comprobaciones de presentaciones y 44 de layouts aprobadas. Suite bridge final: 19/30, con 11 EACCES del entorno; prueba con Muse en Quest pendiente. Reiniciar backend y OpenCode para cargar sharp, prompt y timeout de 25 s. [Implementación y validación](Progress/Completed/26-web-image-cards.md).
 
-**Entrega:** un tipo de tarjeta (`imageCard` o una ampliación de `infoPanel`) con título, texto e imagen obtenida de una URL de internet, utilizable sola, con `ui_present` y en `layout_create`. El backend descarga la imagen de una URL que el modelo encontró con `websearch`/`webfetch`, valida tipo (JPEG/PNG/WebP) y tamaño, la reduce y la guarda en caché. Unity la recibe por la pasarela autenticada como un recurso de medios con identificador, no por una URL directa.
+**Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` identifica el artículo de Wikipedia en inglés; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
 **Aceptación:** «muéstrame las películas de la fase tres» crea tarjetas con su póster y su resumen; una URL caída, no permitida o demasiado grande muestra la tarjeta sin imagen y lo indica en `missingMedia`, sin bloquear la creación; memoria de texturas acotada y liberada al borrar; guardar/cargar conserva la referencia y recupera la imagen de la caché. Unity nunca descarga directamente de internet.
 
-**Dependencias:** 05 (presentaciones), 07 (pasarela) y 23 (layouts). Base de 19. Hoy las imágenes solo salen de sprites registrados en el catálogo (`Backend/bridge/PRESENTATIONS.md`).
+**Dependencias:** 05 (presentaciones), 07 (pasarela) y 23 (layouts). Base de 19. Contrato vigente: [medios web](Backend/bridge/MEDIA.md) y [presentaciones](Backend/bridge/PRESENTATIONS.md).
 
 ### 27. Tarjetas que se pueden marcar
 

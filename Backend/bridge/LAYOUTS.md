@@ -29,6 +29,12 @@ type Spec = { layout: Layout; behavior?: Behavior; itemSize: Size;
 
 An Item has `name` and exactly one `panel` (the create_panel contract without
 width/height) or `presentation` (the ui_present presentation object).
+For image collections use `mediaCard` presentations with `itemSize` around
+0.42 × 0.62 metres: fixed image header and scrollable description, body and facts.
+Photos accept `imageSearch`, `imageUrl` or a registered `imageRef`; at most 12
+distinct web sources per call. The bridge adds optional internal `media` to
+`layout_create` only and reports `data.mediaFailures` on successful results.
+See [MEDIA.md](MEDIA.md) for resolution, errors, caching and persistence.
 Anchor items additionally require `targetId` and accept `side` (default above).
 Size is in meters: width .16..2, height .04..2; panel height >=.24,
 presentation width/height >=.4. Labels retain their title and font constraints.
