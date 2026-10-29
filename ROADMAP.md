@@ -156,6 +156,16 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 06, 06b, 22d/22e.
 
+### 06f. Chat sin maquinaria visible
+
+**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/06f-transparent-chat-activity.md).
+
+**Entrega:** el chat espacial muestra solo la conversación. Las llamadas a herramientas y los pasos intermedios del modelo se sustituyen por una línea de actividad transitoria ("Pensando…", "Mirando tu habitación…", "Colocando el contenido…"). Los fallos se explican sin JSON. Un interruptor de depuración recupera el detalle técnico. El prompt del agente ya pide no narrar la maquinaria (29 de octubre de 2026).
+
+**Aceptación:** durante un turno con herramientas solo se ve la línea de actividad; al terminar queda una única respuesta; ningún error muestra JSON; el banco de pruebas conserva el detalle técnico.
+
+**Dependencias:** 02, 06, 06e.
+
 ### 07. Conexión y ejecución verificadas en Quest
 
 **Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Correcciones 11.1.1–5 aplicadas: restauración del build comprobada por API y hashes, escena móvil regenerada con layouts, diagnóstico plegable, MobileKeyboardInset y agente seyra; suite del bridge 11/11 sin pwsh. APK móvil recompilado. Pendiente del usuario: teclado y Enviar visibles, «hola» con respuesta y runtime conectado; pruebas físicas en Quest pendientes. Añadidos 6–7 de la revisión fuera de esta entrega. [Implementación y validación](Progress/Completed/07-quest-connection.md).
