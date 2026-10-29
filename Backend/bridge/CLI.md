@@ -34,6 +34,8 @@ user's filesystem permissions.
 The certificate dependency is pinned to `@peculiar/x509` 2.1.0, published
 2026-09-04 (npm registry metadata checked on 2026-10-29). The 2.2.0 release
 had not yet reached fourteen full days at the time of selection.
+Its required Reflect API polyfill is pinned to `reflect-metadata` 0.2.2
+and loaded before x509, as required by the package's README.
 
 ## Starting and stopping
 
@@ -56,3 +58,23 @@ so that MCP connection evidence is visible. On interruption or child exit,
 the CLI stops its children; Windows stops the OpenCode process tree and
 uses `taskkill /T` as a gateway fallback after two seconds. On Unix,
 OpenCode and its MCP descendants share a separate process group.
+
+## Validation on Windows (2026-10-29)
+
+- `npm test --prefix Backend/bridge` ran once: TypeScript compiled and
+  12/13 checks passed, including legacy PFX and the environment reader.
+  The new PEM check failed at initialization because x509 requires a
+  reflection polyfill. After adding it, the full suite was not repeated.
+- The remaining PEM/pairing assertions were checked during the temporary
+  CLI startup: initialization succeeded, the served TLS fingerprint matched,
+  pair/revoke/pair succeeded, and the device store contained only token
+  hashes. The authenticated HTTPS agent endpoint returned 200.
+- Both the Node CLI and the PowerShell startup wrapper started OpenCode
+  and the gateway. The CLI log confirmed `mcp connected` for `seyra`.
+  Ctrl+C left ports 4100, 4096 and 8443 free after each startup.
+- `push` without a device failed with a clear authorization/connection
+  diagnostic. Real-device push, macOS and Linux remain unverified.
+
+All runtime files used temporary roots and placeholder credentials. The
+backend's real `.env.local` and `.seyra` were not used. The first suite
+result remains recorded as a failure rather than a clean automated pass.

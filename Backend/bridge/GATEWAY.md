@@ -4,6 +4,12 @@ Remote device traffic uses TLS >= 1.2 and `Authorization: Bearer <device token>`
 **every** request. Pin the SHA-256 of the certificate DER. No remote WebSocket
 upgrade is supported. OpenCode and the MCP bridge remain on loopback.
 
+TLS loading prefers `tls/gateway.cert.pem` plus `tls/gateway.key.pem` when
+both exist under the data root. Otherwise it uses the legacy `gateway.pfx`
+and `gateway.pass`. New certificates are created by the portable backend
+CLI; existing PFX certificates and device records remain valid. See
+[CLI files and startup](CLI.md).
+
 - `POST /_seyra/bridge/hello`, `{}` -> `{ "sessionId": "..." }`. Replaces the old
   runtime and opens an authenticated local WS to the bridge. Never retry a tool.
 - `GET /_seyra/bridge/next?sessionId=...&wait=25` -> the unchanged version 1

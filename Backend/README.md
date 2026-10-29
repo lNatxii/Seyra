@@ -8,15 +8,14 @@ Requiere Node.js 22 o posterior, npm y opencode2 en PATH. Desde la raíz del rep
 
 ```powershell
 npm ci --prefix Backend/bridge
-cd Backend
-.\start.ps1
+node Backend/seyra.mjs start
 ```
 
-start.ps1 carga .env.local como datos, compila el bridge y arranca OpenCode en http://127.0.0.1:4096. OpenCode inicia el bridge por stdio; Unity conecta por WebSocket a localhost:4100. No arranques el bridge por separado durante el uso normal. Reinicia OpenCode tras modificar catálogo/configuración y reconecta el chat para crear una sesión nueva.
+seyra.mjs start carga .env.local como datos, compila el bridge y arranca OpenCode en http://127.0.0.1:4096. OpenCode inicia el bridge por stdio; Unity conecta por WebSocket a localhost:4100. No arranques el bridge por separado durante el uso normal. Reinicia OpenCode tras modificar catálogo/configuración y reconecta el chat para crear una sesión nueva.
 
-.env.local está excluido de Git y requiere META_API_KEY (Meta Model API, dev.meta.ai) y OPENCODE_SERVER_PASSWORD. Añade tú la clave al archivo local del PC. Si solo existe MODEL_API_KEY, start.ps1 la copia a META_API_KEY en el proceso. HELMCODE_API_KEY es opcional: sin ella el script avisa y seyra_glm no funciona. La contraseña HTTP es distinta de las claves de proveedores. El script fija también OPENCODE_PASSWORD al mismo valor, evitando discrepancias con variables heredadas. No copies credenciales a Assets ni las publiques.
+.env.local está excluido de Git y requiere META_API_KEY (Meta Model API, dev.meta.ai) y OPENCODE_SERVER_PASSWORD. Añade tú la clave al archivo local del PC. Si solo existe MODEL_API_KEY, seyra.mjs start la copia a META_API_KEY en el proceso. HELMCODE_API_KEY es opcional: sin ella el script avisa y seyra_glm no funciona. La contraseña HTTP es distinta de las claves de proveedores. El script fija también OPENCODE_PASSWORD al mismo valor, evitando discrepancias con variables heredadas. No copies credenciales a Assets ni las publiques.
 
-La opción ./start.ps1 -Port 4097 cambia solo el puerto HTTP: no permite ejecutar dos bridges en 4100. Si existe otra instancia/servicio OpenCode, detén esa instancia antes de iniciar la nueva o configura otro puerto WebSocket en ambos extremos. Al mover el repo actualiza command y cwd del MCP en opencode.json.
+La opción `node Backend/seyra.mjs start --port 4097` cambia solo el puerto HTTP: no permite ejecutar dos bridges en 4100. Si existe otra instancia/servicio OpenCode, detén esa instancia antes de iniciar la nueva o configura otro puerto WebSocket en ambos extremos. La CLI resuelve las rutas del MCP mediante `SEYRA_BACKEND_DIR` y las salidas truncadas mediante `SEYRA_OPENCODE_DATA_DIR`; mover el repositorio no requiere editar opencode.json.
 
 ## Perfiles y permisos
 
@@ -25,7 +24,7 @@ La opción ./start.ps1 -Port 4097 cambia solo el puerto HTTP: no permite ejecuta
 - seyra_deepseek usa opencode/deepseek-v4.1-flash-free.
 - seyra_zai usa zai-coding-plan/glm-5.3-flash, autenticado con `opencode auth login` (Z.AI Coding Plan); la credencial queda en el almacén de OpenCode, no en .env.local.
 
-Todos los perfiles comparten instrucciones y permisos. Las instrucciones viven en [prompts/seyra.md](prompts/seyra.md); el campo `system` de cada perfil contiene solo `{file:./prompts/seyra.md}`, que OpenCode expande al cargar la configuración (ruta relativa a opencode.json). Para cambiar el comportamiento del agente se edita ese archivo y se reinicia OpenCode; `opencode2 debug config`, ejecutado en Backend, muestra el texto expandido. Los perfiles usan una lista blanca: la primera regla `* deny` oculta al modelo cualquier herramienta no autorizada, incluidas las heredadas de la configuración global de OpenCode (MCP como `metavr`, Code Mode `execute`, `shell`, `question` y skills). Se permiten `seyra_*`, `websearch`, `webfetch`, y `read`/`grep` para recuperar salidas truncadas; los archivos `*.env` y `*.env.*` quedan denegados. La única excepción de `external_directory` permite recuperar salidas truncadas en `{env:USERPROFILE}/.local/share/opencode/tool-output/*`; no se concede acceso general fuera del directorio de sesión. Añadir una herramienta no `seyra_*` requiere modificar `opencode.json`, el test de permisos y este apartado. No se añaden confirmaciones para el MCP de Unity. Los argumentos se validan en el bridge y en el runtime; el éxito solo se comunica tras confirmación del runtime.
+Todos los perfiles comparten instrucciones y permisos. Las instrucciones viven en [prompts/seyra.md](prompts/seyra.md); el campo `system` de cada perfil contiene solo `{file:./prompts/seyra.md}`, que OpenCode expande al cargar la configuración (ruta relativa a opencode.json). Para cambiar el comportamiento del agente se edita ese archivo y se reinicia OpenCode. Evita `opencode2 debug config` durante el servicio: puede iniciar otro bridge en 4100. Los perfiles usan una lista blanca: la primera regla `* deny` oculta al modelo cualquier herramienta no autorizada, incluidas las heredadas de la configuración global de OpenCode (MCP como `metavr`, Code Mode `execute`, `shell`, `question` y skills). Se permiten `seyra_*`, `websearch`, `webfetch`, y `read`/`grep` para recuperar salidas truncadas; los archivos `*.env` y `*.env.*` quedan denegados. La única excepción de `external_directory` permite recuperar salidas truncadas en `{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*`; no se concede acceso general fuera del directorio de sesión. Añadir una herramienta no `seyra_*` requiere modificar `opencode.json`, el test de permisos y este apartado. No se añaden confirmaciones para el MCP de Unity. Los argumentos se validan en el bridge y en el runtime; el éxito solo se comunica tras confirmación del runtime.
 
 El chat consulta `/api/agent` al conectar y envía explícitamente el modelo declarado por el perfil al crear la sesión. Esta versión de la API seleccionaba el modelo global si solo se enviaba el nombre del agente, por lo que `seyra_deepseek` podía ejecutar GLM sin indicarlo. El perfil `seyra`, sin modelo propio, hereda el valor global.
 
@@ -85,46 +84,32 @@ OpenCode (4096) y el bridge WS (4100) siguen escuchando exclusivamente en
 token individual; el bridge remoto usa sondeo largo, nunca WSS. Contrato y lista
 exacta de rutas: [bridge/GATEWAY.md](bridge/GATEWAY.md).
 
-Desde PowerShell en `Backend/`:
+Desde la raíz del repositorio en PowerShell, bash o zsh:
 
-```powershell
-./seyra-device.ps1 init-tls
-./seyra-device.ps1 pair -Name quest3 -Url https://<IP-o-nombre-del-PC>:8443
+```sh
+node Backend/seyra.mjs init-tls
+node Backend/seyra.mjs pair --name quest3 --url https://192.168.1.131:8443
+node Backend/seyra.mjs push --name quest3 --package com.tuempresa.seyra
+node Backend/seyra.mjs start
+node Backend/seyra.mjs list
+node Backend/seyra.mjs revoke --name quest3
 ```
 
-`init-tls` crea un certificado ECDSA P-256 autofirmado para dos años. No reemplaza
-uno existente sin `-Force`. Una rotación exige volver a emparejar. `pair` escribe
-`.seyra/pairing/quest3.env`: copiar **solo ese archivo** al dispositivo como
-`Application.persistentDataPath/.env.local`, normalmente
-`/sdcard/Android/data/<identificador-del-APK>/files/.env.local`. Borrar después la
-copia de emparejamiento del PC. Nunca copiar `Backend/.env.local`: contiene
-credenciales que solo debe conocer el backend. El archivo del dispositivo contiene
-únicamente `SEYRA_GATEWAY_URL`, `SEYRA_DEVICE_TOKEN` y
-`SEYRA_GATEWAY_CERT_SHA256`; no introducir esos valores en Assets ni en un build.
+`init-tls` crea un certificado ECDSA P-256 para dos años en `.seyra/tls/gateway.cert.pem` y una clave PKCS#8 en `gateway.key.pem`. Reemplazar requiere `--force` y volver a emparejar. La pasarela prefiere PEM y conserva compatibilidad con `gateway.pfx`/`gateway.pass` anteriores. La huella es SHA-256 del DER.
 
-```powershell
-./start.ps1
-# Parámetros opcionales:
-./start.ps1 -Gateway -GatewayHost 0.0.0.0 -GatewayPort 8443
-./seyra-device.ps1 list
-./seyra-device.ps1 revoke -Name quest3
-```
+`pair` crea `.seyra/pairing/quest3.env` y almacena solo el hash del token en `devices.json`. `push` busca adb en PATH, en el SDK de Android y en el SDK de Unity; exige `--serial` si hay varios dispositivos. Verifica el paquete instalado y el archivo remoto antes de borrar la copia local. Si faltan permisos, abre la app una vez y repite. Nunca copies `Backend/.env.local`: contiene claves de proveedores y la contraseña del backend. El dispositivo solo recibe URL, token propio y huella.
 
-`start.ps1` activa la pasarela automáticamente si existe el certificado. Genera un
-token interno nuevo en memoria que heredan OpenCode/bridge y la pasarela, y detiene
-la pasarela al cerrar OpenCode. Muestra URLs candidatas y la huella pública; nunca
-muestra tokens. Sin certificado conserva el modo directo de Editor. Se puede usar
-`-Gateway:$false` para ese modo aun teniendo certificado; el bridge queda en
-loopback sin token interno. No debe usarse como conexión remota.
+`start` compila el bridge, activa automáticamente la pasarela si existe TLS y genera un token interno solo en memoria. Muestra las URLs candidatas y la huella. `--gateway` la fuerza y `--no-gateway` permite trabajar en el Editor por loopback sin pasarela. Opciones: `--port 4096 --gateway-host 0.0.0.0 --gateway-port 8443`. Ctrl+C detiene los servicios y el árbol MCP de OpenCode.
 
-Si el firewall impide llegar al puerto, el usuario puede crear esta regla en una
-consola de administrador (ajustar interfaz/puerto y limitarla a la red deseada):
+Todos los comandos admiten `--root <directorio>`: allí viven `.env.local` y `.seyra`; por defecto es `Backend/`. Las pruebas usan una raíz temporal y credenciales ficticias. Los envoltorios Windows conservan `-Root`, `-Port`, `-Gateway`/`-Gateway:$false`, `-GatewayHost`, `-GatewayPort` y las opciones anteriores de dispositivo. Contrato y comprobación de OpenCode: [bridge/CLI.md](bridge/CLI.md).
 
-```powershell
-New-NetFirewallRule -DisplayName SeyraGateway -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Any -InterfaceAlias Ethernet -RemoteAddress LocalSubnet
-# Para retirarla:
-Remove-NetFirewallRule -DisplayName SeyraGateway
-```
+Firewall (configuración manual limitada a la LAN):
+
+- Windows, consola de administrador: `New-NetFirewallRule -DisplayName SeyraGateway -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8443 -Profile Private -RemoteAddress LocalSubnet`. Para retirarla: `Remove-NetFirewallRule -DisplayName SeyraGateway`.
+- macOS: acepta el aviso del cortafuegos de aplicaciones para `node` en tu LAN de confianza.
+- Linux/ufw: `sudo ufw allow from 192.168.0.0/16 to any port 8443 proto tcp`, ajustando la subred.
+
+Windows está comprobado; macOS, Linux y el push a un dispositivo real siguen pendientes. La [guía raíz](../README.md) incluye equivalencias de IP y comandos adb para bash/zsh.
 
 También funciona sobre VPN o con un puerto del router redirigido a la pasarela;
 solo debe publicarse ese puerto HTTPS. El host de la URL puede ser cualquier IP o
