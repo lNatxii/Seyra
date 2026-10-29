@@ -34,19 +34,18 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 22f. Legibilidad por panel y tarjetas acoplables | 95 | Completed · Pendiente de revisión: legibilidad por panel, motivos de rechazo y guía de billboard implementados; pendientes las pruebas con Muse y la validación técnica indicada en el informe. |
-| 2 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
-| 3 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
-| 4 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
-| 5 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
-| 6 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
-| 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 8 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 9 | 19. Imágenes generadas | 55 | Barata tras 26. |
-| 10 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
-| 11 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 12 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
-| 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 1 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
+| 2 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
+| 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
+| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
+| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 6 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
+| 7 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
+| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
+| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
+| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -234,7 +233,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md). 22f Completed · Pendiente de revisión (29 de octubre de 2026): legibilidad por panel, motivos en `PLACEMENT_REJECTED` y guía de `billboard` implementados. SceneBatchChecks 45 y SpatialPlannerChecks 19 aprobados; pendientes las pruebas con Muse y las validaciones técnicas indicadas en el informe. [Implementación y límites 22f](Progress/Completed/22f-readable-placement-fixes.md).
+**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md). 22f Completed · Revisada (29 de octubre de 2026): legibilidad por panel, motivos en `PLACEMENT_REJECTED` y guía de `billboard`. Prueba Muse: sistema solar en la mesa con un `scene_build` y 3 llamadas (23 s, antes 125 s y 13), sin rechazos; layouts sin `billboard`. Pendiente probar `scene_edit` con Muse. [Implementación y límites 22f](Progress/Completed/22f-readable-placement-fixes.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
