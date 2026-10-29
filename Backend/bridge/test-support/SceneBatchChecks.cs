@@ -33,18 +33,20 @@ public static class SceneBatchChecks
         double elapsed = 0;
         try
         {
-            var sun = Sphere("sun"); sun["children"] = new JArray(Sphere("child", 2));
+            var sun = Sphere("sun"); sun["parentKey"] = "group";
+            var child = Sphere("child", 2); child["parentKey"] = "sun";
+            var planet = Sphere("planet", .5f); planet["parentKey"] = "group";
             var label = new JObject { ["key"] = "label", ["name"] = "Label", ["type"] = "panel", ["transform"] = Pose(),
                 ["panel"] = new JObject { ["version"] = 1, ["kind"] = "label", ["title"] = "", ["text"] = "Sun", ["width"] = .2, ["height"] = .06, ["fontSize"] = 24 },
                 ["relativeTo"] = new JObject { ["key"] = "sun", ["direction"] = "above", ["gap"] = .01 } };
-            var args = new JObject { ["name"] = "Composition", ["nodes"] = new JArray(new JObject { ["key"] = "group", ["name"] = "Group", ["type"] = "empty", ["transform"] = Pose(), ["children"] = new JArray(sun, Sphere("planet", .5f)) }, label) };
+            var args = new JObject { ["name"] = "Composition", ["nodes"] = new JArray(new JObject { ["key"] = "group", ["name"] = "Group", ["type"] = "empty", ["transform"] = Pose() }, sun, child, planet, label) };
             int before = Total(); var built = Ok("scene_build", args); var ids = (JObject)built["nodes"];
             foreach (var id in ids.Properties()) Ok("scene_get", new JObject { ["entityId"] = id.Value.DeepClone() });
             Check(Total() == before + 1, "Build must record exactly one history entry.");
             var sunBounds = Ok("scene_bounds", new JObject { ["entityId"] = ids["sun"].DeepClone() });
             var labelBounds = Ok("scene_bounds", new JObject { ["entityId"] = ids["label"].DeepClone() });
             Check((float)labelBounds["bounds"]["min"]["y"] > (float)sunBounds["bounds"]["max"]["y"], "Label must be above the sphere subtree.");
-            var invalid = (JObject)args.DeepClone(); invalid["nodes"][1]["panel"]["title"] = "Invalid label title";
+            var invalid = (JObject)args.DeepClone(); invalid["nodes"][4]["panel"]["title"] = "Invalid label title";
             int live = root.GetComponentsInChildren<GeneratedObject>(true).Length;
             Check(!(bool)Call("scene_build", invalid)["success"], "Invalid panel must fail.");
             Check(root.GetComponentsInChildren<GeneratedObject>().Length == live && Total() == before + 1, "Failed build must preserve live content and history.");

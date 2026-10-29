@@ -7,7 +7,7 @@ Never retry a mutation after an ambiguous timeout or disconnect; inspect first.
 ## scene_build
 
 Arguments: `name` (trimmed, 1..256), optional `parentId`, `nodes` (1..64 total,
-maximum depth 6), optional `placement`. Creates an identity-transform container
+maximum depth 6 via parentKey), optional `placement`. Creates an identity-transform container
 under the specified Generated parent, or the open request container by default.
 When no request is open, opens and closes an automatic request around the build.
 
@@ -15,15 +15,21 @@ Each node requires `key` (`^[a-z][a-z0-9_]{0,47}$`, unique), `name`, `type` and
 `transform`. Transform requires local `position`; `rotation` defaults to zero
 Euler degrees and `scale` to one. Vectors reuse the existing finite float contract.
 
-- `empty`: optional `children`.
+- `empty`: an empty container.
 - `primitive`: existing `primitiveType`, optional `appearance` (the existing
-  set_appearance contract without entityId), optional `children`.
-- `panel`: complete existing [panel contract](PANELS.md); no children.
+  set_appearance contract without entityId).
+- `panel`: complete existing [panel contract](PANELS.md).
+
+`nodes` is a flat list. Optional `parentKey` uses the same format as `key` and
+references an earlier non-panel node; omission parents the node under the
+composition root. Self, missing, forward and panel parent references are rejected.
+`children` is an unknown field and is rejected. The JSON Schema is non-recursive:
+Meta rejects turns whose tool catalog includes recursive schemas.
 
 Optional `relativeTo` has exactly one of `key` or existing `entityId`, `direction`
 (above/below/right/left/front/behind), and `gap` (0..10 meters). After all creation,
-these run in preorder through `place_relative` with `frame=world`. Local key
-references must be disjoint: no self, ancestor, descendant or reference chains.
+these run in list order through `place_relative` with `frame=world`. Local key
+references must be disjoint (ancestry follows parentKey): no self, ancestor, descendant or reference chains.
 External entity references retain the existing place_relative protections.
 
 Optional `placement` reuses spatial placement: `destination` air/tabletop/wall,

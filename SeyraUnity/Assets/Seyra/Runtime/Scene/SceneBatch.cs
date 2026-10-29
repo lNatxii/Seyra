@@ -53,28 +53,33 @@ namespace Seyra.SceneTools
             var nodes = args["nodes"] as JArray ?? throw new ArgumentException("nodes must be an array.");
             var ordered = new List<(JObject node, string parent, string[] ancestors)>();
             var byKey = new Dictionary<string, (JObject node, string[] ancestors)>(StringComparer.Ordinal);
-            void Visit(JArray items, string parent, string[] ancestors)
+            if (nodes.Count < 1 || nodes.Count > 64) throw new ArgumentException("Expected 1..64 nodes.");
+            foreach (var token in nodes)
             {
-                if (items.Count > 64 || ancestors.Length >= 6) throw new ArgumentException("Maximum 64 nodes and depth 6.");
-                foreach (var token in items)
+                var node = token as JObject ?? throw new ArgumentException("A node must be an object.");
+                string kind = Text(node, "type"), key = Text(node, "key");
+                if (!Regex.IsMatch(key, "^[a-z][a-z0-9_]{0,47}$") || byKey.ContainsKey(key)) throw new ArgumentException("Invalid or duplicate node key.");
+                var required = new[] { "key", "name", "type", "transform" };
+                if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
+                else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
+                else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
+                Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance" } : new[] { "relativeTo", "parentKey" });
+                var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
+                Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
+                string parent = null;
+                var ancestors = Array.Empty<string>();
+                if (node["parentKey"] != null)
                 {
-                    var node = token as JObject ?? throw new ArgumentException("A node must be an object.");
-                    string kind = Text(node, "type"), key = Text(node, "key");
-                    if (!Regex.IsMatch(key, "^[a-z][a-z0-9_]{0,47}$") || byKey.ContainsKey(key)) throw new ArgumentException("Invalid or duplicate node key.");
-                    var required = new[] { "key", "name", "type", "transform" };
-                    if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
-                    else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
-                    else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
-                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "children", "appearance" } : kind == "empty" ? new[] { "relativeTo", "children" } : new[] { "relativeTo" });
-                    var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
-                    Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
-                    byKey.Add(key, (node, ancestors)); ordered.Add((node, parent, ancestors));
-                    if (ordered.Count > 64) throw new ArgumentException("Maximum total node count is 64.");
-                    if (node["children"] != null) Visit(node["children"] as JArray ?? throw new ArgumentException("children must be an array."), key, ancestors.Concat(new[] { key }).ToArray());
+                    parent = String(node["parentKey"], 48);
+                    if (!Regex.IsMatch(parent, "^[a-z][a-z0-9_]{0,47}$") || parent == key || !byKey.TryGetValue(parent, out var previous))
+                        throw new ArgumentException("parentKey must reference an earlier node.");
+                    if ((string)previous.node["type"] == "panel") throw new ArgumentException("A panel cannot be a parent.");
+                    ancestors = previous.ancestors.Concat(new[] { parent }).ToArray();
                 }
+                if (ancestors.Length >= 6) throw new ArgumentException("Maximum node depth is 6.");
+                byKey.Add(key, (node, ancestors));
+                ordered.Add((node, parent, ancestors));
             }
-            if (nodes.Count == 0) throw new ArgumentException("At least one node is required.");
-            Visit(nodes, null, Array.Empty<string>());
             foreach (var entry in ordered)
             {
                 if (entry.node["relativeTo"] == null) continue;
