@@ -35,7 +35,7 @@ test('schema, agent permissions and parent contract', async()=>{
     {action:'read',resource:'*.env.*',effect:'deny'},
     {action:'grep',resource:'*.env',effect:'deny'},
     {action:'grep',resource:'*.env.*',effect:'deny'},
-    {action:'external_directory',resource:'{env:USERPROFILE}/.local/share/opencode/tool-output/*',effect:'allow'}
+    {action:'external_directory',resource:'{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*',effect:'allow'}
   ]);
   assert.deepEqual(permissions[0],{action:'*',resource:'*',effect:'deny'});
   assert.equal(permissions.some(rule=>rule.effect==='ask'),false);

@@ -16,7 +16,7 @@ Muse Voice Transcribe, visión con la cámara, SAM y Muse Image están previstos
 
 Seyra tiene dos partes:
 
-- **El backend**, que se ejecuta en un PC con Windows: OpenCode con Muse Spark, el bridge MCP de escena y una **pasarela HTTPS**.
+- **El backend**, que se ejecuta en un PC con Windows, macOS o Linux: OpenCode con Muse Spark, el bridge MCP de escena y una **pasarela HTTPS**.
 - **La app**, en Meta Quest 3/3S, o en un móvil Android con la escena de prueba de conexión.
 
 La app solo habla con la pasarela:
@@ -33,13 +33,13 @@ Quest / móvil ──HTTPS (certificado fijado + token del dispositivo)──▶
   - la huella SHA-256 del certificado.
 - La app solo acepta un certificado cuya huella coincida con la recibida. Así, la conexión funciona con cualquier IP o nombre de host sin depender de una autoridad de certificación.
 
-Todos los comandos son de **PowerShell en Windows** y se ejecutan desde la raíz del repositorio, salvo que se indique otra carpeta. Los scripts del backend (`start.ps1`, `seyra-device.ps1`) solo funcionan en Windows de momento.
+Los comandos `node Backend/seyra.mjs …` funcionan en PowerShell, bash y zsh desde la raíz del repositorio. También puedes usar una ruta absoluta a `seyra.mjs` desde cualquier carpeta. En Windows siguen disponibles `Backend/start.ps1` y `Backend/seyra-device.ps1` como envoltorios. Windows está comprobado; macOS y Linux quedan pendientes de validación.
 
 ### 1. Requisitos
 
 | Necesitas | Detalle |
 | --- | --- |
-| PC con Windows 10/11 | El PC y el dispositivo en la misma red, o con ruta entre ellos (VPN, Tailscale, puerto redirigido). |
+| PC con Windows, macOS o Linux | El PC y el dispositivo en la misma red, o con ruta entre ellos (VPN, Tailscale, puerto redirigido). |
 | Node.js 22 o superior y npm | `node --version` |
 | OpenCode v2 (`opencode2`) en el `PATH` | `opencode2 --version` (probado con 2.1.1) |
 | Clave de Meta Model API | Se crea en [dev.meta.ai](https://dev.meta.ai) → *API keys*. |
@@ -74,11 +74,11 @@ Todos los comandos son de **PowerShell en Windows** y se ejecutan desde la raíz
    - El agente por defecto `seyra` usa Muse Spark (`meta/muse-spark-1.3`).
 3. **Crea el certificado de la pasarela** (una sola vez):
    ```powershell
-   ./Backend/seyra-device.ps1 init-tls
+   node Backend/seyra.mjs init-tls
    ```
    - Imprime `Gateway certificate SHA-256: <huella>`.
    - Genera un certificado ECDSA P-256 autofirmado con 2 años de validez en `Backend/.seyra/tls/`, también excluido de Git.
-   - No sobrescribe uno existente salvo con `-Force`. Si lo regeneras, tendrás que volver a emparejar todos los dispositivos (paso 6).
+   - No sobrescribe uno existente salvo con `--force`. Si lo regeneras, tendrás que volver a emparejar todos los dispositivos (paso 6).
 
 ### 3. Preparar el dispositivo (una vez)
 
@@ -150,29 +150,22 @@ Cada dispositivo tiene **su propio token**: si pierdes un visor, solo revocas es
    Si tienes varias interfaces, usa la de la Wi-Fi o Ethernet donde está el dispositivo. También sirve un nombre DNS o la IP de Tailscale.
 2. **Genera el archivo de emparejamiento.** El nombre solo admite letras, números, `-` y `_`:
    ```powershell
-   ./Backend/seyra-device.ps1 pair -Name quest3 -Url https://192.168.1.131:8443
+   node Backend/seyra.mjs pair --name quest3 --url https://192.168.1.131:8443
    ```
    - Crea `Backend/.seyra/pairing/quest3.env` con `SEYRA_GATEWAY_URL`, `SEYRA_DEVICE_TOKEN` y `SEYRA_GATEWAY_CERT_SHA256`.
    - En el PC solo se guarda el *hash* del token (`Backend/.seyra/devices.json`).
-3. **Copia ese archivo al dispositivo con el nombre `.env.local`:**
-   ```powershell
-   adb shell mkdir -p /sdcard/Android/data/$pkg/files
-   adb push Backend/.seyra/pairing/quest3.env /sdcard/Android/data/$pkg/files/.env.local
-   adb shell ls -la /sdcard/Android/data/$pkg/files/
+3. **Copia y verifica el emparejamiento:** sustituye el paquete por el obtenido en el paso 5:
+   ```sh
+   node Backend/seyra.mjs push --name quest3 --package com.tuempresa.seyra
    ```
-   Debe aparecer `.env.local`.
+   Si hay varios dispositivos, añade `--serial <serial>`. La CLI busca `adb` en el PATH, en `ANDROID_SDK_ROOT`/`ANDROID_HOME` y en el SDK de la versión de Unity del proyecto. Comprueba que el paquete esté instalado y que el archivo llegue a `/sdcard/Android/data/<paquete>/files/.env.local`. Solo entonces borra la copia local. Si falla por permisos, abre la app una vez y repite.
 
    **Nunca copies `Backend/.env.local` al dispositivo:** contiene la clave de Meta y la contraseña de OpenCode.
-4. **Borra la copia del PC.** Ya no hace falta, y contiene el token en claro:
-   ```powershell
-   Remove-Item -LiteralPath Backend/.seyra/pairing/quest3.env
-   ```
 
 ### 7. Arrancar el backend
 
 ```powershell
-cd Backend
-./start.ps1
+node Backend/seyra.mjs start
 ```
 
 - **Qué hace:**
@@ -199,7 +192,32 @@ cd Backend
      ```
      Para quitarla: `Remove-NetFirewallRule -DisplayName SeyraGateway`.
 
-Para trabajar solo en el Editor de Unity sin pasarela: `./start.ps1 -Gateway:$false`. El Editor se conecta en directo a `127.0.0.1`.
+Para trabajar solo en el Editor de Unity sin pasarela: `node Backend/seyra.mjs start --no-gateway`. El Editor se conecta en directo a `127.0.0.1`.
+
+**Firewall en otros sistemas:** en macOS, acepta el aviso del cortafuegos de aplicaciones para `node` al arrancar por primera vez en tu red local de confianza. En Linux con `ufw`, ajusta la subred a tu LAN y ejecuta:
+
+```sh
+sudo ufw allow from 192.168.0.0/16 to any port 8443 proto tcp
+```
+
+No se configura el firewall automáticamente. Para comprobar puertos en macOS/Linux usa `lsof -nP -iTCP:4100 -iTCP:4096 -iTCP:8443 -sTCP:LISTEN`.
+
+**Equivalencias para bash/zsh:**
+
+```sh
+# Paquete (equivalente a Select-String):
+adb shell pm list packages | grep -E 'seyra|unity'
+pkg=com.tuempresa.seyra
+adb shell monkey -p "$pkg" 1
+adb shell am force-stop "$pkg"
+# IP del PC: macOS / Linux
+ipconfig getifaddr en0
+ip -4 addr show
+# Borrar un archivo local temporal, cuando corresponda:
+rm -- device.env
+```
+
+En macOS puedes añadir al PATH el SDK de Unity con `export PATH="$PATH:/Applications/Unity/Hub/Editor/6000.3.21f1/PlaybackEngines/AndroidPlayer/SDK/platform-tools"`. En Linux usa `$HOME/Unity/Hub/Editor/6000.3.21f1/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platform-tools`.
 
 ### 8. Abrir la app y comprobar la conexión
 
@@ -231,8 +249,8 @@ Para trabajar solo en el Editor de Unity sin pasarela: `./start.ps1 -Gateway:$fa
   ```
 - **Dispositivo perdido o nuevo token:**
   ```powershell
-  ./Backend/seyra-device.ps1 list
-  ./Backend/seyra-device.ps1 revoke -Name quest3
+  node Backend/seyra.mjs list
+  node Backend/seyra.mjs revoke --name quest3
   ```
   Para volver a emparejar con el mismo nombre, revoca antes el anterior y repite el paso 6.
 - **Sin cable (ADB por Wi-Fi):** con el dispositivo conectado por USB, ejecuta lo siguiente, desconecta el cable y usa `adb` igual que antes. En Quest se pierde al reiniciar el visor.
@@ -248,12 +266,12 @@ Para trabajar solo en el Editor de Unity sin pasarela: `./start.ps1 -Gateway:$fa
 | Síntoma | Causa probable | Solución |
 | --- | --- | --- |
 | "Sin emparejar" | No hay `.env.local` en la carpeta de la app, o tiene otro nombre | Repite el paso 6.3 y comprueba con `adb shell ls -la /sdcard/Android/data/$pkg/files/` |
-| "No se encuentra el backend en IP:8443" | Backend apagado, IP incorrecta o firewall | Comprueba que `start.ps1` está en marcha, que la IP de `LAN candidate` coincide con la de `.env.local` y la regla del firewall |
-| "Certificado del backend no reconocido" | Se regeneró el certificado (`init-tls -Force`) | Revoca y vuelve a emparejar (paso 6) |
+| "No se encuentra el backend en IP:8443" | Backend apagado, IP incorrecta o firewall | Comprueba que `seyra.mjs start` está en marcha, que la IP de `LAN candidate` coincide con la de `.env.local` y la regla del firewall |
+| "Certificado del backend no reconocido" | Se regeneró el certificado (`init-tls --force`) | Revoca y vuelve a emparejar (paso 6) |
 | "Dispositivo no autorizado o revocado" | Token revocado o archivo de otro dispositivo | Revoca si hace falta y vuelve a emparejar |
 | "Demasiados intentos" | Más de 20 fallos por minuto desde esa IP | Espera 5 minutos y corrige la configuración |
-| Chat conectado pero el modelo no responde | Falta `META_API_KEY`, no hay créditos o el agente de la escena no es `seyra` | Revisa `Backend/.env.local`, el gasto en dev.meta.ai y la ventana de `start.ps1` |
-| Runtime desconectado con el chat conectado | Otra app o el Editor ocupan el runtime (solo puede haber uno), o hay un bridge huérfano en el puerto 4100 | Cierra el Play Mode del Editor; reinicia `start.ps1` tras liberar el 4100 |
+| Chat conectado pero el modelo no responde | Falta `META_API_KEY`, no hay créditos o el agente de la escena no es `seyra` | Revisa `Backend/.env.local`, el gasto en dev.meta.ai y la ventana de `seyra.mjs start` |
+| Runtime desconectado con el chat conectado | Otra app o el Editor ocupan el runtime (solo puede haber uno), o hay un bridge huérfano en el puerto 4100 | Cierra el Play Mode del Editor; reinicia `seyra.mjs start` tras liberar el 4100 |
 | `adb: device unauthorized` | No se aceptó la depuración USB | Acepta el aviso en el dispositivo; `adb kill-server` y vuelve a conectar |
 | `adb push` falla con *Permission denied* | La carpeta de la app aún no existe | Abre la app una vez (paso 5.3) y repite |
 

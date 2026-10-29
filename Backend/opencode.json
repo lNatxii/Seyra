@@ -10,9 +10,9 @@
         "type": "local",
         "command": [
           "node",
-          "C:/Proyectos/Seyra/Backend/bridge/dist/index.js"
+          "{env:SEYRA_BACKEND_DIR}/bridge/dist/index.js"
         ],
-        "cwd": "C:/Proyectos/Seyra/Backend",
+        "cwd": "{env:SEYRA_BACKEND_DIR}",
         "disabled": false,
         "codemode": false,
         "timeout": {
@@ -78,7 +78,7 @@
         },
         {
           "action": "external_directory",
-          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
+          "resource": "{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*",
           "effect": "allow"
         }
       ],
@@ -140,7 +140,7 @@
         },
         {
           "action": "external_directory",
-          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
+          "resource": "{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*",
           "effect": "allow"
         }
       ],
@@ -203,7 +203,7 @@
         },
         {
           "action": "external_directory",
-          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
+          "resource": "{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*",
           "effect": "allow"
         }
       ],
@@ -266,7 +266,7 @@
         },
         {
           "action": "external_directory",
-          "resource": "{env:USERPROFILE}/.local/share/opencode/tool-output/*",
+          "resource": "{env:SEYRA_OPENCODE_DATA_DIR}/tool-output/*",
           "effect": "allow"
         }
       ],
