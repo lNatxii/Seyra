@@ -21,6 +21,9 @@ CLI; existing PFX certificates and device records remain valid. See
   An expired/replaced session returns 410; the client opens a new session, never
   resending an ambiguous result or mutation.
 
+- `/_seyra/asr/*` provides authenticated speech transcription; see
+  [ASR.md](ASR.md) for routes, polling, limits and errors.
+
 Only the authenticated session owner can poll/respond. The queue is bounded to
 64 messages and 8 MiB total. Results have the bridge's 8 MiB limit. Other HTTP
 bodies are at most 1 MiB. Authentication is checked against devices.json for each
