@@ -22,7 +22,7 @@ Capacidades implementadas que deben reutilizarse. La mayoría están validadas e
 | Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f). | Validación en Quest. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada. | Imágenes de internet (26), marcar tarjetas (27), movimiento (24). |
+| Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada. | Imágenes de internet (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire, acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
@@ -37,15 +37,16 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 1 | 25. Cierre de `scene_build`/`scene_edit` | 95 | Implementada y en `main`; solo falta la prueba con Muse y la revisión. |
 | 2 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
 | 3 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
-| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
-| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
-| 6 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 7 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
-| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
-| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
-| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 4 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
+| 5 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
+| 6 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
+| 8 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
+| 9 | 19. Imágenes generadas | 55 | Barata tras 26. |
+| 10 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 11 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 12 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
+| 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -306,6 +307,16 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 **Aceptación:** en una habitación pequeña, un arco de tarjetas o una maqueta en el aire quedan dentro con un margen comprobado; sin habitación capturada se mantiene el comportamiento actual y se declara; la validación usa las habitaciones de prueba de MRUK en el Editor.
 
 **Dependencias:** 22, 23 y 25. Comprobar en el diseño el comportamiento de `GetRoomOutline` con varias plantas o habitaciones (High Fidelity scene).
+
+### 29. Líneas guía y puntos de interés
+
+**Estado:** sin diseñar. Prioridad media-alta (puntuación 74).
+
+**Entrega:** dos elementos generados nuevos. (1) Línea: `LineRenderer` entre dos o más puntos, con material sencillo sin iluminación, color de la paleta de 03 y grosor por defecto de 0,01 m. Cada extremo puede ser un punto fijo o una referencia a un objeto generado (`targetId`, o `key`/`parentKey` dentro de `scene_build`), de modo que la línea sigue al objeto si este se mueve. (2) Punto de interés: esfera pequeña con radio elegible por el modelo (1 cm por defecto) colocada sobre la superficie de otro objeto. Caso de uso principal: al generar planetas, un punto de interés sobre cada planeta y una línea desde el punto hasta su etiqueta de texto. Disponible como herramienta individual y como tipo de nodo en `scene_build`/`scene_edit` (`Backend/bridge/BATCH.md`).
+
+**Aceptación:** «crea el sistema solar con etiquetas» produce puntos de interés sobre los planetas unidos por líneas a sus etiquetas, en la misma llamada de `scene_build`; las líneas se actualizan si el planeta o la etiqueta se mueven (incluido el movimiento de 24); grosor y radio tienen límites validados; borrar un extremo elimina o desactiva la línea de forma declarada; deshacer, papelera y guardado/carga completos.
+
+**Dependencias:** 03, 05 y 25. Compatible con 24 (líneas que siguen objetos en órbita). Hoy solo existe un `LineRenderer` interno de previsualización en `SpatialWindowSnapping.cs`.
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 

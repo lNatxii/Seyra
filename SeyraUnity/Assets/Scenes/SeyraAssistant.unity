@@ -638,7 +638,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: palmOffset.y
-      value: 0.14
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: palmOffset.z
