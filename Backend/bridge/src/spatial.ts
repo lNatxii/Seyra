@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const spatialFrame = z.enum(['world', 'viewer', 'reference']);
 export const spatialOrientation = z.enum(['keep', 'face_viewer', 'match_reference']);
-const placement = {
+export const placement = {
   entityId: z.string().trim().min(1).max(128).refine(v => v.toLowerCase() !== 'null', 'Use an actual ID; never null.'), destination: z.enum(['wall', 'tabletop', 'air']),
   physicalId: z.string().regex(/^physical:[0-9a-fA-F-]{36}$/).optional(),
   allowAirFallback: z.boolean().default(true), minScale: z.number().finite().min(.1).max(1).default(1),

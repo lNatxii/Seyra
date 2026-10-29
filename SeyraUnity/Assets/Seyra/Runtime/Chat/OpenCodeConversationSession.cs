@@ -703,6 +703,8 @@ namespace Seyra.Chat
                 case "seyra_scene_hierarchy": return "Consultar jerarquía";
                 case "seyra_scene_find": return "Buscar objetos";
                 case "seyra_scene_get": return "Consultar objeto";
+                case "seyra_scene_build": return "Construir escena";
+                case "seyra_scene_edit": return "Editar escena";
                 case "seyra_create_gameobject": return "Crear contenedor";
                 case "seyra_create_primitive": return "Crear primitiva";
                 case "seyra_rename_object": return "Renombrar objeto";
