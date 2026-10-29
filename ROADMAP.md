@@ -14,12 +14,12 @@ Este documento fija prioridad, orden, dependencias y criterios de aceptación. E
 
 ## Estado actual (29 de octubre de 2026)
 
-Capacidades implementadas que deben reutilizarse. La mayoría están validadas en el Editor; la validación física en Quest sigue pendiente en casi todas (07).
+Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, herramientas, habitación, `scene_build` y layouts) está probado en Quest 3 con el APK independiente (07).
 
 | Área | Implementado | Pendiente |
 | --- | --- | --- |
-| Conexión | Pasarela HTTPS con emparejamiento por dispositivo, CLI multiplataforma (`seyra.mjs`) y logs reducidos a `warn`. | Revisión de 07 y 08; pruebas físicas en Quest. |
-| Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f). | Validación en Quest. |
+| Conexión | Pasarela HTTPS con emparejamiento por dispositivo, CLI multiplataforma (`seyra.mjs`) y logs reducidos a `warn`; APK independiente probado en Quest 3. | Revisión de 08. |
+| Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Confirmar el dictado por voz en Quest. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, doce presentaciones, layouts de tarjetas, `scene_build` y `scene_edit` en una llamada (maqueta con etiquetas en 3 llamadas). | Imágenes de internet (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
@@ -34,18 +34,17 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. La hace el usuario; en paralelo se puede diseñar 26. |
-| 2 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
-| 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
-| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
-| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
-| 6 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 7 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
-| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
-| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
-| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
+| 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
+| 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
+| 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 5 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
+| 6 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
+| 7 | 19. Imágenes generadas | 55 | Barata tras 26. |
+| 8 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 9 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 10 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
+| 11 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -191,7 +190,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 07. Conexión y ejecución verificadas en Quest
 
-**Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Correcciones 11.1.1–5 aplicadas: restauración del build comprobada por API y hashes, escena móvil regenerada con layouts, diagnóstico plegable, MobileKeyboardInset y agente seyra; suite del bridge 11/11 sin pwsh. APK móvil recompilado. Pendiente del usuario: teclado y Enviar visibles, «hola» con respuesta y runtime conectado; pruebas físicas en Quest pendientes. Añadidos 6–7 de la revisión fuera de esta entrega. [Implementación y validación](Progress/Completed/07-quest-connection.md).
+**Estado:** Completed · Revisada (29 de octubre de 2026). APK independiente en Quest 3 conectado por la pasarela HTTPS emparejada: chat, herramientas reales, habitación MRUK real, `scene_build` en la mesa y layouts en pared probados por el usuario. Limitación: el build de prueba para móvil puede dejar modificada la configuración XR; comprobar `git status` después. [Implementación y validación](Progress/Completed/07-quest-connection.md).
 
 **Entrega:** configurar desde la aplicación la dirección del backend, autenticar la conexión sin incluir secretos de proveedores en assets o builds y verificar el enlace Unity–bridge fuera del Editor. El backend sigue ejecutándose en un equipo accesible por red.
 
