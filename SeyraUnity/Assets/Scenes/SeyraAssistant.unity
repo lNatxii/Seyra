@@ -494,11 +494,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 938105801053920979, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.1461
+      value: 0.14
       objectReference: {fileID: 0}
     - target: {fileID: 938105801053920979, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: 0.04
       objectReference: {fileID: 0}
     - target: {fileID: 938105801053920979, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: m_LocalRotation.w
@@ -620,6 +620,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2432452385689296329, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: head
       value: 
@@ -628,6 +632,18 @@ PrefabInstance:
       propertyPath: leftHand
       value: 
       objectReference: {fileID: 9030378260391544578}
+    - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
+      propertyPath: palmOffset.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
+      propertyPath: palmOffset.y
+      value: 0.14
+      objectReference: {fileID: 0}
+    - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
+      propertyPath: palmOffset.z
+      value: 0.04
+      objectReference: {fileID: 0}
     - target: {fileID: 2701579660384711664, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: leftControllerAnchor
       value: 
@@ -908,6 +924,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6825995538871792040, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 7200562812527971727, guid: 90a18006337c79f4ba24ecbc3f062699, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -1573,7 +1593,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4064421567639478723, guid: 29133c08aaa985d4eaff055fb116aa0c, type: 3}
       propertyPath: defaultAgent
-      value: seyra_zai
+      value: seyra
       objectReference: {fileID: 0}
     - target: {fileID: 5485761989252411996, guid: 29133c08aaa985d4eaff055fb116aa0c, type: 3}
       propertyPath: m_AnchorMax.y
