@@ -16,7 +16,7 @@
         "disabled": false,
         "codemode": false,
         "timeout": {
-          "execution": 15000
+          "execution": 25000
         }
       }
     }

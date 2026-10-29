@@ -41,7 +41,7 @@ export const layoutTools = [
       validate(a, a.count, ctx);
       if (a.layout === 'anchor' ? a.targets?.length !== a.count : a.targets !== undefined) ctx.addIssue({ code: 'custom', message: 'Only anchor requires targets, one per item.' });
     }) },
-  { name: 'layout_create', readOnly: false, description: guidance + 'Creates an atomic layout group using existing panel/presentation contracts, with automatic request grouping. Supports request undo, format 5 persistence, billboard and one live plane lazy_follow (1..3 cards). Never retry ambiguous mutations.',
+  { name: 'layout_create', readOnly: false, description: guidance + 'Creates an atomic layout group using existing panel/presentation contracts, with automatic request grouping. For image collections use mediaCard presentations with image and scrollable body (recommended itemSize 0.42 x 0.62 meters). Photos accept exactly one registered imageRef, imageSearch (English Wikipedia article) or imageUrl (http/https); at most 12 distinct web images per call. Never supply web: imageRef values. Supports request undo, format 5 persistence, billboard and one live plane lazy_follow (1..3 cards). Never retry ambiguous mutations.',
     schema: z.object({ ...common, name: z.string().trim().min(1).max(256), parentId: id.optional(), items: z.array(item).min(1).max(24) }).strict().superRefine((a, ctx) => {
       validate(a, a.items.length, ctx);
       a.items.forEach((i, index) => {
