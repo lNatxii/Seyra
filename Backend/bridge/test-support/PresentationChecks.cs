@@ -81,8 +81,15 @@ public static class PresentationChecks
             }
             // 1. A valid inline JPEG resolves and its header is outside the scrolling body.
             var mediaArgs = CardArgs("media-valid", mediaId); mediaArgs["media"] = new JArray(media.DeepClone());
+            const string mediaSource = "example.test · Fixture page";
+            const string mediaSourceUrl = "https://example.test/fixture-page";
+            mediaArgs["presentation"]["image"]["source"] = mediaSource;
+            mediaArgs["presentation"]["image"]["sourceUrl"] = mediaSourceUrl;
             var mediaCreated = Ok("ui_present", mediaArgs); var mediaEntityId = (string)mediaCreated["entityId"];
             var mediaPanel = Panel(mediaEntityId); var mediaView = mediaPanel.PresentationView;
+            Require(mediaView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text == "Fuente: " + mediaSource), "Media source attribution is missing.");
+            Require((string)Get(mediaEntityId)["presentation"]["presentation"]["image"]["sourceUrl"] == mediaSourceUrl, "ui_get did not return the media source URL.");
+            Require(!mediaView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text.Contains(mediaSourceUrl)), "The media source URL must not be displayed.");
             Require(((JArray)Get(mediaEntityId)["missingMedia"]).Count == 0, "Valid JPEG was reported missing.");
             Require(mediaView.TryMedia(mediaId, out var remoteSprite) && remoteSprite != null && remoteSprite.texture.width <= 512 && remoteSprite.texture.height <= 512, "Remote JPEG did not resolve within 512 pixels.");
             var mediaScroll = mediaView.GetComponentInChildren<ScrollRect>(true);
@@ -114,6 +121,7 @@ public static class PresentationChecks
                     ["tool"] = "content_load", ["arguments"] = new JObject { ["slot"] = "media" }, ["deadlineUtc"] = DateTimeOffset.UtcNow.AddMinutes(2).ToString("O") }.ToString()));
                 Require((bool)coldResponse["success"], "Cold media slot load failed: " + coldResponse);
                 var coldView = coldRoot.GetComponentsInChildren<ManagedPanel>(true).Single(p => p.IsPresentation).PresentationView;
+                Require(coldView.Data is MediaCardData coldCard && coldCard.image.source == mediaSource && coldCard.image.sourceUrl == mediaSourceUrl, "Media source did not round-trip through v5 persistence.");
                 Require(((JArray)coldView.Snapshot()["missingMedia"]).Count == 0 && coldView.TryMedia(mediaId, out var diskSprite) && diskSprite != null, "Loaded media did not resolve from disk through a fresh store.");
             }
             finally { Object.DestroyImmediate(coldRoot); }
@@ -248,7 +256,7 @@ public static class PresentationChecks
             info["id"] = "over-capacity";
             Require(!(bool)Raw("ui_present", Args(info))["success"], "Presentation capacity was not enforced.");
             Require(((JArray)Ok("ui_list")["presentations"]).Count == 16, "Rejected creation changed live count.");
-            return new JObject { ["passed"] = true, ["assertions"] = checks, ["types"] = ids.Count + 1, ["mediaCases"] = 5, ["corpus"] = corpus.Count }.ToString();
+            return new JObject { ["passed"] = true, ["assertions"] = checks, ["types"] = ids.Count + 1, ["mediaCases"] = 6, ["corpus"] = corpus.Count }.ToString();
         }
         finally
         {

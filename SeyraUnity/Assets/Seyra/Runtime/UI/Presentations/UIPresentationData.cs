@@ -20,6 +20,7 @@ namespace Seyra.UI.Presentations
     {
         [UIRequired] public string imageRef, title;
         public string description = "", alt = "";
+        public string source = "", sourceUrl = "";
     }
     public sealed class UIPropertyData
     { [UIRequired] public string label, value; public string unit = ""; }

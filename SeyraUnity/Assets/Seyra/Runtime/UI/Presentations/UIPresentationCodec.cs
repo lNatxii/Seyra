@@ -47,6 +47,12 @@ namespace Seyra.UI.Presentations
             {
                 var token = json[field.Name]; var required = field.IsDefined(typeof(UIRequiredAttribute));
                 if (token == null) { if (required) throw new ArgumentException(path + "." + field.Name + ": required."); continue; }
+                if (type == typeof(UIPhotoData) && (field.Name == "source" || field.Name == "sourceUrl"))
+                {
+                    int maximum = field.Name == "source" ? 300 : 2048;
+                    if (token.Type != JTokenType.String || ((string)token).Length > maximum)
+                        throw new ArgumentException(path + "." + field.Name + ": text required (maximum " + maximum + " characters).");
+                }
                 ValidateValue(token, field.FieldType, path + "." + field.Name, field.GetCustomAttribute<UICountAttribute>(), required, field.GetCustomAttribute<UIChoicesAttribute>());
             }
         }

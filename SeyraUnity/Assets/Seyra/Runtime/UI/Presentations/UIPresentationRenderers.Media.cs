@@ -31,6 +31,7 @@ namespace Seyra.UI.Presentations
                 aspect.aspectRatio = sprite.rect.width / sprite.rect.height;
             }
             else Text(v, "Imagen no disponible" + (d.image.alt.Length > 0 ? "\n" + d.image.alt : ""), header, UITextRole.Help);
+            if (d.image.source.Length > 0) Text(v, "Fuente: " + d.image.source, v.Body, UITextRole.Help);
             Text(v, d.description, v.Body, UITextRole.Label);
             Text(v, string.Join(" · ", d.tags), v.Body, UITextRole.Help);
             Text(v, d.body, v.Body);
@@ -65,6 +66,7 @@ namespace Seyra.UI.Presentations
             else Text(v, "Imagen no disponible" + (image.imageRef.StartsWith("web:", System.StringComparison.Ordinal) ? "" : ": " + image.imageRef) +
                 (image.alt.Length > 0 ? "\n" + image.alt : ""), picture, UITextRole.Help);
             var caption = Column(v, card, "CaptionContainer");
+            if (image.source.Length > 0) Text(v, "Fuente: " + image.source, caption, UITextRole.Help);
             Text(v, image.title, caption, UITextRole.Label); Text(v, image.description, caption);
             if (image.alt.Length > 0) Text(v, image.alt, caption, UITextRole.Help, UIInkRole.Muted);
         }
