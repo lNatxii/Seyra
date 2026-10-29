@@ -6,7 +6,7 @@ type Options = { apiKey?: string; url?: string; tickMs?: number; languageBias?: 
 type Session = {
   id: string; device: string; socket: WebSocket; buffer: Buffer[]; bytes: number;
   version: number; partial: string; final: string | null; error: string | null;
-  done: boolean; stopping: boolean; ended: boolean; lastAudio: number; lastPoll: number;
+  done: boolean; stopping: boolean; ended: boolean; buffering: boolean; lastAudio: number; lastPoll: number;
   tick?: NodeJS.Timeout; deadline?: NodeJS.Timeout; retention?: NodeJS.Timeout;
   poll?: ServerResponse; pollTimer?: NodeJS.Timeout; acknowledge?: (ok: boolean) => void;
 };
@@ -52,6 +52,10 @@ export function createAsrRelay(options: Options) {
     if (now - started >= 60000) s.stopping = true;
     if (!s.stopping && now - s.lastAudio >= 5000) { finish(s, 'ASR_IDLE'); return; }
     if (s.socket.readyState !== WebSocket.OPEN) return;
+    if (!s.stopping && s.buffering) {
+      if (s.bytes < 9600) { s.socket.send(Buffer.alloc(3200)); return; }
+      s.buffering = false;
+    }
     if (s.bytes) {
       let remaining = Math.min(6400, s.bytes); const chunks: Buffer[] = [];
       while (remaining) {
@@ -60,6 +64,7 @@ export function createAsrRelay(options: Options) {
         if (count === head.length) s.buffer.shift(); else s.buffer[0] = head.subarray(count);
       }
       s.socket.send(Buffer.concat(chunks));
+      if (!s.bytes && !s.stopping) s.buffering = true;
     } else if (!s.stopping) s.socket.send(Buffer.alloc(3200));
     else if (!s.ended) {
       s.ended = true; s.socket.send(JSON.stringify({ type: 'endStream' }));
@@ -81,7 +86,7 @@ export function createAsrRelay(options: Options) {
       const id = randomUUID(); const endpoint = new URL(options.url ?? 'wss://api.meta.ai/v1/asr/realtime'); endpoint.searchParams.set('sessionId', id);
       const socket = new WebSocket(endpoint, { maxPayload: 1048576, perMessageDeflate: false, handshakeTimeout: 8000 });
       const now = Date.now();
-      const s: Session = { id, device: device.id, socket, buffer: [], bytes: 0, version: 0, partial: '', final: null, error: null, done: false, stopping: false, ended: false, lastAudio: now, lastPoll: now };
+      const s: Session = { id, device: device.id, socket, buffer: [], bytes: 0, version: 0, partial: '', final: null, error: null, done: false, stopping: false, ended: false, buffering: true, lastAudio: now, lastPoll: now };
       active = s;
       const accepted = new Promise<boolean>(resolve => {
         const timer = setTimeout(() => { finish(s, 'ASR_UPSTREAM'); resolve(false); }, 8000);

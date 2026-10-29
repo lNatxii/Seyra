@@ -60,9 +60,9 @@ test('ASR relays handshake, binary audio, partial and final snapshots', async t 
   const f = await fixture(t); const start = await f.request('start'); assert.equal(start.status, 200); const id = start.body.asrId;
   assert.deepEqual(f.handshake, { authorization: { accessToken: 'Bearer fixture-key' }, model: 'muse-voice-transcribe-1.0', audioEncoding: 'PCM_16KHZ', mode: 'PUSH_TO_TALK', partialMode: 'CUMULATIVE', emitAudioProgress: false, languageBias: ['Spanish', 'English'], keywords: ['Seyra'] });
   const initial = await f.request('events', { id });
-  const audio = Buffer.alloc(3200, 7);
+  const audio = Buffer.alloc(6400, 7);
   assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(120);
-  assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(120);
+  assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(240);
   assert.ok(f.frames.filter(frame => frame.equals(audio)).length >= 2);
   const poll = f.request('events', { id, after: initial.body.version, wait: 10 });
   f.socket.send(JSON.stringify({ type: 'transcript', transcript: 'Hola', final: false }));
@@ -72,8 +72,15 @@ test('ASR relays handshake, binary audio, partial and final snapshots', async t 
   assert.equal(final.body.done, true); assert.equal(final.body.final, 'Hola Seyra.');
 });
 test('ASR sends real-time silence while waiting for client audio', async t => {
-  const f = await fixture(t); await f.request('start'); await delay(500);
+  const f = await fixture(t); const id = (await f.request('start')).body.asrId; await delay(500);
   assert.ok(f.frames.length >= 3); assert.ok(f.frames.every(frame => frame.length === 3200 && frame.every(byte => byte === 0)));
+  const audio = Buffer.alloc(3200, 7);
+  for (let count = 0; count < 2; count++) {
+    assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(120);
+  }
+  assert.ok(f.frames.every(frame => frame.every(byte => byte === 0)));
+  assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(240);
+  assert.deepEqual(Buffer.concat(f.frames.filter(frame => frame.some(byte => byte !== 0))), Buffer.concat([audio, audio, audio]));
 });
 test('ASR enforces chunk limits and session ownership/expiration', async t => {
   const f = await fixture(t); const id = (await f.request('start')).body.asrId;

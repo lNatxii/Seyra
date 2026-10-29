@@ -37,8 +37,10 @@ English, and keyword Seyra. The provider configuration comes from `META_API_KEY`
 `SEYRA_ASR_URL` overrides the endpoint only when `NODE_ENV=test`, for local tests.
 The handshake and transcript fields follow [Meta Voice schemas](https://dev.meta.ai/docs/api-reference/voice/schemas).
 
-Audio drains every 100 ms, up to 6400 bytes per tick to catch up. Empty queues
-send 3200 zero bytes until stop. Stop drains queued audio, sends `endStream` once,
+Audio drains every 100 ms, up to 6400 bytes per tick to catch up. At session start
+and whenever the queue empties before stop, buffering resumes: ticks send 3200
+zero bytes without consuming queued audio until 9600 bytes (300 ms) accumulate.
+Stop bypasses buffering, drains queued audio, sends `endStream` once,
 and waits at most 15 seconds for final text. The queue holds at most 96000 bytes
 (3 seconds); sessions stop automatically at 60 seconds. Five seconds without
 client audio causes `ASR_IDLE`; 30 seconds without polling closes the session.
