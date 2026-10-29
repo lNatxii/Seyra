@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 25. Cierre de `scene_build`/`scene_edit` | 95 | Implementada y en `main`; solo falta la prueba con Muse y la revisión. |
+| 1 | 25. Cierre de `scene_build`/`scene_edit` | 95 | Completed · Pendiente de revisión; prueba Muse completada, con límite de colocación de etiquetas derivado a 22f. |
 | 2 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
 | 3 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
 | 4 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
@@ -256,7 +256,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 25. Composición y edición de escena en una llamada
 
-**Estado:** In progress · en implementación. Pasos 1–7 en `main` (29 de octubre de 2026): herramientas, checks (SceneBatchChecks 40, LayoutChecks 44), 23 tests del bridge y guía en el prompt. El contrato pasó a lista plana con `parentKey` porque el proveedor Meta rechaza esquemas JSON recursivos. Primera prueba con Muse: maqueta en el aire en 52 s y 9 pasos (antes 131 s y 36). Pendiente repetir la prueba con el prompt nuevo y la revisión. [Diseño](Progress/InProgress/25-scene-build-batch.md).
+**Estado:** Completed · Pendiente de revisión (29 de octubre de 2026). Pasos 1–7 en `main`; SceneBatchChecks 40, LayoutChecks 44 y 23 tests del bridge aprobados. Contrato plano con `parentKey` por el rechazo de esquemas recursivos de Meta. Prueba Muse en Editor (`swift-moon`, perfil `seyra`, `muse-spark-1.3`): maqueta correcta en la mesa tras 125 s y 13 llamadas; rechazo de maquetas con etiquetas y falta de motivos en `PLACEMENT_REJECTED` derivados a [22f](Progress/InProgress/22f-readable-placement-fixes.md). Marvel correcto con una llamada a `layout_create`. Pendiente la validación física en Quest (07). [Implementación y validación](Progress/Completed/25-scene-build-batch.md).
 
 **Orden:** antes de 24 (comparten `SceneHistory.cs` y `SceneTools.cs`).
 
