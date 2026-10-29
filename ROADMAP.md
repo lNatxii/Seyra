@@ -166,6 +166,16 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 **Dependencias:** 06. La solución de transporte y credenciales debe cerrarse antes de considerar entregado el MVP.
 
+### 07b. CLI multiplataforma del backend
+
+**Estado:** In progress · diseño listo (29 de octubre de 2026). [Diseño](Progress/InProgress/07b-backend-cli.md).
+
+**Entrega:** `node Backend/seyra.mjs` con `start`, `init-tls`, `pair`, `list`, `revoke` y `push` (copia el emparejamiento al dispositivo con adb) en Windows, macOS y Linux; `opencode.json` sin rutas del PC del usuario; `start.ps1` y `seyra-device.ps1` como envoltorios.
+
+**Aceptación:** el backend arranca desde cualquier carpeta del repositorio; Ctrl+C no deja procesos huérfanos; certificados y dispositivos anteriores siguen funcionando.
+
+**Dependencias:** 07 y 08.
+
 ### 08. Muse Spark como proveedor utilizable
 
 **Estado:** Completed · Pendiente de revisión (28 de octubre de 2026). Muse Spark configurado mediante proveedor Meta Responses explícito; GLM conservado en seyra_glm. Compilación y 8/9 pruebas correctas; transporte pendiente por EACCES local. Recorrido real con Muse Spark completado en Editor: chat, cubos con etiquetas anchor, libros en arc y undo; 14 herramientas confirmadas. [Implementación, desviaciones y validación](Progress/Completed/08-muse-spark.md).
