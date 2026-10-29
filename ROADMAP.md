@@ -279,7 +279,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 26. Tarjetas con imagen de internet
 
-**Estado:** Completed · Pendiente de revisión (2026-10-29). Imágenes con imageSearch/imageUrl, bridge seguro, mediaCard y catálogo de 13 tipos; 237 comprobaciones de presentaciones y 44 de layouts aprobadas. Suite bridge final: 19/30, con 11 EACCES del entorno; prueba con Muse en Quest pendiente. Reiniciar backend y OpenCode para cargar sharp, prompt y timeout de 25 s. [Implementación y validación](Progress/Completed/26-web-image-cards.md).
+**Estado:** In progress · cambios solicitados (29 de octubre de 2026). `mediaCard`, `imageSearch`/`imageUrl`, bridge seguro y caché en Unity implementados. Prueba con Muse en Quest: solo 3 de 11 pósters por límite 429 de `upload.wikimedia.org`; se corrige con un User-Agent con contacto, concurrencia por host y reintento. Además se retira `lazy_follow` del modelo. [Diseño y revisión](Progress/InProgress/26-web-image-cards.md).
 
 **Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` identifica el artículo de Wikipedia en inglés; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
