@@ -30,6 +30,17 @@ loading/suspended tracking does not permit placement. A failed named support
 can fall back to checked air when requested. Settings defaults are centralized
 in SpatialPlacementSettings; SAT and polygon predicates are pure SpatialCollision.
 
+In `spatial_place` and `spatial_candidates`, `TOO_SMALL_TO_READ` is measured per
+managed panel, rather than from the whole group's bounding box. Labels use the
+world height of `Surface` (the distance between its lower-left and upper-left
+corners) and a minimum angle of 1.4 degrees (`MinLabelReadingAngle`). Panels and
+presentations use the envelope height, including the grab frame: the maximum
+minus minimum projection of `EnvelopeCorners()` onto `Surface.up`, with a
+12-degree minimum (`MinReadingAngle`). Every reading target must meet its
+minimum angle. The reported `angularHeight` still describes the whole box.
+Requests without reading targets retain the whole-box rule; layout planning,
+application following and window snapping retain their existing behavior.
+
 Reservations are derived from current live transforms of placed content, panels,
 presentations, chat and menu, omitting hidden presentations and inactive/trash
 roots. Planning never reserves. Restore revalidates through scene_get/ui_get

@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 22f. Legibilidad por panel y tarjetas acoplables | 95 | En implementación (paso 1 en `main`); corrige la maqueta con etiquetas de 25 (13 llamadas en lugar de 3) y el acople de galerías. 25 está Revisada. |
+| 1 | 22f. Legibilidad por panel y tarjetas acoplables | 95 | Completed · Pendiente de revisión: legibilidad por panel, motivos de rechazo y guía de billboard implementados; pendientes las pruebas con Muse y la validación técnica indicada en el informe. |
 | 2 | 07. Validación en Quest | 92 | Casi todo está validado solo en el Editor; la demo es en el visor. |
 | 3 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
 | 4 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
@@ -234,7 +234,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md). 22f (legibilidad por panel para maquetas con etiquetas, motivos en `PLACEMENT_REJECTED` y guía de `billboard`) In progress · diseño listo, tras la prueba de 25. [Diseño 22f](Progress/InProgress/22f-readable-placement-fixes.md).
+**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md). 22f Completed · Pendiente de revisión (29 de octubre de 2026): legibilidad por panel, motivos en `PLACEMENT_REJECTED` y guía de `billboard` implementados. SceneBatchChecks 45 y SpatialPlannerChecks 19 aprobados; pendientes las pruebas con Muse y las validaciones técnicas indicadas en el informe. [Implementación y límites 22f](Progress/Completed/22f-readable-placement-fixes.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
@@ -256,7 +256,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 25. Composición y edición de escena en una llamada
 
-**Estado:** Completed · Revisada (29 de octubre de 2026). Pasos 1–7 en `main`; SceneBatchChecks 40, LayoutChecks 44 y 23 tests del bridge aprobados. Contrato plano con `parentKey` por el rechazo de esquemas recursivos de Meta. Prueba Muse en Editor (`swift-moon`, perfil `seyra`, `muse-spark-1.3`): maqueta correcta en la mesa tras 125 s y 13 llamadas; rechazo de maquetas con etiquetas y falta de motivos en `PLACEMENT_REJECTED` derivados a [22f](Progress/InProgress/22f-readable-placement-fixes.md). Marvel correcto con una llamada a `layout_create`. Pendiente la validación física en Quest (07). [Implementación y validación](Progress/Completed/25-scene-build-batch.md).
+**Estado:** Completed · Revisada (29 de octubre de 2026). Pasos 1–7 en `main`; SceneBatchChecks 40, LayoutChecks 44 y 23 tests del bridge aprobados. Contrato plano con `parentKey` por el rechazo de esquemas recursivos de Meta. Prueba Muse en Editor (`swift-moon`, perfil `seyra`, `muse-spark-1.3`): maqueta correcta en la mesa tras 125 s y 13 llamadas; rechazo de maquetas con etiquetas y falta de motivos en `PLACEMENT_REJECTED` derivados a [22f](Progress/Completed/22f-readable-placement-fixes.md). Marvel correcto con una llamada a `layout_create`. Pendiente la validación física en Quest (07). [Implementación y validación](Progress/Completed/25-scene-build-batch.md).
 
 **Orden:** antes de 24 (comparten `SceneHistory.cs` y `SceneTools.cs`).
 

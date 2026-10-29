@@ -36,7 +36,12 @@ Optional `placement` reuses spatial placement: `destination` air/tabletop/wall,
 optional `physicalId`, `allowAirFallback` (default true), `minScale` (.1..1,
 default 1). Air rejects physicalId. Reading panels retain spatial_place's size
 restrictions. `applied=false` raises `PLACEMENT_REJECTED` with the placement reason
-and rolls back the entire build.
+and rolls back the entire build. When rejected candidates are available, the
+message appends `Rejected: CODE xN (ids...); CODE xN (ids...).`, grouped by reason
+code, with the number of rejected candidates and at most four distinct support
+IDs per reason (`air` for candidates without a physicalId). The entire message
+is limited to 1024 characters. With no rejected candidates, only the placement
+reason is included. The error code and complete rollback remain unchanged.
 
 Returns `rootId`, `entityId`, `requestGroupId`, `nodes` (key to entityId), optional
 confirmed `placement`, `operationId`, `operationIds`. The requestGroupId supplies
