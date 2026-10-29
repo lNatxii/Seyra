@@ -14,11 +14,17 @@ function integer(name: string, fallback: number, maximum: number) {
 const port = integer('SEYRA_UNITY_PORT', 4100, 65535);
 const timeoutMs = integer('SEYRA_UNITY_TIMEOUT_MS', 10000, 60000);
 type Outcome = { success: true; data: Record<string, unknown> } |
-  { success: false; error: { code: string; message: string }; outcomeUnknown?: boolean };
+  { success: false; error: { code: string; message: string; maxItems?: number; perWall?: Record<string, unknown>[]; rootId?: string; index?: number }; outcomeUnknown?: boolean };
 const failure = (code: string, message: string, outcomeUnknown = false): Outcome => ({ success: false, error: { code, message }, ...(outcomeUnknown ? { outcomeUnknown } : {}) });
 const resultSchema = z.discriminatedUnion('success', [
   z.object({ version: z.literal(1), type: z.literal('tool_result'), requestId: z.uuid(), success: z.literal(true), data: z.record(z.string(), z.unknown()) }).strict(),
-  z.object({ version: z.literal(1), type: z.literal('tool_result'), requestId: z.uuid(), success: z.literal(false), error: z.object({ code: z.string().min(1).max(100), message: z.string().min(1).max(4096) }).strict() }).strict(),
+  z.object({ version: z.literal(1), type: z.literal('tool_result'), requestId: z.uuid(), success: z.literal(false), error: z.object({
+    code: z.string().min(1).max(100), message: z.string().min(1).max(4096),
+    maxItems: z.number().int().min(0).optional(),
+    perWall: z.array(z.record(z.string(), z.unknown())).max(64).optional(),
+    rootId: z.string().min(1).max(128).optional(),
+    index: z.number().int().min(0).optional(),
+  }).strict() }).strict(),
 ]);
 const pending = new Map<string, { socket: WebSocket; timer: NodeJS.Timeout; resolve: (value: Outcome) => void }>();
 let unity: WebSocket | undefined;
@@ -62,9 +68,16 @@ sockets.on('connection', (socket, request) => {
   socket.on('close', () => disconnected(socket));
   socket.on('message', (bytes, binary) => {
     if (unity !== socket || closing || binary) return;
-    let parsed;
-    try { parsed = resultSchema.safeParse(JSON.parse(bytes.toString())); } catch { return; }
-    if (!parsed.success) { log('Ignored invalid tool_result'); return; }
+    let raw;
+    try { raw = JSON.parse(bytes.toString()); } catch { return; }
+    const parsed = resultSchema.safeParse(raw);
+    if (!parsed.success) {
+      const code = raw?.error?.code;
+      log(`Ignored invalid tool_result (${code ?? 'no code'})`);
+      if (raw?.type === 'tool_result' && typeof raw.requestId === 'string' && pending.get(raw.requestId)?.socket === socket)
+        settle(raw.requestId, failure('BRIDGE_INVALID_RESULT', 'Unity returned a result the bridge could not validate. Outcome unknown; inspect state before any new mutation.', true));
+      return;
+    }
     const result = parsed.data;
     if (pending.get(result.requestId)?.socket !== socket) return;
     settle(result.requestId, result.success ? { success: true, data: result.data } : { success: false, error: result.error, ...(result.error.code === 'ROLLBACK_FAILED' ? { outcomeUnknown: true } : {}) });

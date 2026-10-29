@@ -110,8 +110,8 @@ the read-only `spatial_candidates` query remains available. Checks apply only
 to the target Transform, so moving a parent is permitted. `layout_apply` is
 exempt because it owns layout reconfiguration.
 
-Layout-specific failures include LAYOUT_DOES_NOT_FIT (message includes
-structured maxItems and perWall), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
+Layout-specific failures include LAYOUT_DOES_NOT_FIT (structured maxItems and
+perWall fields in the error object), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
 LAYOUT_TOO_MANY_PRESENTATIONS, LAYOUT_FOLLOW_BUSY (structured rootId),
 and LAYOUT_NOT_A_GROUP, plus existing room/identity errors. Schema failures
 are invalid arguments. Never repeat ambiguous mutations automatically.
