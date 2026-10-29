@@ -95,6 +95,26 @@ test('MCP transport confirms, rejects invalid arguments, times out without retry
   } finally {socket?.terminate();await client.close();await transport.close();}
 });
 
+for (const invalid of [false, true]) test(invalid ? 'invalid pending Unity result fails immediately' : 'structured Unity layout errors reach MCP', async () => {
+  const port = await freePort();
+  const transport = new StdioClientTransport({command:process.execPath,args:['dist/index.js'],cwd:new URL('..',import.meta.url).pathname.replace(/^\/(.:)/,'$1'),env:{...process.env,SEYRA_UNITY_PORT:String(port),SEYRA_UNITY_TIMEOUT_MS:'10000'},stderr:'pipe'});
+  const client = new Client({name:'structured-error-test',version:'1.0'});
+  let socket;
+  try {
+    await client.connect(transport);
+    socket = new WebSocket(`ws://127.0.0.1:${port}`); await once(socket,'open');
+    socket.on('message', bytes => {
+      const request = JSON.parse(bytes);
+      socket.send(JSON.stringify({version:1,type:'tool_result',requestId:request.requestId,success:false,error:{code:'LAYOUT_DOES_NOT_FIT',message:'Layout does not fit.',maxItems:5,perWall:[],...(invalid ? {unexpected:true} : {})}}));
+    });
+    const result = outcome(await client.callTool({name:'scene_hierarchy',arguments:{}}, undefined, {timeout:2000}));
+    assert.equal(result.success,false);
+    assert.equal(result.error.code,invalid ? 'BRIDGE_INVALID_RESULT' : 'LAYOUT_DOES_NOT_FIT');
+    if (invalid) assert.equal(result.outcomeUnknown,true);
+    else { assert.equal(result.error.maxItems,5); assert.deepEqual(result.error.perWall,[]); }
+  } finally {socket?.terminate();await client.close();await transport.close();}
+});
+
 test('internal token rejects unauthorized runtime and replacement settles pending calls', async () => {
   const port = await freePort();
   const transport = new StdioClientTransport({command:process.execPath,args:['dist/index.js'],cwd:new URL('..',import.meta.url).pathname.replace(/^\/(.:)/,'$1'),env:{...process.env,SEYRA_UNITY_PORT:String(port),SEYRA_BRIDGE_INTERNAL_TOKEN:'test-internal-token'},stderr:'pipe'});
