@@ -11,11 +11,10 @@ content. Do not replace them with one long list.
 ```ts
 type Size = { width: number; height: number };
 type Layout = 'arc' | 'plane' | 'hub' | 'surround' | 'anchor' | 'wall' | 'surface';
-type Behavior = 'fixed_facing' | 'fixed_aligned' | 'billboard' | 'lazy_follow';
+type Behavior = 'fixed_facing' | 'fixed_aligned' | 'billboard';
 type Params = {
   radius?: number; rows?: number; distance?: number;
   arrangement?: 'row' | 'column' | 'grid'; columns?: number;
-  side?: 'left' | 'center' | 'right';
   physicalId?: string; allowSpill?: boolean; pose?: 'standing' | 'lying';
 };
 type Spec = { layout: Layout; behavior?: Behavior; itemSize: Size;
@@ -43,10 +42,10 @@ be unique across the runtime and at most 16 presentations may be live.
 
 Default behavior is fixed_facing, except anchor (billboard) and wall/surface
 (fixed_aligned, their only valid behavior). Billboard is
-valid only for arc, hub and anchor. Lazy follow is valid only for plane with
-1..3 items; one live following layout per runtime, including inactive content.
-It follows the root in yaw, pauses while a child is grabbed, and defaults to
-.9m forward, .35m right and .1m below eye height. No room is required for floating layouts;
+valid only for arc, hub and anchor. The model cannot request `lazy_follow` or
+`params.side` in plan/create/apply; new planes use `fixed_facing`, centered ahead
+of the user. Anchor item/target `side` remains available for relative placement.
+No room is required for floating layouts;
 physical anchor targets require current room references.
 
 Arc: radius 1.2..2.6, rows 1..3; automatic radius increases to 2.2 before
@@ -106,6 +105,12 @@ layout_apply chooses a current support when physicalId is omitted. Anchor target
 after load, applying anchor retains saved poses and reports
 `anchor_targets_not_persisted`, until recreated with new targets.
 
+Legacy saved slots may still contain `lazy_follow` and its `params.side`.
+Unity's unchanged LayoutPlanner and SeyraLazyFollow continue to load them and
+restore their runtime behavior. These fields are compatibility data, not model
+inputs. Use `layout_apply` with explicit `behavior: "fixed_facing"` to stop an
+old following layout; do not request a new following layout.
+
 ## Errors and validation
 
 `MOTION_DRIVEN` rejects writes to registered Position/Rotation channels with
@@ -118,9 +123,11 @@ exempt because it owns layout reconfiguration.
 
 Layout-specific failures include LAYOUT_DOES_NOT_FIT (structured maxItems and
 perWall fields in the error object), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,
-LAYOUT_TOO_MANY_PRESENTATIONS, LAYOUT_FOLLOW_BUSY (structured rootId),
+LAYOUT_TOO_MANY_PRESENTATIONS,
 and LAYOUT_NOT_A_GROUP, plus existing room/identity errors. Schema failures
 are invalid arguments. Never repeat ambiguous mutations automatically.
+Legacy runtime operations can still report LAYOUT_FOLLOW_BUSY (structured rootId)
+when restoring saved following content.
 
 Basic checks: `npm test --prefix Backend/bridge`, LayoutPlannerChecks in Edit
 Mode, LayoutChecks in Play Mode, then the existing basic scene/UI suites.

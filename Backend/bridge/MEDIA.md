@@ -94,8 +94,10 @@ Successful photos also gain bridge-only `source` and `sourceUrl`. `source` is
 the title and URL come from the selected search page, not the JPEG URL. Direct
 imageUrl uses its final URL and photo title; HTML uses its page URL and HTML title
 (falling back to the photo title). The strict model photo schema excludes both
-fields. Unity display/validation of these fields is the separate review step
-11.4(b); this bridge change alone does not complete that integration.
+fields. Unity validates source text up to 300 characters and sourceUrl up to
+2048 characters. Photo captions show Fuente: <source>; mediaCard places this
+Help line first in the scroll, immediately below the fixed image. The URL is
+preserved in v5 and ui_get, but is never displayed or opened.
 The model never supplies the internal optional `media` argument:
 
 ```json

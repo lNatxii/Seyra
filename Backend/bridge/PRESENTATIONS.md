@@ -77,8 +77,8 @@ catalog too. Presentations use the existing scene services and slot persistence;
 remote JPEGs use the separate disk cache described in [MEDIA.md](MEDIA.md).
 Replacement prepares an inactive view before retiring the old one.
 
-Photos accept exactly one registered `imageRef`, `imageSearch` (English Wikipedia
-article) or HTTP/HTTPS `imageUrl`. The bridge downloads, validates and converts web
+Photos accept exactly one registered `imageRef`, `imageSearch` (short web search
+query) or HTTP/HTTPS `imageUrl`. The bridge downloads, validates and converts web
 images; Unity receives internal JPEG `media` only on `ui_present`, `ui_update`
 and `layout_create`. The model cannot supply `web:` references. Missing references
 render alternate content and appear in `missingMedia`; successful tool results

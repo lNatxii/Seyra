@@ -17,4 +17,15 @@ test('layout schemas are strict and enforce layout behavior contracts', () => {
   assert.equal(schema('layout_create').safeParse({ ...base, name: 'Books', itemSize: { width: .5, height: .1 }, items: [item] }).success, false);
   assert.equal(schema('layout_apply').safeParse({ rootId: 'go_test', layout: 'plane' }).success, true);
   assert.equal(schema('layout_apply').safeParse({ rootId: 'go_test', layout: 'plane', behavior: 'billboard' }).success, false);
+  const planeRequests = [
+    ['layout_plan', { ...base, layout: 'plane', count: 2 }],
+    ['layout_create', { ...base, layout: 'plane', name: 'Recipe', items: [item, item] }],
+    ['layout_apply', { rootId: 'go_test', layout: 'plane' }],
+  ];
+  for (const [name, args] of planeRequests) {
+    assert.equal(schema(name).safeParse({ ...args, behavior: 'fixed_facing' }).success, true);
+    assert.equal(schema(name).safeParse({ ...args, behavior: 'lazy_follow' }).success, false);
+    assert.equal(schema(name).safeParse({ ...args, params: { side: 'right' } }).success, false);
+  }
+  assert.equal(schema('layout_create').safeParse({ ...base, layout: 'anchor', name: 'Labels', items: [{ ...item, targetId: 'go_target', side: 'left' }] }).success, true);
 });

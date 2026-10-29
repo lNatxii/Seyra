@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 26. Tarjetas con imagen de internet | 85 | Cambios solicitados: 429 de Wikimedia y retirar lazy_follow. Base de 19. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · Pendiente de revisión. Búsqueda Meta, fuentes y tarjetas estáticas; 34/34 tests. Repetición con Muse pendiente. Base de 19. |
 | 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -279,9 +279,9 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 26. Tarjetas con imagen de internet
 
-**Estado:** In progress · cambios solicitados (29 de octubre de 2026). `mediaCard`, `imageSearch`/`imageUrl`, bridge seguro y caché en Unity implementados. Prueba con Muse en Quest: solo 3 de 11 pósters por límite 429 de `upload.wikimedia.org`; se corrige con un User-Agent con contacto, concurrencia por host y reintento. Además se retira `lazy_follow` del modelo. [Diseño y revisión](Progress/InProgress/26-web-image-cards.md).
+**Estado:** Completed · Pendiente de revisión (29 de octubre de 2026). Aplicados los cambios 11.3/11.4: búsqueda web de Meta, fuente visible de cada imagen, límite por host/reintento 429 y lazy_follow retirado del modelo. Suite final bridge 34/34; Unity validado en 11.4(b) con 242 comprobaciones. Pendiente repetir películas y tortilla con Muse, tras reiniciar backend y OpenCode. [Implementación y revisión](Progress/Completed/26-web-image-cards.md).
 
-**Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` identifica el artículo de Wikipedia en inglés; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
+**Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` es una consulta web resuelta por el buscador de Meta; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
 **Aceptación:** «muéstrame las películas de la fase tres» crea tarjetas con su póster y su resumen; una URL caída, no permitida o demasiado grande muestra la tarjeta sin imagen y lo indica en `missingMedia`, sin bloquear la creación; memoria de texturas acotada y liberada al borrar; guardar/cargar conserva la referencia y recupera la imagen de la caché. Unity nunca descarga directamente de internet.
 
