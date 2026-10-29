@@ -234,7 +234,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 22. Habitación, muebles y colocación espacial
 
-**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md).
+**Estado:** 22a–22e Completed · Revisada (28 de octubre de 2026), en `main`. Inventario MRUK de solo lectura, colocación relativa en marcos world/viewer/reference, planificador pared/mesa/aire con reservas, acople al soltar ventanas y seguimiento del chat. Validado en Editor (habitación 689, colocación 50, acople 23, seguimiento 14 comprobaciones). Pendiente la validación física en Quest (07). [Diseño e historial de revisiones](Progress/Completed/22-room-spatial-placement.md). 22f (legibilidad por panel para maquetas con etiquetas, motivos en `PLACEMENT_REJECTED` y guía de `billboard`) In progress · diseño listo, tras la prueba de 25. [Diseño 22f](Progress/InProgress/22f-readable-placement-fixes.md).
 
 **Orden:** después de 07 y antes de 10. La parte verificable en Editor con habitaciones de prueba puede avanzar en paralelo a 07; la validación física depende de 07.
 
