@@ -165,18 +165,20 @@ test('media rejects 13 distinct images with INVALID_ARGUMENT before downloads', 
   assert.equal(downloads, 0);
 });
 
-test('ui_present accepts mediaCard and rejects photos with multiple sources or reserved web references', () => {
+test('ui_present accepts catalog photos and rejects disabled web images, multiple sources or reserved web references', () => {
   const schema = tools.find(tool => tool.name === 'ui_present').schema;
   const args = {
     name: 'Movie card', parentId: 'Generated', position: { x: 0, y: 1.4, z: 1.5 },
     rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 }, width: .42, height: .62,
     presentation: { id: 'iron-man', type: 'mediaCard', title: 'Iron Man',
-      image: { title: 'Poster', imageSearch: searchText, alt: 'Iron Man film poster' }, body: 'A superhero film.',
+      image: { title: 'Poster', imageRef: 'poster', alt: 'Iron Man film poster' }, body: 'A superhero film.',
       facts: [{ label: 'Year', value: '2008' }], tags: ['Marvel'] },
   };
   assert.equal(schema.safeParse(args).success, true);
   const withImage = image => ({ ...args, presentation: { ...args.presentation, image: { title: 'Poster', ...image } } });
   for (const image of [
+    { imageSearch: searchText },
+    { imageUrl },
     { imageRef: 'poster', imageSearch: searchText },
     { imageRef: 'poster', imageUrl },
     { imageSearch: searchText, imageUrl },
