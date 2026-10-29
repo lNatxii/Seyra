@@ -205,7 +205,7 @@ async function start(root, values) {
     }
     if (requestedSignal) return 130;
     // Arguments are fixed strings and validated numeric ports. No user text enters a shell.
-    openCode = launch('opencode2', ['serve', '--hostname', '127.0.0.1', '--port', port, '--print-logs'], { cwd: root, env, shell: windows, detached: !windows });
+    openCode = launch('opencode2', ['serve', '--hostname', '127.0.0.1', '--port', port, '--print-logs', '--log-level', values.verbose ? 'info' : 'warn'], { cwd: root, env, shell: windows, detached: !windows });
     const result = await Promise.race([
       openCode.completion,
       ...(gateway ? [gateway.completion.then(() => { if (!requestedSignal) console.error('Gateway stopped unexpectedly.'); return 1; })] : []),
@@ -220,7 +220,7 @@ async function start(root, values) {
 export async function main(args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
     root: { type: 'string', default: backend }, name: { type: 'string' }, url: { type: 'string' },
-    force: { type: 'boolean' }, package: { type: 'string' }, serial: { type: 'string' },
+    force: { type: 'boolean' }, package: { type: 'string' }, serial: { type: 'string' }, verbose: { type: 'boolean' },
     port: { type: 'string', default: '4096' }, gateway: { type: 'boolean' }, 'no-gateway': { type: 'boolean' },
     'gateway-host': { type: 'string', default: '0.0.0.0' }, 'gateway-port': { type: 'string', default: '8443' },
   } });

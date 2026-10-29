@@ -32,7 +32,9 @@ namespace Seyra.Spatial
         public static SpatialBox BoxAt(SpatialPlacementRequest request,Pose pose,float scale=1)=>new SpatialBox(pose.position+pose.rotation*(request.Content.center*scale),request.Content.size*scale,pose.rotation);
         public static SpatialPlan Plan(RoomSnapshot room,SpatialPlacementRequest request,Pose view,IEnumerable<SpatialBox> reservations)
         {
-            if(!new[]{"wall","tabletop","air"}.Contains(request.Destination)||!float.IsFinite(request.MinScale)||request.MinScale<.1f||request.MinScale>1||request.Readable&&request.MinScale!=1||!SpatialGeometry.Finite(request.Content.center)||!SpatialGeometry.Finite(request.Content.size)||request.Content.size.minComponent()<0)
+            if(request.Readable&&request.MinScale!=1)
+                throw new ArgumentException("minScale must be 1 when the content includes readable panels or labels; build it smaller instead.");
+            if(!new[]{"wall","tabletop","air"}.Contains(request.Destination)||!float.IsFinite(request.MinScale)||request.MinScale<.1f||request.MinScale>1||!SpatialGeometry.Finite(request.Content.center)||!SpatialGeometry.Finite(request.Content.size)||request.Content.size.minComponent()<0)
                 throw new ArgumentException("Invalid placement request or non-finite content bounds.");
             if(request.PhysicalId!=null&&request.Destination=="air")throw new ArgumentException("Air has no physical support.");
             var result=new SpatialPlan{RoomRevision=room.Revision,Simulated=room.Simulated,PhysicalValidation=room.State==RoomState.Ready};
