@@ -55,6 +55,7 @@ namespace Seyra.Voice
         }
 
         public event Action Changed;
+        public event Action Ended;
         public event Action<string> Partial, Final, Failed;
 
         public bool Available { get; private set; }
@@ -436,6 +437,7 @@ namespace Seyra.Voice
 
         public void Cancel()
         {
+            var wasActive = accepting || listening || finishing;
             ++generation;
             ReleaseMuse();
             accepting = listening = finishing = false;
@@ -449,6 +451,7 @@ namespace Seyra.Voice
             catch (Exception) { }
 
             SetStatus(Available ? Idle : status, Available);
+            if (wasActive) Ended?.Invoke();
         }
 
         public void SimulateTranscriptionResult(string text)
@@ -503,6 +506,8 @@ namespace Seyra.Voice
             Changed?.Invoke();
             if (finalText.Length > 0)
                 Final?.Invoke(finalText);
+            else
+                Ended?.Invoke();
         }
 
         void Errored(string type, string message)
