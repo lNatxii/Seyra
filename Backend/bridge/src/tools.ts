@@ -1,18 +1,20 @@
+import { batchTools } from './batch.js';
 import { layoutTools } from './layouts.js';
 import { z } from 'zod';
 import { roomTools, spatialFrame, spatialOrientation } from './spatial.js';
 import { panelSchema } from './panels.js';
 import { presentationTools } from './presentations.js';
 
-const id = z.string().trim().min(1).max(128).refine(v => v.toLowerCase() !== 'null', 'Use an actual ID or Generated; never null.');
-const vector = z.object({ x: z.number().finite().min(-3.4028234e38).max(3.4028234e38), y: z.number().finite().min(-3.4028234e38).max(3.4028234e38), z: z.number().finite().min(-3.4028234e38).max(3.4028234e38) }).strict();
+export const id = z.string().trim().min(1).max(128).refine(v => v.toLowerCase() !== 'null', 'Use an actual ID or Generated; never null.');
+export const vector = z.object({ x: z.number().finite().min(-3.4028234e38).max(3.4028234e38), y: z.number().finite().min(-3.4028234e38).max(3.4028234e38), z: z.number().finite().min(-3.4028234e38).max(3.4028234e38) }).strict();
 const page = { offset: z.number().int().min(0).max(1000000).default(0), limit: z.number().int().min(1).max(500).default(200) };
 const filter = { rootId: id.optional(), includeInactive: z.boolean().default(true) };
-const creation = { name: z.string().trim().min(1).max(256), parentId: id, position: vector, rotation: vector, scale: vector };
+export const creation = { name: z.string().trim().min(1).max(256), parentId: id, position: vector, rotation: vector, scale: vector };
 const appearanceStyles = ['matte_opaque', 'colored_translucent', 'unlit', 'ui_unlit', 'plastic', 'transparent'] as const;
 const channel = z.number().finite().min(0).max(1);
-const appearance = z.object({ entityId: id, style: z.enum(appearanceStyles), color: z.object({ r: channel, g: channel, b: channel, a: channel }).strict() }).strict().refine(a => ['colored_translucent', 'ui_unlit', 'transparent'].includes(a.style) || a.color.a === 1, 'This style requires alpha=1.');
-export const tools = [
+export const appearanceWithoutEntityId = z.object({ style: z.enum(appearanceStyles), color: z.object({ r: channel, g: channel, b: channel, a: channel }).strict() }).strict().refine(a => ['colored_translucent', 'ui_unlit', 'transparent'].includes(a.style) || a.color.a === 1, 'This style requires alpha=1.');
+export const appearance = appearanceWithoutEntityId.safeExtend({ entityId: id });
+const baseTools = [
   ...layoutTools,
   ...roomTools,
   ...presentationTools(creation, id),
@@ -86,3 +88,5 @@ export const tools = [
     description: 'Lists up to 1000 saved generated-content slots with name, bytes and date. Does not read arbitrary paths.',
     schema: z.object({}).strict() },
 ] as const;
+
+export const tools = [...baseTools, ...batchTools(baseTools, { id, vector, creation, appearanceWithoutEntityId })];
