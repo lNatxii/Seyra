@@ -48,8 +48,14 @@ public static class SpatialChatChecks
         var anchor=controller!=null?controller.transform:currentChat.transform;
         var oldAnchor=new Pose(anchor.position,anchor.rotation);
         var oldChat=new Pose(currentChat.transform.localPosition,currentChat.transform.localRotation);
+        var oldPlacement=Get<Seyra.Spatial.SpatialPlacementService>(controller,"placement");
+        var head=Get<Transform>(controller,"head");
+        var testScene=UnityEngine.SceneManagement.SceneManager.CreateScene("__SpatialChatRecenter");
+        var placement=Seyra.Spatial.SpatialPlacementService.ForScene(testScene);
         try
         {
+            // Match HandMenuChecks: recenter in air without awaiting a physical room capture.
+            controller.Configure(head,currentChat,currentChat.GetComponent<UIXRWindow>(),placement);
             if(controller!=null)
             {
                 currentChat.transform.localPosition=new Vector3(0,1.35f,1.25f);
@@ -60,7 +66,6 @@ public static class SpatialChatChecks
             await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
             button.onClick.Invoke();
             var reason=Get<string>(currentMenu,"bringChatStatus");
-            var head=Get<Transform>(controller,"head");
             var sameHead=head==SeyraLazyFollow.ResolveHead();
             var diagnostic=" Reason: "+reason+"; controller head matches ResolveHead: "+sameHead+".";
             Check(reason=="Chat delante de ti","Bring chat did not report success."+diagnostic);
@@ -72,6 +77,9 @@ public static class SpatialChatChecks
             anchor.SetPositionAndRotation(oldAnchor.position,oldAnchor.rotation);
             currentChat.transform.SetLocalPositionAndRotation(oldChat.position,oldChat.rotation);
             if(controller!=null)controller.UseTestTracking(false);
+            controller.Configure(head,currentChat,currentChat.GetComponent<UIXRWindow>(),oldPlacement);
+            var unload=UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(testScene);
+            while(!unload.isDone) await Task.Delay(40);
         }
     }
 
