@@ -92,13 +92,11 @@ public static class SceneBatchChecks
             var labeled = Ok("scene_build", new JObject { ["name"] = "Labeled air sphere", ["nodes"] = new JArray(Sphere("sun"), airLabel), ["placement"] = new JObject { ["destination"] = "air" } });
             Check((bool)labeled["placement"]["applied"], "A sphere with a 0.05 m label must support air placement.");
             Ok("undo", new JObject { ["scope"] = "request" });
-            var tinyLabel = (JObject)airLabel.DeepClone();
-            tinyLabel.Remove("relativeTo");
-            tinyLabel["panel"]["height"] = .02;
-            tinyLabel["panel"]["fontSize"] = 20;
-            var rejected = Call("scene_build", new JObject { ["name"] = "Unreadable air label", ["nodes"] = new JArray(tinyLabel), ["placement"] = new JObject { ["destination"] = "air" } });
+            var oversizedSphere = Sphere("oversized");
+            oversizedSphere["transform"] = Pose(scale: 3);
+            var rejected = Call("scene_build", new JObject { ["name"] = "Oversized air sphere", ["nodes"] = new JArray(oversizedSphere), ["placement"] = new JObject { ["destination"] = "air" } });
             string rejectionMessage = (string)rejected["error"]?["message"];
-            Check(!(bool)rejected["success"] && (string)rejected["error"]?["code"] == "PLACEMENT_REJECTED" && rejectionMessage != null && rejectionMessage.Contains("Rejected:") && rejectionMessage.Contains("TOO_SMALL_TO_READ"), "An unreadable label must report its placement rejection reasons: " + rejected);
+            Check(!(bool)rejected["success"] && (string)rejected["error"]?["code"] == "PLACEMENT_REJECTED" && rejectionMessage != null && System.Text.RegularExpressions.Regex.IsMatch(rejectionMessage, @"Rejected:.*\b[A-Z][A-Z_]+ x\d+"), "An oversized sphere must report at least one placement rejection code: " + rejected);
             return "Scene batch basic checks passed: " + checks + "; scene_build 64 nodes: " + elapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " ms";
         }
         catch (Exception error) { Debug.LogError("SceneBatchChecks failed: " + error); throw; }

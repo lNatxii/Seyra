@@ -48,10 +48,21 @@ namespace Seyra.SceneTools
             foreach(var panel in go.GetComponentsInChildren<ManagedPanel>(true))
             {
                 var surface=panel.Surface;if(surface==null)continue;
-                surface.GetWorldCorners(corners);
                 var content=panel.Content;
-                float minAngle=!panel.IsPresentation&&content.kind=="label"?SpatialPlacementSettings.MinLabelReadingAngle:SpatialPlacementSettings.MinReadingAngle;
-                readingTargets.Add(new ReadingTarget(Vector3.Distance(corners[0],corners[1]),minAngle));
+                bool isLabel=!panel.IsPresentation&&content.kind=="label";
+                float height;
+                if(isLabel)
+                {
+                    surface.GetWorldCorners(corners);
+                    height=Vector3.Distance(corners[0],corners[1]);
+                }
+                else
+                {
+                    var projections=panel.EnvelopeCorners().Select(corner=>Vector3.Dot(corner,surface.up)).ToArray();
+                    height=projections.Max()-projections.Min();
+                }
+                float minAngle=isLabel?SpatialPlacementSettings.MinLabelReadingAngle:SpatialPlacementSettings.MinReadingAngle;
+                readingTargets.Add(new ReadingTarget(height,minAngle));
             }
             request.ReadingTargets=readingTargets;
             var service=PlacementService;var room=service.Snapshot;
