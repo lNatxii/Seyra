@@ -34,17 +34,18 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 26. Tarjetas con imagen de internet | 85 | Mejora visible en cada respuesta con tarjetas; base de 19. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Diseño listo. Mejora visible en pelis, libros y recetas; base de 19. |
 | 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
 | 5 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 6 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 7 | 19. Imágenes generadas | 55 | Barata tras 26. |
-| 8 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
-| 9 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 10 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
-| 11 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 7 | 30. Indicador de scroll | 60 | Esfuerzo bajo; deja claro que el texto continúa en tarjetas y chat. |
+| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
+| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
+| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -278,7 +279,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 26. Tarjetas con imagen de internet
 
-**Estado:** sin diseñar. Prioridad alta (puntuación 85).
+**Estado:** In progress · diseño listo. Tipo nuevo `mediaCard` (imagen fija arriba, texto desplazable) e `imageUrl` en las presentaciones con imagen; el bridge descarga, valida y reduce a JPEG, y Unity recibe la imagen en la propia llamada. El prompt limita las imágenes a carátulas, productos, platos, ingredientes, pasos e instrucciones. [Diseño](Progress/InProgress/26-web-image-cards.md).
 
 **Entrega:** un tipo de tarjeta (`imageCard` o una ampliación de `infoPanel`) con título, texto e imagen obtenida de una URL de internet, utilizable sola, con `ui_present` y en `layout_create`. El backend descarga la imagen de una URL que el modelo encontró con `websearch`/`webfetch`, valida tipo (JPEG/PNG/WebP) y tamaño, la reduce y la guarda en caché. Unity la recibe por la pasarela autenticada como un recurso de medios con identificador, no por una URL directa.
 
@@ -315,6 +316,16 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 **Aceptación:** «crea el sistema solar con etiquetas» produce puntos de interés sobre los planetas unidos por líneas a sus etiquetas, en la misma llamada de `scene_build`; las líneas se actualizan si el planeta o la etiqueta se mueven (incluido el movimiento de 24); grosor y radio tienen límites validados; borrar un extremo elimina o desactiva la línea de forma declarada; deshacer, papelera y guardado/carga completos.
 
 **Dependencias:** 03, 05 y 25. Compatible con 24 (líneas que siguen objetos en órbita). Hoy solo existe un `LineRenderer` interno de previsualización en `SpatialWindowSnapping.cs`.
+
+### 30. Indicador de scroll en paneles, tarjetas y chat
+
+**Estado:** In progress · diseño listo. Prioridad media (puntuación 60). [Diseño](Progress/InProgress/30-scroll-indicator.md).
+
+**Entrega:** barra fina con el pulgar y degradado con flecha cuando hay más texto abajo, en paneles de texto, presentaciones (incluida `mediaCard`) y chat espacial. Solo visual, añadido en tiempo de ejecución sin regenerar prefabs.
+
+**Aceptación:** visible solo cuando el contenido no cabe; el degradado desaparece al llegar al final; no interfiere con el agarre ni los clics.
+
+**Dependencias:** 05 y 06. Después de 26 o coordinado con ella (comparten `UIPresentationView.cs`).
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 
