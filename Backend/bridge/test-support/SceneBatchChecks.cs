@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Seyra.SceneTools;
@@ -28,7 +29,7 @@ public static class SceneBatchChecks
         JObject Appearance(float red) => new JObject { ["style"] = "unlit", ["color"] = new JObject { ["r"] = red, ["g"] = 0, ["b"] = 0, ["a"] = 1 } };
         JObject Sphere(string key, float x = 0) => new JObject { ["key"] = key, ["name"] = key, ["type"] = "primitive", ["primitiveType"] = "sphere", ["transform"] = Pose(x, .1f), ["appearance"] = Appearance(1) };
         int Total() => (int)Ok("history_list", new JObject())["total"];
-        var context = Object.FindFirstObjectByType<RoomContext>(); var oldViewer = context.Viewer; GameObject testHead = null;
+        GameObject testHead = null;
         double elapsed = 0;
         try
         {
@@ -68,22 +69,27 @@ public static class SceneBatchChecks
             Check(elapsed <= 5000, "STOP: scene_build 64 nodes exceeded 5 s: " + elapsed + " ms");
             Ok("undo", new JObject { ["scope"] = "request" });
 
-            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-            testHead = new GameObject("__BatchRoomViewer"); testHead.transform.position = new Vector3(0, 1.6f, 0);
-            await context.LoadTestRoomAsync(AssetDatabase.LoadAssetAtPath<GameObject>("Packages/com.meta.xr.mrutilitykit/Core/Rooms/Prefabs/Bedroom/Bedroom00.prefab"), testHead.transform);
-            Check(context.Snapshot.State == RoomState.Ready, context.Diagnostic);
-            var floor = context.Snapshot.Surfaces.First(s => s.Kind == "floor");
-            testHead.transform.position = floor.Corners.Aggregate(Vector3.zero, (sum, p) => sum + p) / floor.Corners.Length + Vector3.up * 1.6f;
+            // Use an isolated air-only planner and explicit viewer, without device room loading.
+            var placement = SpatialPlacementService.ForScene(scene);
+            testHead = new GameObject("__BatchAirViewer");
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(testHead, scene);
+            testHead.transform.SetPositionAndRotation(new Vector3(2, 1.6f, 3), Quaternion.Euler(0, 60, 0));
+            testHead.SetActive(false);
+            var airContext = testHead.AddComponent<RoomContext>();
+            airContext.enabled = false;
+            airContext.Configure(null, testHead.transform);
+            typeof(RoomContext).GetField("simulated", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(airContext, true);
+            typeof(SpatialPlacementService).GetField("room", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(placement, airContext);
             var placed = Ok("scene_build", new JObject { ["name"] = "Air composition", ["nodes"] = new JArray(Sphere("air")), ["placement"] = new JObject { ["destination"] = "air" } });
             Check((bool)placed["placement"]["applied"], "Air placement must apply.");
-            var position = placed["placement"]["pose"]["position"];
-            Check(Vector3.Dot(new Vector3((float)position["x"], (float)position["y"], (float)position["z"]) - testHead.transform.position, testHead.transform.forward) > 0, "Air root must be in front of the viewer.");
+            var placedRoot = root.GetComponentsInChildren<GeneratedObject>().First(item => item.EntityId == (string)placed["rootId"]).transform;
+            Check(Vector3.Dot(placedRoot.position - testHead.transform.position, testHead.transform.forward) > 0, "Air root must be in front of the viewer.");
             return "Scene batch basic checks passed: " + checks + "; scene_build 64 nodes: " + elapsed.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " ms";
         }
         catch (Exception error) { Debug.LogError("SceneBatchChecks failed: " + error); throw; }
         finally
         {
-            if (testHead != null) { context.Configure(Object.FindFirstObjectByType<Meta.XR.MRUtilityKit.MRUK>(), oldViewer); Object.DestroyImmediate(testHead); }
+            if (testHead != null) Object.DestroyImmediate(testHead);
             Object.DestroyImmediate(root);
             if (Directory.Exists(storage)) Directory.Delete(storage, true);
             var unload = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
