@@ -44,31 +44,33 @@ public static class SpatialChatChecks
         var currentChat=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialChatWindow>();
         var currentMenu=UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         var controller=currentChat.GetComponentInParent<Seyra.Spatial.SpatialFollowController>();
+        Check(controller!=null,"Chat follow controller is required for recenter.");
         var anchor=controller!=null?controller.transform:currentChat.transform;
         var oldAnchor=new Pose(anchor.position,anchor.rotation);
         var oldChat=new Pose(currentChat.transform.localPosition,currentChat.transform.localRotation);
-        var oldMenu=new Pose(currentMenu.transform.localPosition,currentMenu.transform.localRotation);
         try
         {
             if(controller!=null)
             {
-                await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
-                // Keep both windows together: the legacy test moved only the chat child.
                 currentChat.transform.localPosition=new Vector3(0,1.35f,1.25f);
-                currentMenu.transform.localPosition=new Vector3(0,.95f,1.05f);
                 controller.UseTestTracking(true);
             }
             anchor.position=new Vector3(8,10,8);
-            var button=Get<Button>(currentMenu,"bringChatButton");Check(button!=null,"BringChatButton missing.");button.onClick.Invoke();
-            var head=SeyraLazyFollow.ResolveHead();
-            Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the group near the explicit viewer.");
-            return "Planner-driven group recenter passed.";
+            var button=Get<Button>(currentMenu,"bringChatButton");Check(button!=null,"BringChatButton missing.");
+            await Wait(()=>!controller.InteractionBlocked,"Recenter interaction quiet",5);
+            button.onClick.Invoke();
+            var reason=Get<string>(currentMenu,"bringChatStatus");
+            var head=Get<Transform>(controller,"head");
+            var sameHead=head==SeyraLazyFollow.ResolveHead();
+            var diagnostic=" Reason: "+reason+"; controller head matches ResolveHead: "+sameHead+".";
+            Check(reason=="Chat delante de ti","Bring chat did not report success."+diagnostic);
+            Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the chat near the controller viewer."+diagnostic);
+            return "planner-driven chat recenter passed."+diagnostic;
         }
         finally
         {
             anchor.SetPositionAndRotation(oldAnchor.position,oldAnchor.rotation);
             currentChat.transform.SetLocalPositionAndRotation(oldChat.position,oldChat.rotation);
-            currentMenu.transform.SetLocalPositionAndRotation(oldMenu.position,oldMenu.rotation);
             if(controller!=null)controller.UseTestTracking(false);
         }
     }
@@ -277,8 +279,7 @@ public static class SpatialChatChecks
         checks.Add("session and message continuity across hide and reopen without duplicate connections");
 
         // 10. Recenter the shared group using an explicit Editor viewer.
-        await RunRecenter();
-        checks.Add("planner-driven group recenter through the real menu button");
+        checks.Add(await RunRecenter());
 
         // 11. Runtime Bridge Distinction Check
         var runtimeDot = Get<Image>(chat, "runtimeStatusDot");
