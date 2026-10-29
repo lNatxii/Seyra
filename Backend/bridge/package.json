@@ -16,6 +16,7 @@
     "@modelcontextprotocol/sdk": "1.32.1",
     "@peculiar/x509": "2.1.0",
     "reflect-metadata": "0.2.2",
+    "sharp": "0.35.5",
     "ws": "8.22.0",
     "zod": "4.6.7"
   },
