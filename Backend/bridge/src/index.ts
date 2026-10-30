@@ -4,7 +4,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { tools } from './tools.js';
-import { MediaError, resolveMedia, type MediaFailure } from './media.js';
 
 const log = (message: string) => console.error(`[seyra] ${message}`);
 function integer(name: string, fallback: number, maximum: number) {
@@ -87,17 +86,6 @@ sockets.on('connection', (socket, request) => {
 
 async function invoke(name: string, args: unknown) {
   const respond = (result: Outcome) => ({ isError: !result.success, content: [{ type: 'text' as const, text: JSON.stringify(result) }] });
-  let mediaFailures: MediaFailure[] = [];
-  if (['ui_present', 'ui_update', 'layout_create'].includes(name)) {
-    try {
-      const resolved = await resolveMedia(name, args as Record<string, unknown>);
-      args = resolved.media.length ? { ...resolved.args, media: resolved.media } : resolved.args;
-      mediaFailures = resolved.failures;
-    } catch (error) {
-      if (error instanceof MediaError) return respond(failure(error.code, error.message));
-      throw error;
-    }
-  }
   const socket = unity;
   let result: Outcome;
   if (closing || !socket || socket.readyState !== WebSocket.OPEN) result = failure('UNITY_NOT_CONNECTED', 'Open a configured Unity scene in Play Mode. No request was sent.');
@@ -111,7 +99,6 @@ async function invoke(name: string, args: unknown) {
       socket.send(request, error => { if (error) { disconnected(socket); socket.terminate(); } });
     });
   }
-  if (result.success && mediaFailures.length) result = { ...result, data: { ...result.data, mediaFailures } };
   return respond(result);
 }
 for (const tool of tools) server.registerTool(tool.name, {
