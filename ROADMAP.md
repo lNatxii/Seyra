@@ -460,7 +460,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18b. Botón único de voz
 
-**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Botón único en chat y menú, iconos sincronizados y voz independiente del cierre del chat. Compilación, estados simulados y HandMenuChecks aprobados; SpatialChatChecks pendiente por timeout del Editor sin avanzar frames. Prueba Quest pendiente. [Implementación](Progress/Completed/18b-voice-toggle-button.md).
+**Estado:** Completed · Revisada, `SpatialChatChecks` y Quest pendientes (30 de octubre de 2026). Botón único en chat y menú, iconos sincronizados y voz independiente del cierre del chat. Compilación, estados simulados y HandMenuChecks aprobados; SpatialChatChecks pendiente por timeout del Editor sin avanzar frames. Prueba Quest pendiente. [Implementación](Progress/Completed/18b-voice-toggle-button.md).
 
 **Entrega:** un solo botón de icono (`volume_up`/`volume_off`), en chat y menú de mano, que activa o silencia la voz. Sustituye a Listen/Stop y Mute/Unmute; se deja de poder volver a escuchar una respuesta. La voz sigue sonando con el chat cerrado.
 
