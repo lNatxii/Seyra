@@ -72,7 +72,8 @@ namespace Seyra.UI.Library
             var viewport = scroll.viewport != null ? scroll.viewport : (RectTransform)scroll.transform;
             float height = viewport.rect.height, contentHeight = scroll.content != null ? scroll.content.rect.height : 0;
             bool visible = scroll.vertical && height > 0 && contentHeight > height + 1;
-            track.gameObject.SetActive(visible);
+            track.canvasRenderer.SetAlpha(visible ? 1 : 0);
+            thumb.canvasRenderer.SetAlpha(visible ? 1 : 0);
             if (!visible) return;
             float trackHeight = Mathf.Max(0, height - 8);
             float thumbHeight = Mathf.Min(trackHeight, Mathf.Max(24, height * height / contentHeight));

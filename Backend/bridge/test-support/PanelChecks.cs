@@ -64,11 +64,11 @@ public static class PanelChecks
             var panelScroll = panel.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true);
             var indicator = panelScroll.GetComponent<UIScrollIndicator>();
             var track = panelScroll.viewport.Find("ScrollIndicatorTrack");
-            Require(indicator != null && track != null && track.gameObject.activeSelf, "Long panel text must show a scroll indicator track.");
+            Require(indicator != null && track != null && track.GetComponent<CanvasRenderer>().GetAlpha() > 0.5f, "Long panel text must show a scroll indicator track.");
             Undo(longUpdate);
             var shortUpdate = Ok("update_panel", new JObject { ["entityId"] = id, ["panel"] = Data(text: "One line.") });
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(panel.Surface); Canvas.ForceUpdateCanvases();
-            Require(panelScroll.GetComponent<UIScrollIndicator>() != null && !track.gameObject.activeSelf, "Single-line panel text must hide the scroll indicator.");
+            Require(panelScroll.GetComponent<UIScrollIndicator>() != null && track.GetComponent<CanvasRenderer>().GetAlpha() < 0.5f, "Single-line panel text must hide the scroll indicator.");
             Undo(shortUpdate);
             var label = Ok("create_panel", CreateArgs("ManagedLabel", Data("label"))); var labelId = (string)label["entityId"];
             Require(Owned(labelId).GetComponent<ManagedPanel>().Window == null, "A label created a window.");
