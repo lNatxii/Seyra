@@ -110,9 +110,10 @@ namespace Seyra.Spatial
                     }
                 }
             }
+            if(result.Best==null)result.Best=bestRelaxed;
             bool fallback=request.Destination!="air"&&result.Best==null&&request.AllowAirFallback;
             if(fallback)Air();
-            result.Reason=result.Best==null?"No compatible placement was found.":!result.PhysicalValidation?"Air placement without physical room validation.":fallback?"No suitable support; air fallback checked only against captured geometry.":"Compatible with captured geometry; moved or new furniture is unknown.";
+            result.Reason=result.Best==null?"No compatible placement was found.":result.Best.Relaxed?$"Placed on the requested support outside the comfortable view ({result.Best.WaivedReason}).":!result.PhysicalValidation?"Air placement without physical room validation.":fallback?"No suitable support; air fallback checked only against captured geometry.":"Compatible with captured geometry; moved or new furniture is unknown.";
             return result;
         }
         static bool IsComfortReason(string reason)=>reason=="TOO_FAR"||reason=="TOO_CLOSE"||reason=="OCCLUDED"||reason=="OUTSIDE_COMFORT"||reason=="OBLIQUE_WALL"||reason=="TOO_SMALL_TO_READ";
