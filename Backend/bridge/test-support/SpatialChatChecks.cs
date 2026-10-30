@@ -128,7 +128,7 @@ public static class SpatialChatChecks
 
         // 3. Unified Environment Credentials Check
         Check(!string.IsNullOrEmpty(SeyraEnvironmentCredentials.OpenCodeServerPassword), "OpenCode password should be readable from .env.local.");
-        Check(SeyraEnvironmentCredentials.HasWitToken, "Wit.ai token should be readable from .env.local (SEYRA_CLIENT_TOKEN).");
+        Check(SeyraEnvironmentCredentials.HasWitToken, "Wit.ai token should be readable from .env.local (WITAI_CLIENT_TOKEN).");
         var redacted = SeyraEnvironmentCredentials.RedactToken("Secret token: " + SeyraEnvironmentCredentials.WitClientToken);
         Check(!redacted.Contains(SeyraEnvironmentCredentials.WitClientToken), "RedactToken must mask the Wit token.");
         Check(redacted.Contains("[token hidden]"), "Redacted token must contain placeholder.");
@@ -140,7 +140,7 @@ public static class SpatialChatChecks
         var ptt = chat.PushToTalk;
         Check(ptt != null, "PushToTalkButton component is required on SpatialChatWindow.");
         Check(ptt.Dictation == dictation, "PushToTalkButton must reference the chat's VoiceDictation service.");
-        Check(dictation.Available, "VoiceDictation should be available in editor with SEYRA_CLIENT_TOKEN configured.");
+        Check(dictation.Available, "VoiceDictation should be available in editor with WITAI_CLIENT_TOKEN configured.");
         checks.Add("Meta SDK Voice-to-Text and Push-to-Talk component presence and configuration");
 
         // 5. Connect against fixture (port 4202)

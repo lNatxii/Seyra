@@ -97,7 +97,7 @@ namespace Seyra.Voice
             if (useMuse) { SetStatus(Idle, true); return; }
             if (!useWit) { SetStatus(ConnectionErrors.Describe(null, settings), false); return; }
             var configured = SeyraEnvironmentCredentials.HasWitToken;
-            SetStatus(configured ? Idle : "Set SEYRA_CLIENT_TOKEN in Backend/.env.local to use dictation.", configured);
+            SetStatus(configured ? Idle : "Set WITAI_CLIENT_TOKEN in Backend/.env.local to use dictation.", configured);
         }
 
         void CreateService(WitConfiguration configuration)
@@ -349,7 +349,7 @@ namespace Seyra.Voice
         {
             var token = SeyraEnvironmentCredentials.WitClientToken;
             if (string.IsNullOrEmpty(token))
-                throw new InvalidOperationException("SEYRA_CLIENT_TOKEN is missing from .env.local.");
+                throw new InvalidOperationException("WITAI_CLIENT_TOKEN is missing from .env.local.");
 
             var config = ScriptableObject.CreateInstance<WitConfiguration>();
             config.name = "Seyra Wit (Runtime)";

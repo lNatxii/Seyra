@@ -13,7 +13,7 @@ namespace Seyra.Configuration
     /// </summary>
     public static class SeyraEnvironmentCredentials
     {
-        public const string WitTokenEnvKey = "SEYRA_CLIENT_TOKEN";
+        public const string WitTokenEnvKey = "WITAI_CLIENT_TOKEN";
         public const string OpenCodePasswordEnvKey = "OPENCODE_SERVER_PASSWORD";
         public const string OpenCodeUrlEnvKey = "OPENCODE_SERVER_URL";
 

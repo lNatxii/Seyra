@@ -29,7 +29,7 @@ public static class MuseDictationChecks
             dictation.ReloadEditorSettings();
             Check(dictation.Available && dictation.Provider == "Muse Voice Transcribe · gateway", "Gateway must select Muse.");
 
-            File.WriteAllText(path, "SEYRA_CLIENT_TOKEN=fixture-wit-token\n");
+            File.WriteAllText(path, "WITAI_CLIENT_TOKEN=fixture-wit-token\n");
             SeyraEnvironmentCredentials.ForceReload();
             dictation.ReloadEditorSettings();
             Check(Application.isEditor && dictation.Available && dictation.Provider.StartsWith("Wit.ai", StringComparison.Ordinal), "Direct Editor must select Wit.");

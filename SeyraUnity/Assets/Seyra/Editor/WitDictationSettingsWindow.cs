@@ -36,15 +36,15 @@ namespace Seyra.Editor
             if (hasToken)
             {
                 EditorGUILayout.HelpBox(
-                    "Token loaded from Backend/.env.local (SEYRA_CLIENT_TOKEN):\n" +
+                    "Token loaded from Backend/.env.local (WITAI_CLIENT_TOKEN):\n" +
                     SeyraEnvironmentCredentials.RedactToken(SeyraEnvironmentCredentials.WitClientToken),
                     MessageType.None);
             }
             else
             {
                 EditorGUILayout.HelpBox(
-                    "SEYRA_CLIENT_TOKEN was not found in Backend/.env.local.\n" +
-                    "Set SEYRA_CLIENT_TOKEN to your Wit.ai Client Access Token.",
+                    "WITAI_CLIENT_TOKEN was not found in Backend/.env.local.\n" +
+                    "Set WITAI_CLIENT_TOKEN to your Wit.ai Client Access Token.",
                     MessageType.Warning);
             }
 

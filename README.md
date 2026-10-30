@@ -68,7 +68,7 @@ Los comandos `node Backend/seyra.mjs …` funcionan en PowerShell, bash y zsh de
    OPENCODE_SERVER_PASSWORD=<una contraseña larga inventada por ti>
    # Opcionales:
    # HELMCODE_API_KEY=<clave de Helmcode, solo para el perfil seyra_glm>
-   # SEYRA_CLIENT_TOKEN=<token cliente de Wit.ai, solo para el dictado en el Editor>
+   # WITAI_CLIENT_TOKEN=<token cliente de Wit.ai, solo para el dictado en el Editor>
    ```
    - `OPENCODE_SERVER_PASSWORD` protege la API local de OpenCode. Es distinta de la clave de Meta.
    - El agente por defecto `seyra` usa Muse Spark (`meta/muse-spark-1.3`).
