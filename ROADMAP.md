@@ -436,7 +436,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18. Respuestas habladas
 
-**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Paso 9 de audio real y Quest pendientes, sin latencia medida. [Implementación](Progress/Completed/18-spoken-replies.md).
+**Estado:** Completed · Revisada, audio real y Quest pendientes (30 de octubre de 2026). wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Paso 9 de audio real y Quest pendientes, sin latencia medida. [Implementación](Progress/Completed/18-spoken-replies.md).
 
 **Entrega:** TTS con Meta Voice SDK, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
 
