@@ -100,3 +100,6 @@ GEMINI.md
 /Builds/
 /Backend/.seyra/
 .worktrees/
+
+# Local working files shared between sessions
+/Temp/

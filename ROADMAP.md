@@ -35,17 +35,19 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
-| 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
-| 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
-| 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
-| 5 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 6 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 7 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
-| 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
-| 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
-| 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 11 | 18. Respuestas habladas | 40 | Independiente; esfuerzo medio. |
-| 12 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 2 | 31. Seyra en inglés | — | Decisión del usuario: la demo será en inglés. Requisito de 18. |
+| 2b | 18. Respuestas habladas | 75 | Prioridad del usuario; Voice SDK ya instalado. Wit no sintetiza español; voz `wit$Rebecca`. Después de 31. |
+| 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
+| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
+| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 6 | 19. Imágenes generadas con Muse Image | 68 | Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
+| 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
+| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) tras 31; 32b (papelera 3D) tras 28. |
+| 9 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
+| 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
+| 11 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
+| 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -231,7 +233,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 31. Seyra en inglés
 
-**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Tres suites repetidas y aprobadas: ChatExecutionChecks (15 grupos), SpatialChatChecks (12 grupos) y PresentationChecks (242 aserciones, Meta XR Simulator). Contrato ASR corregido y renombrado WITAI_CLIENT_TOKEN confirmado por separado. Recorrido manual pendiente. [Implementación y revisión](Progress/Completed/31-english-experience.md).
+**Estado:** Completed · Revisada (30 de octubre de 2026). Tres suites repetidas y aprobadas: ChatExecutionChecks (15 grupos), SpatialChatChecks (12 grupos) y PresentationChecks (242 aserciones, Meta XR Simulator). Contrato ASR corregido y renombrado WITAI_CLIENT_TOKEN confirmado por separado. Recorrido manual pendiente. [Implementación y revisión](Progress/Completed/31-english-experience.md).
 
 **Entrega:** interfaz, escena, prefabs, errores, textos de respaldo, respuestas del modelo y dictado en inglés, sin capa de localización.
 
@@ -343,6 +345,23 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 **Dependencias:** 05 y 06. Después de 26 o coordinado con ella (comparten `UIPresentationView.cs`).
 
+### 32. Descarte de paneles y contenido agarrable
+
+**Estado 32a:** In progress · diseño listo (30 de octubre de 2026). Implementar al cerrar 31, que modifica los mismos archivos. [Diseño](Progress/InProgress/32a-panel-close-button.md).
+
+**Estado 32b:** Future · esbozo. Diseñar al cerrar 28 y 32a. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
+
+**Entrega:** el usuario retira paneles y presentaciones directamente, sin pedirlo al chat, en dos pasos:
+
+- **32a. Botón «Close»:** cada panel de texto y cada presentación muestran un botón que envía la ventana a la papelera de runtime. Sustituye el cierre actual de las presentaciones, que solo las oculta.
+- **32b. Papelera 3D:** aparece en el suelo al agarrar una ventana, siempre dentro de la habitación, y desaparece al soltarla. Al meter la ventana dentro se elimina con una pequeña animación que la encoge desde una distancia N (por ejemplo, a partir de 50 cm).
+
+Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran por chat.
+
+**Aceptación:** el descarte usa el mismo circuito que `delete_object`, de modo que se puede deshacer y recuperar y el guardado no conserva el contenido retirado. La ventana de chat no se puede descartar. Con papelera 3D: soltar fuera de la zona no elimina nada, la animación se revierte si la ventana sale antes de soltarla, `undo` la devuelve a su escala original, y sin habitación capturada no aparece la papelera y sigue disponible el botón.
+
+**Dependencias:** 05, 22 y 25. 32a después de 31. 32b después de 28, que aporta la comprobación de posición dentro de la habitación, y de 32a. Si se implementa 10a antes, coordinar el agarre.
+
 ### 10. Selección e interacción bidireccional con contenido virtual
 
 **Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto) In progress · diseño listo, después de 24. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Diseño 10a](Progress/InProgress/10a-interactive-objects.md).
@@ -417,19 +436,27 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 18. Respuestas habladas
 
-**Entrega:** TTS mediante un servicio sencillo, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
+**Estado:** In progress · diseño listo (30 de octubre de 2026). Meta Voice SDK (`com.meta.xr.sdk.voice` 85.0.1, ya instalado), con `TTSSpeaker`, `TTSWit` y la voz `wit$Rebecca` (`en_US`). Wit no sintetiza español (comprobado con la cuenta), por lo que depende de 31. Meta Model API no ofrece TTS. El visor necesita salida a `api.wit.ai`. [Diseño](Progress/InProgress/18-spoken-replies.md).
 
-**Aceptación:** puede interrumpirse; no se acumulan audios de turnos antiguos; un fallo de voz no impide recibir el texto. Seleccionar proveedor según acceso, latencia y coste comprobados al implementar.
+**Entrega:** TTS con Meta Voice SDK, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
+
+**Aceptación:** puede interrumpirse; no se acumulan audios de turnos antiguos; un fallo de voz no impide recibir el texto. Al diseñar, comprobar voces en español, latencia, límites y gestión del token de Wit.ai.
 
 **Dependencias:** 02 y 17. No exige voz conversacional continua.
 
-### 19. Imágenes generadas en paneles espaciales
+### 19. Imágenes generadas con Muse Image
 
-**Entrega:** generar una ilustración o diagrama con Muse Image y mostrarlo como contenido espacial con referencia al recurso, petición de origen y estado de carga.
+**Estado:** sin diseñar (redefinida el 30 de octubre de 2026). Prioridad media (puntuación 68). Al diseñar, comprobar contrato, tamaños, coste y latencia de `muse-image-1.0` en `/v1/images/generations`.
 
-**Aceptación:** tamaño y memoria acotados; recurso guardado y recuperable con el panel; errores o enlaces caducados no producen contenido vacío sin explicación. Sin generar modelos 3D ni editar texturas de objetos físicos en esta entrega.
+**Entrega:** herramienta para que el agente genere imágenes con Muse Image y las muestre en tarjetas (`mediaCard`, sola o en `layout_create`) o en paneles, con estado de carga. La llave y la llamada viven en el backend; el bridge entrega los bytes a Unity por la pasarela autenticada, ya que 26d retiró el resolver anterior. El agente decide si genera, con una guía en el prompt:
 
-**Dependencias:** 05, 08 y 26 (reutiliza su caché y entrega de imágenes por la pasarela). Amplía la persistencia para gestionar archivos asociados.
+- **Genera** cuando la imagen ayuda a reconocer o entender algo visual: ingredientes de una receta, platos, animales, plantas, ilustraciones de un concepto.
+- **No genera** cuando basta con texto: preguntas simples, datos, listas, respuestas en el chat, o cuando el usuario pide no usar imágenes.
+- **No genera** imágenes que puedan pasar por reales: portadas de libros, pósteres de películas, personas reales o marcas. Esas tarjetas siguen solo con texto.
+
+**Aceptación:** «dame los ingredientes de una carbonara» crea tarjetas con una imagen generada de cada ingrediente; «¿cuánta pasta por persona?» responde en el chat sin generar nada; «muéstrame los libros de Isabel Allende» crea tarjetas sin portadas inventadas. Las tarjetas aparecen sin esperar a las imágenes o con un estado de carga visible; un fallo o una cuota agotada deja la tarjeta con su texto y lo indica, sin reintentos ni mutaciones duplicadas. Número de imágenes por turno, tamaño y memoria acotados; la imagen se guarda y se recupera con el slot; deshacer y borrar liberan las texturas. Sin modelos 3D ni edición de texturas de objetos físicos.
+
+**Dependencias:** 05, 08, 23 y 26 (reutiliza `mediaCard` y `RemoteMediaStore`). Amplía la persistencia para gestionar los archivos generados.
 
 ### 20. Memoria contextual compacta de sesión
 
