@@ -283,7 +283,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 **Estado 26b:** Future · pausada (30 de octubre de 2026). Pexels ha pausado la emisión de claves. Las herramientas solo aceptan imágenes del catálogo registrado; el prompt no usa imágenes web, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
 
-**Estado 26c:** Completed · Pendiente de revisión. Retiradas la extracción de imágenes HTML y las fuentes web del schema; conservados buscador interno, miniatura de YouTube y transportes. Build y 22/33 tests aprobados; 11 fallan por EACCES de loopback en el entorno. Prueba manual pendiente. [Implementación](Progress/Completed/26c-remove-web-image-sources.md).
+**Estado 26c:** Completed · Revisada (30 de octubre de 2026). Retiradas la extracción de imágenes HTML y las fuentes web del schema; conservados buscador interno, miniatura de YouTube y transportes. Suite del bridge 33/33. Prueba manual pendiente. [Implementación](Progress/Completed/26c-remove-web-image-sources.md).
 
 **Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` es una consulta web resuelta por el buscador de Meta; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
