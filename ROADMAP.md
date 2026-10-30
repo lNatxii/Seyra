@@ -22,7 +22,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Confirmar el dictado por voz en Quest. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, trece presentaciones con imágenes web (26, pendiente de revisión), layouts de tarjetas, `scene_build` y `scene_edit`. | Prueba Muse/Quest de imágenes (26), líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
+| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
@@ -34,7 +34,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · Pendiente de revisión. 26c retira las fuentes web del schema (normas del hackathon); 26b con Pexels pausada sin claves. Base de 19. |
+| 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
 | 2 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 3 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -279,13 +279,13 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 26. Tarjetas con imagen de internet
 
-**Estado:** Completed · Pendiente de revisión (29 de octubre de 2026). Aplicados los cambios 11.3/11.4: búsqueda web de Meta, fuente visible de cada imagen, límite por host/reintento 429 y lazy_follow retirado del modelo. Suite final bridge 34/34; Unity validado en 11.4(b) con 242 comprobaciones. Pendiente repetir películas y tortilla con Muse, tras reiniciar backend y OpenCode. [Implementación y revisión](Progress/Completed/26-web-image-cards.md).
+**Estado:** Completed · imágenes web retiradas (30 de octubre de 2026). 26c y 26d quitan la búsqueda, `og:image`, `imageSearch`, `imageUrl` y el resolver, por las normas del hackathon; `mediaCard` y `RemoteMediaStore` siguen. Los cambios 11.3/11.4 se cierran sin revisión final de código. [Implementación y revisión](Progress/Completed/26-web-image-cards.md).
 
 **Estado 26b:** Future · pausada (30 de octubre de 2026). Pexels ha pausado la emisión de claves. Las herramientas solo aceptan imágenes del catálogo registrado; el prompt no usa imágenes web, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
 
 **Estado 26c:** Completed · Revisada (30 de octubre de 2026). Retiradas la extracción de imágenes HTML y las fuentes web del schema; conservados buscador interno, miniatura de YouTube y transportes. Suite del bridge 33/33. Prueba manual pendiente. [Implementación](Progress/Completed/26c-remove-web-image-sources.md).
 
-**Estado 26d:** Completed · Pendiente de revisión. Retirados búsqueda web, miniaturas y resolver de imágenes; conservado el cargador seguro por URL sin llamadas en producción. Build correcto; 17/28 tests aprobados y 11 fallos EACCES de loopback. Prueba manual pendiente. [Implementación](Progress/Completed/26d-remove-web-image-resolver.md).
+**Estado 26d:** Completed · Revisada (30 de octubre de 2026). Retirados búsqueda web, miniaturas y resolver de imágenes; conservado el cargador seguro por URL sin llamadas en producción. Suite del bridge 28/28. Prueba manual pendiente. [Implementación](Progress/Completed/26d-remove-web-image-resolver.md).
 
 **Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` es una consulta web resuelta por el buscador de Meta; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
