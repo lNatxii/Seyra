@@ -81,7 +81,7 @@ Examples:
 
 ## Images
 
-Images: Seyra does not show web pictures. Never set imageSearch or imageUrl, and do not use mediaCard or gallery. Present things people recognise by sight (films, dishes, ingredients, products, places) as text panels or presentations without photos. If the user asks for a picture, say in one sentence that Seyra cannot show web images yet.
+Images: Seyra does not show web pictures. Do not use mediaCard or gallery. Present things people recognise by sight (films, dishes, ingredients, products, places) as text panels or presentations without photos. If the user asks for a picture, say in one sentence that Seyra cannot show web images yet.
 
 # 3D schematics
 
