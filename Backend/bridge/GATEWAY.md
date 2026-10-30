@@ -47,3 +47,16 @@ OpenCode allowlist (identifiers use ASCII letters, digits, underscore and hyphen
 All other routes return 404. The gateway generates the upstream Basic header
 using the PC-only OpenCode password, discarding incoming Cookie, Origin and all
 other device headers. It never retries upstream requests.
+
+## Spoken reply configuration
+
+Authenticated devices may call `GET /_seyra/tts/config`. A configured
+`WITAI_CLIENT_TOKEN` returns 200 with `{ "clientToken": "<client token>" }`;
+missing configuration returns 503 with `{ "error": "TTS_NOT_CONFIGURED" }`.
+Invalid device authentication returns 401 as on the other routes. Every response
+uses `Cache-Control: no-store`. Other methods fall through to the general 404.
+The credential must never be logged or written to device storage or assets.
+It is held only in memory in a runtime WitConfiguration. A paired device can
+obtain the client credential; revocation prevents new reads, but invalidating an
+already delivered credential requires rotating it in Wit.ai. Audio goes directly
+from the device to Wit.ai, so the device also needs internet access.

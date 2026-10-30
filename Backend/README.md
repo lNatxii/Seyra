@@ -140,3 +140,10 @@ configuran las tres variables de pasarela en su archivo local, se usa la misma
 pasarela. Para pruebas aisladas, `SEYRA_EDITOR_ENV_PATH` puede seleccionar un archivo
 alternativo en el proceso del Editor; no se lee entonces el archivo real. Esa
 variable de prueba no se usa en el dispositivo.
+
+
+## Spoken replies (Meta Voice SDK)
+
+Set `WITAI_CLIENT_TOKEN` only in `Backend/.env.local` on the PC, using the client credential of an English Wit.ai app. The spatial chat uses `wit$Rebecca`; Listen/Stop controls replay, and Mute/Unmute persists the automatic-reading preference. Muting does not disable explicit Listen. Starting dictation, sending or cancelling stops output.
+
+The authenticated gateway exposes `GET /_seyra/tts/config` with `Cache-Control: no-store` (see [GATEWAY.md](bridge/GATEWAY.md)). Quest keeps the returned credential only in a runtime configuration in memory. Never copy it to assets, builds, device environment files, persistentDataPath or logs. Paired devices can obtain it in memory; revoking a device prevents new reads, while invalidating an already delivered credential requires rotating it in Wit.ai. The headset needs internet access to Wit.ai for audio, in addition to access to the PC gateway. TTS uses no disk or runtime cache; spoken output is limited to 600 characters after filtering code, URLs, JSON and markdown. Voice failures leave the text chat available.

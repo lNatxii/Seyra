@@ -436,7 +436,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18. Respuestas habladas
 
-**Estado:** In progress · diseño listo (30 de octubre de 2026). Meta Voice SDK (`com.meta.xr.sdk.voice` 85.0.1, ya instalado), con `TTSSpeaker`, `TTSWit` y la voz `wit$Rebecca` (`en_US`). Wit no sintetiza español (comprobado con la cuenta), por lo que depende de 31. Meta Model API no ofrece TTS. El visor necesita salida a `api.wit.ai`. [Diseño](Progress/InProgress/18-spoken-replies.md).
+**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Paso 9 de audio real y Quest pendientes, sin latencia medida. [Implementación](Progress/Completed/18-spoken-replies.md).
 
 **Entrega:** TTS con Meta Voice SDK, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
 

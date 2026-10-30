@@ -304,9 +304,55 @@ namespace Seyra.Editor
             serializedPtt.ApplyModifiedProperties();
 
             SeyraSpatialChatPresentation.Apply(windowGo);
+            AddSpokenReplyControls(windowGo);
             var prefab = PrefabUtility.SaveAsPrefabAsset(windowGo, ChatWindowPrefabPath);
             UnityEngine.Object.DestroyImmediate(windowGo);
             return prefab;
+        }
+
+        [MenuItem("Seyra/UI/Update Spoken Reply Controls in Chat Prefab")]
+        public static void UpdateSpokenReplyControls()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before updating prefabs.");
+            var root = PrefabUtility.LoadPrefabContents(ChatWindowPrefabPath);
+            try { AddSpokenReplyControls(root); PrefabUtility.SaveAsPrefabAsset(root, ChatWindowPrefabPath); }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        static void AddSpokenReplyControls(GameObject root)
+        {
+            var chat = root.GetComponent<SeyraSpatialChatWindow>();
+            var settings = new SerializedObject(chat);
+            var reconnect = (Button)settings.FindProperty("reconnectButton").objectReferenceValue;
+            var voice = root.GetComponent<SpokenReplies>() ?? root.AddComponent<SpokenReplies>();
+            Button Control(string name, string label)
+            {
+                var existing = reconnect.transform.parent.Find(name);
+                var button = existing != null ? existing.GetComponent<Button>() : UnityEngine.Object.Instantiate(reconnect, reconnect.transform.parent);
+                button.name = name;
+                var index = reconnect.transform.GetSiblingIndex();
+                if (button.transform.GetSiblingIndex() < index) index--;
+                button.transform.SetSiblingIndex(index);
+                button.onClick = new Button.ButtonClickedEvent();
+                var icon = button.transform.Find("ActionIcon");
+                if (icon != null) UnityEngine.Object.DestroyImmediate(icon.gameObject);
+                var text = button.GetComponentInChildren<TMP_Text>(true);
+                text.text = label;
+                text.alignment = TextAlignmentOptions.Center;
+                text.rectTransform.offsetMin = new Vector2(8, 0);
+                text.rectTransform.offsetMax = new Vector2(-8, 0);
+                var layout = button.GetComponent<LayoutElement>();
+                layout.minWidth = layout.preferredWidth = 152;
+                return button;
+            }
+            var replay = Control("ReplayVoiceButton", "Listen");
+            var mute = Control("MuteVoiceButton", "Mute");
+            settings.FindProperty("spokenReplies").objectReferenceValue = voice;
+            settings.FindProperty("replayVoiceButton").objectReferenceValue = replay;
+            settings.FindProperty("replayVoiceLabel").objectReferenceValue = replay.GetComponentInChildren<TMP_Text>(true);
+            settings.FindProperty("muteVoiceButton").objectReferenceValue = mute;
+            settings.FindProperty("muteVoiceLabel").objectReferenceValue = mute.GetComponentInChildren<TMP_Text>(true);
+            settings.ApplyModifiedPropertiesWithoutUndo();
         }
 
         [MenuItem("Seyra/UI/Build Hand Menu Prefab")]

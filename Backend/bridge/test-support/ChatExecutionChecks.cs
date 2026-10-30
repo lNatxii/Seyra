@@ -62,11 +62,15 @@ public static class ChatExecutionChecks
         {
             await Wait(()=>Get<bool>("connected"),"Fixture connection");
             var session=Get<string>("sessionId");
+            var finalReplies = 0;
+            string finalReply = null;
+            chat.Session.FinalReplyReady += reply => { finalReplies++; finalReply = reply; };
             await Start("permission");
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.WaitingForPermission,"Permission state");
             Check(Get<GameObject>("permissionPanel").activeSelf,"Missing permission panel");
             Click("allowPermissionButton");Click("allowPermissionButton");
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Completed,"Permission continuation");
+            Check(finalReplies == 1 && !string.IsNullOrWhiteSpace(finalReply), "A succeeded turn must emit its final reply exactly once.");
             checks.Add("sending, permission, completion and one permission decision");
 
             await Start("cancel_permission");

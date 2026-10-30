@@ -64,6 +64,11 @@ namespace Seyra.UI
         [Header("Voice Dictation & Push-to-Talk")]
         [SerializeField] VoiceDictation voiceDictation;
         [SerializeField] PushToTalkButton pushToTalkButton;
+        [SerializeField] SpokenReplies spokenReplies;
+        [SerializeField] Button replayVoiceButton;
+        [SerializeField] TMP_Text replayVoiceLabel;
+        [SerializeField] Button muteVoiceButton;
+        [SerializeField] TMP_Text muteVoiceLabel;
 
         OpenCodeConversationSession session;
         readonly Dictionary<string, GameObject> renderedRows = new Dictionary<string, GameObject>();
@@ -98,6 +103,7 @@ namespace Seyra.UI
         public void BeginDictationPreview()
         {
             if (IsDictating) return;
+            spokenReplies?.Stop();
             draftBeforeDictation = draft;
             previewText = draft;
             IsDictating = true;
@@ -146,6 +152,7 @@ namespace Seyra.UI
             }
             draftScrollPending = true;
             RefreshSendButtonState();
+            RefreshSpokenReplyControls();
         }
 
         void LateUpdate()
@@ -170,6 +177,7 @@ namespace Seyra.UI
             if (session == null || !session.CanSend) return false;
             var trimmed = text?.Trim();
             if (string.IsNullOrEmpty(trimmed)) return false;
+            spokenReplies?.Stop();
             RefreshSendButtonState();
             _ = session.SendPromptAsync(trimmed);
             return true;
@@ -177,6 +185,9 @@ namespace Seyra.UI
 
         void Awake()
         {
+            if (replayVoiceButton != null) replayVoiceButton.onClick.AddListener(OnReplayVoiceClicked);
+            if (muteVoiceButton != null) muteVoiceButton.onClick.AddListener(OnMuteVoiceClicked);
+            if (spokenReplies != null) spokenReplies.Changed += RefreshSpokenReplyControls;
             UIScrollIndicator.Ensure(conversationScroll, presentationTheme);
             UIScrollIndicator.Ensure(permissionScroll, presentationTheme);
             if (reconnectButton != null) reconnectButton.onClick.AddListener(OnReconnectClicked);
@@ -212,6 +223,7 @@ namespace Seyra.UI
 
         void OnDestroy()
         {
+            if (spokenReplies != null) spokenReplies.Changed -= RefreshSpokenReplyControls;
             UnbindSessionEvents();
             session?.Dispose();
             session = null;
@@ -239,6 +251,7 @@ namespace Seyra.UI
             session.StateChanged += OnStateChanged;
             session.MessageUpserted += OnMessageUpserted;
             session.ActivityChanged += OnActivityChanged;
+            session.FinalReplyReady += OnFinalReplyReady;
             session.PermissionChanged += OnPermissionChanged;
             session.PermissionStatusChanged += OnPermissionStatusChanged;
             session.ControlsRefreshRequested += RefreshControls;
@@ -251,6 +264,7 @@ namespace Seyra.UI
             session.StateChanged -= OnStateChanged;
             session.MessageUpserted -= OnMessageUpserted;
             session.ActivityChanged -= OnActivityChanged;
+            session.FinalReplyReady -= OnFinalReplyReady;
             session.PermissionChanged -= OnPermissionChanged;
             session.PermissionStatusChanged -= OnPermissionStatusChanged;
             session.ControlsRefreshRequested -= RefreshControls;
@@ -361,6 +375,7 @@ namespace Seyra.UI
 
         public void RefreshControls()
         {
+            RefreshSpokenReplyControls();
             RefreshSendButtonState();
             if (reconnectButton != null) reconnectButton.interactable = session?.CanReconnect ?? true;
 
@@ -565,7 +580,29 @@ namespace Seyra.UI
 
         void OnCancelClicked()
         {
+            spokenReplies?.Stop();
             _ = session?.CancelTurnAsync();
+        }
+
+        void OnFinalReplyReady(string reply) => spokenReplies?.SpeakReply(reply, autoPlay: !IsDictating);
+
+        void OnReplayVoiceClicked()
+        {
+            if (spokenReplies == null) return;
+            if (spokenReplies.State == SpokenReplyState.Preparing || spokenReplies.State == SpokenReplyState.Speaking) spokenReplies.Stop();
+            else if (!IsDictating) spokenReplies.Replay();
+        }
+
+        void OnMuteVoiceClicked() { if (spokenReplies != null) spokenReplies.SetMuted(!spokenReplies.Muted); }
+
+        void RefreshSpokenReplyControls()
+        {
+            if (spokenReplies == null) return;
+            var active = spokenReplies.State == SpokenReplyState.Preparing || spokenReplies.State == SpokenReplyState.Speaking;
+            if (replayVoiceLabel != null) replayVoiceLabel.text = active ? "Stop" : "Listen";
+            if (replayVoiceButton != null) replayVoiceButton.interactable = active || (spokenReplies.HasReply && !IsDictating);
+            if (muteVoiceLabel != null) muteVoiceLabel.text = spokenReplies.Muted ? "Unmute" : "Mute";
+            if (!IsDictating && !string.IsNullOrEmpty(spokenReplies.Status)) SetVoiceHint(spokenReplies.Status);
         }
 
         void OnCloseTurnClicked()

@@ -73,6 +73,11 @@ export function createGateway(options: Options) {
     const device = await authenticate(request, response); if (!device) return;
     const url = new URL(request.url ?? '/', 'https://gateway');
     if (await relay.handle(device, request, response, url)) return;
+    if (url.pathname === '/_seyra/tts/config' && request.method === 'GET') {
+      const clientToken = process.env.WITAI_CLIENT_TOKEN;
+      if (!clientToken) { send(response, 503, { error: 'TTS_NOT_CONFIGURED' }); return; }
+      send(response, 200, { clientToken }); return;
+    }
     const path = url.pathname;
     if (path === '/_seyra/bridge/hello' && request.method === 'POST') {
       await body(request, 1024);

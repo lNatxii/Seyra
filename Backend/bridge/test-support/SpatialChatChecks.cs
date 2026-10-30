@@ -91,6 +91,9 @@ public static class SpatialChatChecks
         menu = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         Check(chat != null, "SeyraSpatialChatWindow not found in active scene.");
         Check(menu != null, "SeyraSpatialMenu not found in active scene.");
+        var spokenReplies = chat.GetComponent<SpokenReplies>();
+        Check(spokenReplies != null, "SpokenReplies is required on the chat prefab.");
+        spokenReplies.SimulateOutput = true;
 
         var checks = new JArray();
 
@@ -125,6 +128,31 @@ public static class SpatialChatChecks
         Check(!chat.GetComponentsInChildren<Transform>(true).Any(t => t.name == "ClearButton"), "ClearButton must not exist.");
         Check(sendBtn != null && !sendBtn.interactable && chat.Draft == "", "Empty draft must disable Send.");
         checks.Add("draft composer structure");
+
+        // Spoken output is simulated throughout this suite; no Wit requests are permitted.
+        var replay = Get<Button>(chat, "replayVoiceButton");
+        var mute = Get<Button>(chat, "muteVoiceButton");
+        Check(replay != null && mute != null, "Spoken reply controls must be wired.");
+        var previousMuted = spokenReplies.Muted;
+        spokenReplies.SetMuted(false);
+        spokenReplies.SpeakReply("Voice control check.");
+        Check(Get<TMP_Text>(chat, "replayVoiceLabel").text == "Stop", "Active output must offer Stop.");
+        replay.onClick.Invoke();
+        Check(spokenReplies.State == SpokenReplyState.Idle, "Stop button must stop output.");
+        mute.onClick.Invoke(); replay.onClick.Invoke();
+        Check(spokenReplies.Muted && spokenReplies.State == SpokenReplyState.Speaking, "Listen must work while muted.");
+        spokenReplies.Stop(); spokenReplies.SetMuted(previousMuted);
+        Canvas.ForceUpdateCanvases();
+        var replayCorners = new Vector3[4]; var muteCorners = new Vector3[4];
+        ((RectTransform)replay.transform).GetWorldCorners(replayCorners);
+        ((RectTransform)mute.transform).GetWorldCorners(muteCorners);
+        var header = (RectTransform)replay.transform.parent;
+        var replayRight = header.InverseTransformPoint(replayCorners[2]).x;
+        var muteLeft = header.InverseTransformPoint(muteCorners[0]).x;
+        var minimum = header.InverseTransformPoint(replayCorners[0]);
+        var maximum = header.InverseTransformPoint(muteCorners[2]);
+        Check(replayRight <= muteLeft && minimum.x >= header.rect.xMin - .1f && minimum.y >= header.rect.yMin - .1f &&
+            maximum.x <= header.rect.xMax + .1f && maximum.y <= header.rect.yMax + .1f, "Voice buttons must fit the header without overlapping.");
 
         // 3. Unified Environment Credentials Check
         Check(!string.IsNullOrEmpty(SeyraEnvironmentCredentials.OpenCodeServerPassword), "OpenCode password should be readable from .env.local.");

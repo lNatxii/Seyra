@@ -75,6 +75,7 @@ namespace Seyra.Chat
         public event Action ControlsRefreshRequested;
         public event Action<string, string> EchoAdopted;
         public event Action<string> ActivityChanged;
+        public event Action<string> FinalReplyReady;
 
         public string CurrentActivity { get; private set; }
 
@@ -410,6 +411,9 @@ namespace Seyra.Chat
             if (outcome == "succeeded" && !unknownToolOutcome)
             {
                 SetState(TurnState.Completed, cancelRequested ? "The turn had already finished before cancellation." : "Turn completed. Results confirmed by the server.");
+                var reply = LastAssistantText(turnMessages).Text;
+                // A presentation subscriber must never break the confirmed text turn.
+                try { if (!string.IsNullOrWhiteSpace(reply)) FinalReplyReady?.Invoke(reply); } catch { }
                 ResetTurn();
             }
             else if (outcome == "interrupted" || outcome == "cancelled")
@@ -602,6 +606,16 @@ namespace Seyra.Chat
             }
         }
 
+        static string AssistantText(JObject message) => message != null && (string)message["type"] == "assistant"
+            ? string.Join("\n", (message["content"] as JArray ?? new JArray()).OfType<JObject>()
+                .Where(p => (string)p["type"] == "text").Select(p => (string)p["text"])) : "";
+
+        static (JObject Message, string Text) LastAssistantText(IEnumerable<JObject> messages)
+        {
+            var message = messages.LastOrDefault(m => !string.IsNullOrWhiteSpace(AssistantText(m)));
+            return (message, AssistantText(message));
+        }
+
         void RenderMessages(IEnumerable<JObject> messageTokens)
         {
             string activity = null;
@@ -612,9 +626,7 @@ namespace Seyra.Chat
                 while (end < tokens.Count && (string)tokens[end]["type"] != "user") end++;
                 var group = tokens.GetRange(start, end - start);
                 var userId = (string)group[0]["type"] == "user" ? (string)group[0]["id"] : null;
-                var lastTextAssistant = group.LastOrDefault(m => (string)m["type"] == "assistant" &&
-                    (m["content"] as JArray)?.OfType<JObject>().Any(p => (string)p["type"] == "text" &&
-                        !string.IsNullOrWhiteSpace((string)p["text"])) == true);
+                var lastTextAssistant = LastAssistantText(group).Message;
                 var ended = userId != activeUserId || terminalConfirmed || group.Any(m => (string)m["type"] == "idle");
                 var showActivity = userId != null && userId == activeUserId && !ended && pendingPermission == null;
                 if (showActivity) activity = ChatActivityText.Thinking;
@@ -628,7 +640,7 @@ namespace Seyra.Chat
                     }
                     if ((string)message["type"] != "assistant") continue;
                     var parts = (message["content"] as JArray ?? new JArray()).OfType<JObject>().ToArray();
-                    var text = string.Join("\n", parts.Where(p => (string)p["type"] == "text").Select(p => (string)p["text"]));
+                    var text = AssistantText(message);
                     var isWorkStep = message != lastTextAssistant || (!ended && parts.Any(p => (string)p["type"] == "tool"));
                     if (!string.IsNullOrWhiteSpace(text)) UpsertMessage("assistant-" + id, "Seyra", text, isWorkStep: isWorkStep);
                     for (var index = 0; index < parts.Length; index++)
