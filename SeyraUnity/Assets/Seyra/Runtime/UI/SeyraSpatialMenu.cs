@@ -21,6 +21,9 @@ namespace Seyra.UI
         [SerializeField] TMP_Text statusSummary;
         [SerializeField] Image toggleChatIcon, voiceIcon;
         [SerializeField] Sprite showChatSprite, hideChatSprite, microphoneSprite, microphoneOffSprite;
+        [SerializeField] Button voiceToggleButton;
+        [SerializeField] Image voiceToggleIcon;
+        [SerializeField] Sprite voiceOnSprite, voiceOffSprite;
         string bringChatStatus = "";
         float lastStatusCheck;
         VoiceDictation subscribedDictation;
@@ -35,6 +38,7 @@ namespace Seyra.UI
             if (toggleChatButton != null) toggleChatButton.onClick.AddListener(OnToggleChatClicked);
             if (voiceActionButton != null) voiceActionButton.onClick.AddListener(OnVoiceActionClicked);
             if (bringChatButton != null) bringChatButton.onClick.AddListener(OnBringChatClicked);
+            if (voiceToggleButton != null) voiceToggleButton.onClick.AddListener(OnVoiceToggleClicked);
         }
         void OnEnable() { SubscribeDictation(); RefreshUI(); }
         void OnDisable()
@@ -96,6 +100,9 @@ namespace Seyra.UI
         }
         public void RefreshUI()
         {
+            var output = chatWindow != null ? chatWindow.SpokenReplies : null;
+            if (voiceToggleButton != null) voiceToggleButton.interactable = output != null;
+            if (voiceToggleIcon != null) voiceToggleIcon.sprite = output != null && output.Muted ? voiceOffSprite : voiceOnSprite;
             bool open = chatXrWindow != null ? chatXrWindow.gameObject.activeSelf : chatWindow != null && chatWindow.gameObject.activeSelf;
             if (toggleChatIcon != null) toggleChatIcon.sprite = open ? hideChatSprite : showChatSprite;
             var dictation = chatWindow != null ? chatWindow.Dictation : null;
@@ -109,6 +116,12 @@ namespace Seyra.UI
                 ? new Color(.2f, .85f, .45f) : new Color(.6f, .65f, .7f);
             if (statusSummary != null) statusSummary.text = !string.IsNullOrEmpty(bringChatStatus) ? bringChatStatus :
                 listening ? VoiceDictation.ListeningText : connected ? "Chat connected" : "Chat offline";
+        }
+
+        public void OnVoiceToggleClicked()
+        {
+            chatWindow?.SpokenReplies?.ToggleMuted();
+            RefreshUI();
         }
     }
 }

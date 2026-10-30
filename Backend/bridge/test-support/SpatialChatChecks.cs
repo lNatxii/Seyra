@@ -91,7 +91,7 @@ public static class SpatialChatChecks
         menu = UnityEngine.Object.FindFirstObjectByType<SeyraSpatialMenu>(FindObjectsInactive.Include);
         Check(chat != null, "SeyraSpatialChatWindow not found in active scene.");
         Check(menu != null, "SeyraSpatialMenu not found in active scene.");
-        var spokenReplies = chat.GetComponent<SpokenReplies>();
+        var spokenReplies = chat.SpokenReplies;
         Check(spokenReplies != null, "SpokenReplies is required on the chat prefab.");
         spokenReplies.SimulateOutput = true;
 
@@ -130,29 +130,18 @@ public static class SpatialChatChecks
         checks.Add("draft composer structure");
 
         // Spoken output is simulated throughout this suite; no Wit requests are permitted.
-        var replay = Get<Button>(chat, "replayVoiceButton");
-        var mute = Get<Button>(chat, "muteVoiceButton");
-        Check(replay != null && mute != null, "Spoken reply controls must be wired.");
+        var toggleVoice = Get<Button>(chat, "voiceToggleButton");
+        var voiceIcon = Get<Image>(chat, "voiceToggleIcon");
+        Check(toggleVoice != null && voiceIcon != null && !chat.GetComponentsInChildren<Transform>(true).Any(t => t.name == "ReplayVoiceButton"), "Only one voice toggle must be wired.");
+        Check(!toggleVoice.GetComponentsInChildren<TMP_Text>(true).Any(t => t.gameObject.activeSelf), "Voice toggle must have no visible label.");
         var previousMuted = spokenReplies.Muted;
-        spokenReplies.SetMuted(false);
-        spokenReplies.SpeakReply("Voice control check.");
-        Check(Get<TMP_Text>(chat, "replayVoiceLabel").text == "Stop", "Active output must offer Stop.");
-        replay.onClick.Invoke();
-        Check(spokenReplies.State == SpokenReplyState.Idle, "Stop button must stop output.");
-        mute.onClick.Invoke(); replay.onClick.Invoke();
-        Check(spokenReplies.Muted && spokenReplies.State == SpokenReplyState.Speaking, "Listen must work while muted.");
-        spokenReplies.Stop(); spokenReplies.SetMuted(previousMuted);
-        Canvas.ForceUpdateCanvases();
-        var replayCorners = new Vector3[4]; var muteCorners = new Vector3[4];
-        ((RectTransform)replay.transform).GetWorldCorners(replayCorners);
-        ((RectTransform)mute.transform).GetWorldCorners(muteCorners);
-        var header = (RectTransform)replay.transform.parent;
-        var replayRight = header.InverseTransformPoint(replayCorners[2]).x;
-        var muteLeft = header.InverseTransformPoint(muteCorners[0]).x;
-        var minimum = header.InverseTransformPoint(replayCorners[0]);
-        var maximum = header.InverseTransformPoint(muteCorners[2]);
-        Check(replayRight <= muteLeft && minimum.x >= header.rect.xMin - .1f && minimum.y >= header.rect.yMin - .1f &&
-            maximum.x <= header.rect.xMax + .1f && maximum.y <= header.rect.yMax + .1f, "Voice buttons must fit the header without overlapping.");
+        spokenReplies.SetMuted(false); spokenReplies.SpeakReply("Voice control check.");
+        Check(voiceIcon.sprite == Get<Sprite>(chat, "voiceOnSprite"), "Unmuted output must show volume_up.");
+        toggleVoice.onClick.Invoke();
+        Check(spokenReplies.Muted && spokenReplies.State == SpokenReplyState.Idle && voiceIcon.sprite == Get<Sprite>(chat, "voiceOffSprite"), "Toggle must mute and stop output.");
+        toggleVoice.onClick.Invoke();
+        Check(!spokenReplies.Muted && spokenReplies.State == SpokenReplyState.Idle && voiceIcon.sprite == Get<Sprite>(chat, "voiceOnSprite"), "Unmute must update the icon without speaking.");
+        spokenReplies.SetMuted(previousMuted);
 
         // 3. Unified Environment Credentials Check
         Check(!string.IsNullOrEmpty(SeyraEnvironmentCredentials.OpenCodeServerPassword), "OpenCode password should be readable from .env.local.");
@@ -297,7 +286,12 @@ public static class SpatialChatChecks
         var messagesCountBefore = chat.Session.Messages.Count;
 
         // Hide chat via window close
+        spokenReplies.SetMuted(false); spokenReplies.SpeakReply("Speech before hiding.");
         xrWindow.Close();
+        Check(spokenReplies.State == SpokenReplyState.Speaking && spokenReplies.gameObject.activeInHierarchy, "Closing the chat must not stop voice output.");
+        spokenReplies.SpeakReply("Speech while hidden.");
+        Check(spokenReplies.State == SpokenReplyState.Speaking && spokenReplies.LastSpokenText == "Speech while hidden.", "A reply must play with the chat closed.");
+        spokenReplies.Stop(); spokenReplies.SetMuted(previousMuted);
         Check(!xrWindow.gameObject.activeSelf, "Window should be inactive after Close().");
         Check(chat.Session.IsConnected, "Session must remain connected when window is hidden.");
         Check(chat.Session.SessionId == activeSessionBefore, "Session ID changed when hidden.");

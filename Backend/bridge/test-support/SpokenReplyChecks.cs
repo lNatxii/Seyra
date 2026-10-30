@@ -11,15 +11,19 @@ public static class SpokenReplyChecks
         voice.SimulateOutput = true;
         try
         {
-            voice.SetMuted(true); voice.SpeakReply("First reply.");
-            Check(voice.HasReply && voice.State == SpokenReplyState.Idle && voice.LastSpokenText == "", "Mute must suppress automatic speech.");
-            voice.Replay();
-            Check(voice.State == SpokenReplyState.Speaking && voice.LastSpokenText == "First reply.", "Explicit replay must work while muted.");
-            voice.SetMuted(false); voice.SpeakReply("Second reply.");
-            Check(voice.LastSpokenText == "Second reply.", "A new reply must replace the old output.");
+            voice.SetMuted(false); voice.SpeakReply("First reply.");
+            Check(voice.State == SpokenReplyState.Speaking, "Unmuted replies must play.");
+            voice.ToggleMuted();
+            Check(voice.Muted && voice.State == SpokenReplyState.Idle && voice.LastSpokenText == "", "Muting must stop output.");
+            voice.SpeakReply("Muted reply.");
+            Check(voice.State == SpokenReplyState.Idle && voice.LastSpokenText == "", "Muted replies must not play.");
+            voice.ToggleMuted();
+            Check(!voice.Muted && voice.State == SpokenReplyState.Idle && voice.LastSpokenText == "", "Unmuting must not replay an old reply.");
+            voice.SpeakReply("Second reply.");
+            Check(voice.LastSpokenText == "Second reply.", "Only a new reply may start output.");
             voice.SimulateFailure();
             Check(voice.State == SpokenReplyState.Idle && voice.Status == "Could not read the reply aloud. The text is still in the chat.", "Failure must leave a safe status and no active output.");
-            return "PASS: mute, explicit replay, replacement and simulated failure.";
+            return "PASS: toggle, muting stops output, unmuting does not replay and simulated failure.";
         }
         finally { UnityEngine.Object.DestroyImmediate(host); UnityEngine.PlayerPrefs.SetInt("Seyra.Voice.Muted", previous); UnityEngine.PlayerPrefs.Save(); }
     }

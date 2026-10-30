@@ -310,48 +310,71 @@ namespace Seyra.Editor
             return prefab;
         }
 
-        [MenuItem("Seyra/UI/Update Spoken Reply Controls in Chat Prefab")]
-        public static void UpdateSpokenReplyControls()
+        [MenuItem("Seyra/UI/Update Voice Toggle Controls")]
+        public static void UpdateVoiceToggleControls()
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before updating prefabs.");
-            var root = PrefabUtility.LoadPrefabContents(ChatWindowPrefabPath);
-            try { AddSpokenReplyControls(root); PrefabUtility.SaveAsPrefabAsset(root, ChatWindowPrefabPath); }
-            finally { PrefabUtility.UnloadPrefabContents(root); }
+            foreach (var path in new[] { ChatWindowPrefabPath, MenuPrefabPath })
+            {
+                var root = PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    if (path == ChatWindowPrefabPath) AddSpokenReplyControls(root);
+                    else ConfigureHandMenuPresentation(root);
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
+                }
+                finally { PrefabUtility.UnloadPrefabContents(root); }
+            }
         }
+
+        static Sprite VoiceSprite(bool muted) => AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Assets/Icons/volume_" + (muted ? "off" : "up") + "_200dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png");
 
         static void AddSpokenReplyControls(GameObject root)
         {
             var chat = root.GetComponent<SeyraSpatialChatWindow>();
             var settings = new SerializedObject(chat);
-            var reconnect = (Button)settings.FindProperty("reconnectButton").objectReferenceValue;
-            var voice = root.GetComponent<SpokenReplies>() ?? root.AddComponent<SpokenReplies>();
-            Button Control(string name, string label)
+            var close = (Button)settings.FindProperty("closeWindowButton").objectReferenceValue;
+            var header = close.transform.parent;
+            var replay = header.Find("ReplayVoiceButton");
+            if (replay != null) UnityEngine.Object.DestroyImmediate(replay.gameObject);
+            var output = root.transform.Find("VoiceOutput");
+            if (output == null)
             {
-                var existing = reconnect.transform.parent.Find(name);
-                var button = existing != null ? existing.GetComponent<Button>() : UnityEngine.Object.Instantiate(reconnect, reconnect.transform.parent);
-                button.name = name;
-                var index = reconnect.transform.GetSiblingIndex();
-                if (button.transform.GetSiblingIndex() < index) index--;
-                button.transform.SetSiblingIndex(index);
-                button.onClick = new Button.ButtonClickedEvent();
-                var icon = button.transform.Find("ActionIcon");
-                if (icon != null) UnityEngine.Object.DestroyImmediate(icon.gameObject);
-                var text = button.GetComponentInChildren<TMP_Text>(true);
-                text.text = label;
-                text.alignment = TextAlignmentOptions.Center;
-                text.rectTransform.offsetMin = new Vector2(8, 0);
-                text.rectTransform.offsetMax = new Vector2(-8, 0);
-                var layout = button.GetComponent<LayoutElement>();
-                layout.minWidth = layout.preferredWidth = 152;
-                return button;
+                output = new GameObject("VoiceOutput").transform;
+                output.SetParent(root.transform, false);
             }
-            var replay = Control("ReplayVoiceButton", "Listen");
-            var mute = Control("MuteVoiceButton", "Mute");
+            var voice = output.GetComponent<SpokenReplies>() ?? output.gameObject.AddComponent<SpokenReplies>();
+            var previous = root.GetComponent<SpokenReplies>();
+            if (previous != null)
+            {
+                EditorUtility.CopySerialized(previous, voice);
+                UnityEngine.Object.DestroyImmediate(previous);
+            }
+            var existing = header.Find("VoiceToggleButton") ?? header.Find("MuteVoiceButton");
+            var button = existing != null ? existing.GetComponent<Button>() : UnityEngine.Object.Instantiate(close, header);
+            button.name = "VoiceToggleButton";
+            var index = close.transform.GetSiblingIndex();
+            if (button.transform.GetSiblingIndex() < index) index--;
+            button.transform.SetSiblingIndex(index);
+            button.onClick = new Button.ButtonClickedEvent();
+            foreach (var text in button.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
+            var icon = button.transform.Find("ActionIcon");
+            if (icon == null) icon = UnityEngine.Object.Instantiate(close.transform.Find("ActionIcon"), button.transform);
+            icon.name = "ActionIcon";
+            var iconRect = (RectTransform)icon;
+            var sourceRect = (RectTransform)close.transform.Find("ActionIcon");
+            iconRect.anchorMin = sourceRect.anchorMin; iconRect.anchorMax = sourceRect.anchorMax;
+            iconRect.anchoredPosition = sourceRect.anchoredPosition; iconRect.sizeDelta = sourceRect.sizeDelta;
+            var image = icon.GetComponent<Image>(); image.sprite = VoiceSprite(false);
+            var layout = button.GetComponent<LayoutElement>();
+            var sourceLayout = close.GetComponent<LayoutElement>();
+            layout.minWidth = sourceLayout.minWidth; layout.preferredWidth = sourceLayout.preferredWidth;
             settings.FindProperty("spokenReplies").objectReferenceValue = voice;
-            settings.FindProperty("replayVoiceButton").objectReferenceValue = replay;
-            settings.FindProperty("replayVoiceLabel").objectReferenceValue = replay.GetComponentInChildren<TMP_Text>(true);
-            settings.FindProperty("muteVoiceButton").objectReferenceValue = mute;
-            settings.FindProperty("muteVoiceLabel").objectReferenceValue = mute.GetComponentInChildren<TMP_Text>(true);
+            settings.FindProperty("voiceToggleButton").objectReferenceValue = button;
+            settings.FindProperty("voiceToggleIcon").objectReferenceValue = image;
+            settings.FindProperty("voiceOnSprite").objectReferenceValue = VoiceSprite(false);
+            settings.FindProperty("voiceOffSprite").objectReferenceValue = VoiceSprite(true);
             settings.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -429,10 +452,12 @@ namespace Seyra.Editor
             }
             var toggle = Action("ToggleChatButton", "Open chat");
             var voice = Action("VoiceButton", "Voice");
+            var voiceToggle = Action("VoiceToggleButton", "Voice output");
             var bring = Action("BringChatButton", "Bring chat");
             var menu = menuGo.AddComponent<SeyraSpatialMenu>();
             var serialized = new SerializedObject(menu);
             void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
+            Reference("voiceToggleButton", voiceToggle);
             Reference("toggleChatButton", toggle);
             Reference("voiceActionButton", voice); Reference("bringChatButton", bring);
             Reference("chatStatusDot", chatDot); Reference("runtimeStatusDot", runtimeDot); Reference("statusSummary", summary);
@@ -456,48 +481,66 @@ namespace Seyra.Editor
             var grid = window.Content.GetComponentInChildren<GridLayoutGroup>(true);
             foreach (var child in grid.GetComponentsInChildren<Button>(true).Where(b => b.name == "ScanRoomButton").ToArray())
                 UnityEngine.Object.DestroyImmediate(child.GetComponentInParent<UIInstance>()?.gameObject ?? child.gameObject);
-            window.Resize(new Vector2(300, 160));
+            window.Resize(new Vector2(312, 144));
             var column = window.Content.GetComponent<VerticalLayoutGroup>();
             column.padding = new RectOffset(16, 16, 12, 12); column.spacing = 8;
-            grid.cellSize = new Vector2(80, 80); grid.spacing = new Vector2(12, 0);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
-            var gridSize = grid.GetComponent<LayoutElement>(); gridSize.minHeight = gridSize.preferredHeight = 80;
+            grid.cellSize = new Vector2(64, 64); grid.spacing = new Vector2(8, 0);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 4;
+            var gridSize = grid.GetComponent<LayoutElement>(); gridSize.minHeight = gridSize.preferredHeight = 64;
             var status = menu.GetComponentsInChildren<TMP_Text>(true).First(t => t.name == "StatusSummary");
             status.text = "Chat offline";
             var rowSize = status.transform.parent.GetComponent<LayoutElement>(); rowSize.minHeight = rowSize.preferredHeight = 36;
+            var existingToggle = grid.GetComponentsInChildren<Button>(true).FirstOrDefault(b => b.name == "VoiceToggleButton");
+            if (existingToggle == null)
+            {
+                var catalog = AssetDatabase.LoadAssetAtPath<UIPrefabCatalog>(CatalogPath);
+                window.Factory.Configure(catalog, window.Content);
+                var view = window.Factory.InstantiateButton((RectTransform)grid.transform, new UIButtonOptions { Name = "VoiceToggleButton", Label = "Voice output" });
+                view.Button.name = "VoiceToggleButton";
+                existingToggle = view.Button;
+            }
+            var toggleRoot = existingToggle.GetComponentInParent<UIInstance>()?.transform ?? existingToggle.transform;
+            var bringButton = grid.GetComponentsInChildren<Button>(true).First(b => b.name == "BringChatButton");
+            var bringRoot = bringButton.GetComponentInParent<UIInstance>()?.transform ?? bringButton.transform;
+            var index = bringRoot.GetSiblingIndex();
+            if (toggleRoot.GetSiblingIndex() < index) index--;
+            toggleRoot.SetSiblingIndex(index);
             var serialized = new SerializedObject(menu);
             void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
+            Reference("voiceToggleButton", existingToggle);
             Sprite Icon(string name)
             {
                 var path = "Assets/Icons/" + name + "_200dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png";
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
                 return sprite != null ? sprite : throw new InvalidOperationException("A Sprite icon is required at " + path);
             }
-            Image ConfigureAction(string name, Sprite sprite)
+            Image ConfigureAction(string name, Sprite sprite, float cellSize, float iconSize)
             {
                 var button = grid.GetComponentsInChildren<Button>(true).First(b => b.name == name);
                 var view = button.GetComponent<UIActionButton>();
                 view.SetIcon(sprite);
                 foreach (var text in view.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
                 foreach (var size in view.GetComponentsInChildren<LayoutElement>(true))
-                { size.minWidth = size.minHeight = 0; size.preferredWidth = size.preferredHeight = 80; }
+                { size.minWidth = size.minHeight = 0; size.preferredWidth = size.preferredHeight = cellSize; }
                 var icon = view.IconTransform;
                 var iconLayout = icon.parent.GetComponent<HorizontalLayoutGroup>();
                 iconLayout.childAlignment = TextAnchor.MiddleCenter; iconLayout.spacing = 0;
                 iconLayout.padding = new RectOffset();
                 iconLayout.childForceExpandWidth = iconLayout.childForceExpandHeight = false;
-                var iconSize = icon.GetComponent<LayoutElement>() ?? icon.gameObject.AddComponent<LayoutElement>();
-                iconSize.minWidth = iconSize.minHeight = iconSize.preferredWidth = iconSize.preferredHeight = 48;
-                iconSize.flexibleWidth = iconSize.flexibleHeight = 0;
+                var iconLayoutElement = icon.GetComponent<LayoutElement>() ?? icon.gameObject.AddComponent<LayoutElement>();
+                iconLayoutElement.minWidth = iconLayoutElement.minHeight = iconLayoutElement.preferredWidth = iconLayoutElement.preferredHeight = iconSize;
+                iconLayoutElement.flexibleWidth = iconLayoutElement.flexibleHeight = 0;
                 var image = icon.GetComponent<Image>(); image.preserveAspect = true; image.raycastTarget = false;
                 return image;
             }
             var show = Icon("chat"); var hide = Icon("text_ad_off"); var mic = Icon("mic"); var micOff = Icon("mic_off");
-            Reference("toggleChatIcon", ConfigureAction("ToggleChatButton", show));
-            Reference("voiceIcon", ConfigureAction("VoiceButton", mic));
-            ConfigureAction("BringChatButton", Icon("recenter"));
+            Reference("toggleChatIcon", ConfigureAction("ToggleChatButton", show, 64, 40));
+            Reference("voiceIcon", ConfigureAction("VoiceButton", mic, 64, 40));
+            ConfigureAction("BringChatButton", Icon("recenter"), 64, 40);
             Reference("showChatSprite", show); Reference("hideChatSprite", hide);
             Reference("microphoneSprite", mic); Reference("microphoneOffSprite", micOff);
+            Reference("voiceToggleIcon", ConfigureAction("VoiceToggleButton", VoiceSprite(false), 64, 40));
+            Reference("voiceOnSprite", VoiceSprite(false)); Reference("voiceOffSprite", VoiceSprite(true));
             serialized.ApplyModifiedPropertiesWithoutUndo();
             foreach (var component in root.GetComponentsInChildren<Component>(true))
             {

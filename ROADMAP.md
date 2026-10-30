@@ -1,6 +1,6 @@
 # Seyra — Roadmap de desarrollo
 
-Propuesta de referencia · 27 de octubre de 2026 · Revisada el 29 de octubre de 2026.
+Propuesta de referencia · 27 de octubre de 2026 · Revisada el 30 de octubre de 2026.
 
 ## Objetivo y criterio de prioridad
 
@@ -12,14 +12,14 @@ Se desarrolla en `Seyra/`.
 
 Este documento fija prioridad, orden, dependencias y criterios de aceptación. El diseño detallado de cada feature, su estado de implementación, limitaciones y validación están en [Progress/](Progress/README.md): un archivo por feature que se mueve entre `Future/`, `InProgress/` y `Completed/`. La línea **Estado** de cada sección enlaza a ese archivo.
 
-## Estado actual (29 de octubre de 2026)
+## Estado actual (30 de octubre de 2026)
 
 Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, herramientas, habitación, `scene_build` y layouts) está probado en Quest 3 con el APK independiente (07).
 
 | Área | Implementado | Pendiente |
 | --- | --- | --- |
 | Conexión | Pasarela HTTPS con emparejamiento por dispositivo, CLI multiplataforma (`seyra.mjs`) y logs reducidos a `warn`; APK independiente probado en Quest 3. | Revisión de 08. |
-| Chat | Chat espacial con voz Muse a borrador, menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Confirmar el dictado por voz en Quest. |
+| Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas (18), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Botón único de voz (18b); confirmar en Quest el dictado por voz y los controles de voz. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
@@ -30,19 +30,21 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
+Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
-| 2 | 31. Seyra en inglés | — | Decisión del usuario: la demo será en inglés. Requisito de 18. |
-| 2b | 18. Respuestas habladas | 75 | Prioridad del usuario; Voice SDK ya instalado. Wit no sintetiza español; voz `wit$Rebecca`. Después de 31. |
+| 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
+| 2b | 18. Respuestas habladas | 75 | Completed · Revisada. Voz `wit$Rebecca` oída en Quest 3; controles y latencia sin comprobar. |
+| 2c | 18b. Botón único de voz | — | Completed · Pendiente de revisión; SpatialChatChecks pendiente por entorno y prueba Quest pendiente. |
 | 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) tras 31; 32b (papelera 3D) tras 28. |
+| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) tras 28. |
+| 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
@@ -347,7 +349,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 32. Descarte de paneles y contenido agarrable
 
-**Estado 32a:** In progress · diseño listo (30 de octubre de 2026). Implementar al cerrar 31, que modifica los mismos archivos. [Diseño](Progress/InProgress/32a-panel-close-button.md).
+**Estado 32a:** In progress · diseño listo (30 de octubre de 2026). Ya se puede implementar: 31, que modificaba los mismos archivos, está cerrada. [Diseño](Progress/InProgress/32a-panel-close-button.md).
 
 **Estado 32b:** Future · esbozo. Diseñar al cerrar 28 y 32a. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
 
@@ -361,6 +363,18 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Aceptación:** el descarte usa el mismo circuito que `delete_object`, de modo que se puede deshacer y recuperar y el guardado no conserva el contenido retirado. La ventana de chat no se puede descartar. Con papelera 3D: soltar fuera de la zona no elimina nada, la animación se revierte si la ventana sale antes de soltarla, `undo` la devuelve a su escala original, y sin habitación capturada no aparece la papelera y sigue disponible el botón.
 
 **Dependencias:** 05, 22 y 25. 32a después de 31. 32b después de 28, que aporta la comprobación de posición dentro de la habitación, y de 32a. Si se implementa 10a antes, coordinar el agarre.
+
+### 33. Escuchar paneles y presentaciones
+
+**Estado:** sin diseñar (30 de octubre de 2026). Prioridad media (puntuación 63).
+
+**Entrega:** cada panel de texto y cada presentación muestran un botón «Listen» junto a «Close» (32a). Al pulsarlo se lee su contenido con la misma voz de 18 (`wit$Rebecca`), y pasa a «Stop» mientras suena. Nunca se lee un panel sin que el usuario lo pida.
+
+**Aceptación:** pulsar «Listen» lee el panel sin abrir un turno de chat; solo hay una voz a la vez, de modo que una lectura sustituye a la anterior, también a la del chat, y una respuesta nueva del chat detiene la del panel; «Stop», dictar o retirar el panel la cortan; «Listen» funciona aunque la lectura automática del chat esté silenciada con el botón de voz (18b); un fallo de voz deja el panel intacto con un aviso breve; el botón no se guarda como contenido ni afecta a deshacer, papelera o slots.
+
+**Al diseñar, decidir:** qué texto se lee en cada una de las trece presentaciones; cómo se recorta un panel largo, porque el aviso actual de `SpeechText` («The rest is in the chat.») no vale aquí; y cómo acceden los paneles a `SpokenReplies`, que desde 18b no depende de que el chat esté abierto.
+
+**Dependencias:** 05, 18 y 32a (misma zona de botones; implementar después).
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 
@@ -436,13 +450,23 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18. Respuestas habladas
 
-**Estado:** Completed · Revisada, audio real y Quest pendientes (30 de octubre de 2026). wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Paso 9 de audio real y Quest pendientes, sin latencia medida. [Implementación](Progress/Completed/18-spoken-replies.md).
+**Estado:** Completed · Revisada; voz oída en Quest 3 por el usuario el 30 de octubre de 2026; controles, dictado durante la lectura y latencia sin comprobar. wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Los controles Listen/Stop/Mute se sustituyen en 18b. [Implementación](Progress/Completed/18-spoken-replies.md).
 
 **Entrega:** TTS con Meta Voice SDK, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
 
 **Aceptación:** puede interrumpirse; no se acumulan audios de turnos antiguos; un fallo de voz no impide recibir el texto. Al diseñar, comprobar voces en español, latencia, límites y gestión del token de Wit.ai.
 
 **Dependencias:** 02 y 17. No exige voz conversacional continua.
+
+### 18b. Botón único de voz
+
+**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Botón único en chat y menú, iconos sincronizados y voz independiente del cierre del chat. Compilación, estados simulados y HandMenuChecks aprobados; SpatialChatChecks pendiente por timeout del Editor sin avanzar frames. Prueba Quest pendiente. [Implementación](Progress/Completed/18b-voice-toggle-button.md).
+
+**Entrega:** un solo botón de icono (`volume_up`/`volume_off`), en chat y menú de mano, que activa o silencia la voz. Sustituye a Listen/Stop y Mute/Unmute; se deja de poder volver a escuchar una respuesta. La voz sigue sonando con el chat cerrado.
+
+**Aceptación:** ambos botones muestran siempre el mismo estado; cerrar el chat no corta la lectura; silenciar sí la corta; activar no lee nada hasta la siguiente respuesta; el menú de cuatro botones sigue entre 0,13 y 0,17 m de ancho.
+
+**Dependencias:** 06e y 18.
 
 ### 19. Imágenes generadas con Muse Image
 

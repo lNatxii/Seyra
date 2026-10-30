@@ -25,35 +25,35 @@ namespace Seyra.Voice
         WitConfiguration configuration;
         CancellationTokenSource preparation;
         int generation;
-        string preparedReply = "";
+        bool muted, muteLoaded;
         bool submitted;
 
         public bool SimulateOutput { get; set; }
         public string LastSpokenText { get; private set; } = "";
         public SpokenReplyState State { get; private set; } = SpokenReplyState.Idle;
-        public bool Muted { get; private set; }
-        public bool HasReply => preparedReply.Length > 0;
+        public bool Muted
+        {
+            get
+            {
+                if (!muteLoaded) { muted = PlayerPrefs.GetInt(MutedKey, 0) != 0; muteLoaded = true; }
+                return muted;
+            }
+        }
         public string Status { get; private set; } = "";
         public event Action Changed;
 
-        void Awake() => Muted = PlayerPrefs.GetInt(MutedKey, 0) != 0;
         void OnEnable() => Changed?.Invoke();
         void OnDisable() => Stop();
         void OnApplicationPause(bool paused) { if (paused) Stop(); }
         void OnDestroy() { Stop(); ReleaseHost(); }
 
-        public void SpeakReply(string reply, bool autoPlay = true)
+        public void SpeakReply(string reply)
         {
             Stop();
-            preparedReply = SpeechText.Prepare(reply);
             SetStatus("");
-            if (autoPlay && !Muted && HasReply && isActiveAndEnabled) StartPlayback();
-        }
-
-        public void Replay()
-        {
-            Stop();
-            if (HasReply && isActiveAndEnabled) StartPlayback();
+            if (Muted || !isActiveAndEnabled) return;
+            var text = SpeechText.Prepare(reply);
+            if (text.Length > 0) StartPlayback(text);
         }
 
         public void Stop()
@@ -69,29 +69,32 @@ namespace Seyra.Voice
 
         public void SetMuted(bool muted)
         {
-            Muted = muted;
+            this.muted = muted;
+            muteLoaded = true;
             PlayerPrefs.SetInt(MutedKey, muted ? 1 : 0);
             PlayerPrefs.Save();
             if (muted) Stop(); else Changed?.Invoke();
         }
 
-        void StartPlayback()
+        public void ToggleMuted() => SetMuted(!Muted);
+
+        void StartPlayback(string text)
         {
             SetStatus("");
             State = SpokenReplyState.Preparing;
             Changed?.Invoke();
             if (SimulateOutput)
             {
-                LastSpokenText = preparedReply;
+                LastSpokenText = text;
                 State = SpokenReplyState.Speaking;
                 Changed?.Invoke();
                 return;
             }
             preparation = new CancellationTokenSource();
-            _ = PrepareAndSpeakAsync(generation, preparation.Token);
+            _ = PrepareAndSpeakAsync(generation, preparation.Token, text);
         }
 
-        async Task PrepareAndSpeakAsync(int current, CancellationToken cancellation)
+        async Task PrepareAndSpeakAsync(int current, CancellationToken cancellation, string text)
         {
             try
             {
@@ -127,9 +130,9 @@ namespace Seyra.Voice
                 });
                 events.OnPlaybackCancelled.AddListener((_, clip, reason) =>
                 { if (current == generation && !speaker.IsActive) { State = SpokenReplyState.Idle; Changed?.Invoke(); } });
-                LastSpokenText = preparedReply;
+                LastSpokenText = text;
                 submitted = true;
-                speaker.Speak(preparedReply, events);
+                speaker.Speak(text, events);
             }
             catch (OperationCanceledException) when (current != generation || cancellation.IsCancellationRequested) { }
             catch (Exception error)
