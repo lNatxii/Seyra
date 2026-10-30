@@ -87,7 +87,7 @@ public static class PresentationChecks
             mediaArgs["presentation"]["image"]["sourceUrl"] = mediaSourceUrl;
             var mediaCreated = Ok("ui_present", mediaArgs); var mediaEntityId = (string)mediaCreated["entityId"];
             var mediaPanel = Panel(mediaEntityId); var mediaView = mediaPanel.PresentationView;
-            Require(mediaView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text == "Fuente: " + mediaSource), "Media source attribution is missing.");
+            Require(mediaView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text == "Source: " + mediaSource), "Media source attribution is missing.");
             Require((string)Get(mediaEntityId)["presentation"]["presentation"]["image"]["sourceUrl"] == mediaSourceUrl, "ui_get did not return the media source URL.");
             Require(!mediaView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text.Contains(mediaSourceUrl)), "The media source URL must not be displayed.");
             Require(((JArray)Get(mediaEntityId)["missingMedia"]).Count == 0, "Valid JPEG was reported missing.");
@@ -168,9 +168,9 @@ public static class PresentationChecks
             }
             Require(((JArray)Get(ids["gallery"])["missingMedia"]).Count == 1, "Missing/registered media handling is incorrect.");
             var gallery = Panel(ids["gallery"]); var galleryView = gallery.PresentationView;
-            galleryView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Ampliar / restablecer imagen").OnClick.Invoke();
+            galleryView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Enlarge / reset image").OnClick.Invoke();
             Require((int)gallery.InteractionState["zoom"]["0"] == 2, "Image zoom was not captured.");
-            galleryView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Siguiente").OnClick.Invoke();
+            galleryView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Next").OnClick.Invoke();
             Require((int)Get(ids["gallery"])["interaction"]["index"] == 1, "Gallery pager did not advance.");
             var checklist = Panel(ids["checklist"]);
             var check = checklist.PresentationView.GetComponentsInChildren<UIField>(true).First(f => f.Control is Toggle);
@@ -178,7 +178,7 @@ public static class PresentationChecks
             Require((string)checklist.InteractionState["values"]["manual"] == "true", "Checklist interaction failed.");
             var guide = Panel(ids["stepGuide"]);
             ((Toggle)guide.PresentationView.GetComponentsInChildren<UIField>(true).First(f => f.Control is Toggle).Control).isOn = true;
-            guide.PresentationView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Siguiente").OnClick.Invoke();
+            guide.PresentationView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Next").OnClick.Invoke();
             var diagnostic = Panel(ids["diagnostic"]);
             diagnostic.PresentationView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Sí").OnClick.Invoke();
             Require((string)diagnostic.InteractionState["nodeId"] == "found", "Diagnostic navigation failed.");

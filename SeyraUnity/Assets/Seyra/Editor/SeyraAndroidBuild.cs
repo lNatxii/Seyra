@@ -79,13 +79,13 @@ namespace Seyra.Editor
                 var status = Text(panel, "Status", 24); status.gameObject.AddComponent<LayoutElement>().preferredHeight = 90;
                 var buttons = new GameObject("Actions", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
                 buttons.transform.SetParent(panel, false); buttons.GetComponent<LayoutElement>().preferredHeight = 70;
-                var probe = Button(buttons.transform, "Probar TLS"); var reconnect = Button(buttons.transform, "Reconectar"); var details = Button(buttons.transform, "Detalles");
+                var probe = Button(buttons.transform, "Test TLS", "Test TLS"); var reconnect = Button(buttons.transform, "Reconnect", "Reconnect"); var details = Button(buttons.transform, "Details", "Details");
                 var scroll = new GameObject("ResultsScroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect), typeof(LayoutElement));
                 scroll.transform.SetParent(panel, false); scroll.GetComponent<Image>().color = new Color(.1f,.12f,.16f);
                 scroll.GetComponent<LayoutElement>().minHeight = 0;
                 scroll.GetComponent<LayoutElement>().flexibleHeight = 0;
                 var results = Text(scroll.transform, "Results", 23);
-                results.text = "Copia la configuración de prueba y pulsa Probar TLS. Desliza para leer todos los resultados.";
+                results.text = "Copy the test configuration and press Test TLS. Scroll to read all results.";
                 var content = results.rectTransform; content.anchorMin = new Vector2(0,1); content.anchorMax = Vector2.one; content.pivot = new Vector2(.5f,1); content.offsetMin = content.offsetMax = Vector2.zero;
                 results.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
                 var scrollRect = scroll.GetComponent<ScrollRect>(); scrollRect.viewport = (RectTransform)scroll.transform; scrollRect.content = content; scrollRect.horizontal = false;
@@ -107,9 +107,9 @@ namespace Seyra.Editor
             text.transform.SetParent(parent, false); text.font = TMP_Settings.defaultFontAsset; text.fontSize = size; text.color = Color.white; text.richText = false; text.raycastTarget = false;
             return text;
         }
-        static Button Button(Transform parent, string label)
+        static Button Button(Transform parent, string name, string label)
         {
-            var button = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Button>();
+            var button = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)).GetComponent<Button>();
             button.transform.SetParent(parent, false); button.GetComponent<Image>().color = new Color(.15f,.3f,.5f);
             var text = Text(button.transform, "Label", 28); text.text = label; text.alignment = TextAlignmentOptions.Center; Stretch(text.rectTransform);
             return button;

@@ -143,10 +143,10 @@ namespace Seyra.Configuration
             if (!string.IsNullOrEmpty(deviceToken)) text = text.Replace(deviceToken, "[device token redacted]");
             var witToken = WitClientToken;
             if (!string.IsNullOrEmpty(witToken) && witToken.Length > 4)
-                text = text.Replace(witToken, "[token oculto]");
+                text = text.Replace(witToken, "[token hidden]");
             var opencodePass = OpenCodeServerPassword;
             if (!string.IsNullOrEmpty(opencodePass) && opencodePass.Length > 2)
-                text = text.Replace(opencodePass, "[password oculta]");
+                text = text.Replace(opencodePass, "[password hidden]");
             return text;
         }
     }

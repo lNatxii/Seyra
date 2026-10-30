@@ -35,7 +35,7 @@ public static class ConfigureChatExecutionUi
         label.fontSize = 18;
         label.color = new Color(.86f, .91f, .97f);
         label.richText = false;
-        label.text = "Listo\nEscribe un mensaje para empezar.";
+        label.text = "Ready\nWrite a message to get started.";
         label.alignment = TextAlignmentOptions.MidlineLeft;
         labelObject.GetComponent<UnityEngine.UI.LayoutElement>().flexibleWidth = 1;
         labelObject.GetComponent<UnityEngine.UI.LayoutElement>().minWidth = 100;
@@ -60,8 +60,8 @@ public static class ConfigureChatExecutionUi
             caption.color = Color.white; caption.richText = false; caption.alignment = TextAlignmentOptions.Center;
             return button;
         }
-        var cancel = Button("CancelTurnButton", "Cancelar", new Color(.40f, .19f, .13f));
-        var close = Button("CloseTurnButton", "Cerrar turno", new Color(.12f, .32f, .55f));
+        var cancel = Button("CancelTurnButton", "Cancel", new Color(.40f, .19f, .13f));
+        var close = Button("CloseTurnButton", "Close turn", new Color(.12f, .32f, .55f));
         cancel.gameObject.SetActive(false); close.gameObject.SetActive(false);
         serialized.FindProperty("executionLabel").objectReferenceValue = label;
         serialized.FindProperty("cancelButton").objectReferenceValue = cancel;

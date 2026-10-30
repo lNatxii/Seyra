@@ -43,7 +43,7 @@ namespace Seyra.Networking
                             connectTimeout.CancelAfter(3000);
                             await connection.ConnectAsync(uri, connectTimeout.Token).ConfigureAwait(false);
                         }
-                        inbox.Enqueue(() => Status?.Invoke("Runtime conectado"));
+                        inbox.Enqueue(() => Status?.Invoke("Runtime connected"));
                         var buffer = new byte[4096];
                         while (connection.State == WebSocketState.Open && !lifetime.IsCancellationRequested)
                         {
@@ -69,7 +69,7 @@ namespace Seyra.Networking
                     {
                         if (!lifetime.IsCancellationRequested)
                         {
-                            var reason = error is WebSocketException ? "Puente no disponible" : error.Message;
+                            var reason = error is WebSocketException ? "Bridge unavailable" : error.Message;
                             inbox.Enqueue(() => Status?.Invoke(reason + " · reconectando"));
                         }
                     }

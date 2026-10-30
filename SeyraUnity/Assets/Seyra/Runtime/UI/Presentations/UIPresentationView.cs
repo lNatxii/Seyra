@@ -50,7 +50,7 @@ namespace Seyra.UI.Presentations
             panel.Actions.gameObject.SetActive(true);
             panel.Actions.GetComponent<UIAdaptiveRow>().Configure(components.DefaultTheme);
             UIPresentationRenderers.Render(this, data);
-            factory.InstantiateCancelButton(Actions, new UIButtonOptions { Label = "Cerrar" }, () => { Record("close",Submitted); close(); });
+            factory.InstantiateCancelButton(Actions, new UIButtonOptions { Label = "Close" }, () => { Record("close",Submitted); close(); });
             UIAssetResources.EnsureTextMaterials(gameObject);
         }
         public void SetIndex(int index, IReadOnlyList<RectTransform> pages)

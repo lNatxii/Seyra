@@ -64,7 +64,7 @@ namespace Seyra.Networking
                     {
                         string id = (string)JObject.Parse(await Request("POST", "/_seyra/bridge/hello", "{}", attempt.Token).ConfigureAwait(false))["sessionId"];
                         if (string.IsNullOrEmpty(id)) throw new IOException("Gateway session is missing.");
-                        sessionId = id; inbox.Enqueue(() => Status?.Invoke("Runtime conectado (HTTPS)"));
+                        sessionId = id; inbox.Enqueue(() => Status?.Invoke("Runtime connected (HTTPS)"));
                         while (!attempt.IsCancellationRequested && sessionId == id)
                         {
                             string text = await Request("GET", "/_seyra/bridge/next?wait=25&sessionId=" + Uri.EscapeDataString(id), null, attempt.Token).ConfigureAwait(false);

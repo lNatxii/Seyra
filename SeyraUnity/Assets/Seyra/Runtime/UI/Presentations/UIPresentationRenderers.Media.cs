@@ -30,8 +30,8 @@ namespace Seyra.UI.Presentations
                 aspect.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
                 aspect.aspectRatio = sprite.rect.width / sprite.rect.height;
             }
-            else Text(v, "Imagen no disponible" + (d.image.alt.Length > 0 ? "\n" + d.image.alt : ""), header, UITextRole.Help);
-            if (d.image.source.Length > 0) Text(v, "Fuente: " + d.image.source, v.Body, UITextRole.Help);
+            else Text(v, "Image unavailable" + (d.image.alt.Length > 0 ? "\n" + d.image.alt : ""), header, UITextRole.Help);
+            if (d.image.source.Length > 0) Text(v, "Source: " + d.image.source, v.Body, UITextRole.Help);
             Text(v, d.description, v.Body, UITextRole.Label);
             Text(v, string.Join(" · ", d.tags), v.Body, UITextRole.Help);
             Text(v, d.body, v.Body);
@@ -57,16 +57,16 @@ namespace Seyra.UI.Presentations
                     v.SetZoom(photoKey, zoom);
                 }
                 v.BindZoom(photoKey, ApplyZoom);
-                v.Factory.InstantiateInteractButton(card, new UIButtonOptions { Label = "Ampliar / restablecer imagen" }, () =>
+                v.Factory.InstantiateInteractButton(card, new UIButtonOptions { Label = "Enlarge / reset image" }, () =>
                 {
                     ApplyZoom(zoom == 1 ? 2 : 1);
                     v.Record("image.zoom");
                 });
             }
-            else Text(v, "Imagen no disponible" + (image.imageRef.StartsWith("web:", System.StringComparison.Ordinal) ? "" : ": " + image.imageRef) +
+            else Text(v, "Image unavailable" + (image.imageRef.StartsWith("web:", System.StringComparison.Ordinal) ? "" : ": " + image.imageRef) +
                 (image.alt.Length > 0 ? "\n" + image.alt : ""), picture, UITextRole.Help);
             var caption = Column(v, card, "CaptionContainer");
-            if (image.source.Length > 0) Text(v, "Fuente: " + image.source, caption, UITextRole.Help);
+            if (image.source.Length > 0) Text(v, "Source: " + image.source, caption, UITextRole.Help);
             Text(v, image.title, caption, UITextRole.Label); Text(v, image.description, caption);
             if (image.alt.Length > 0) Text(v, image.alt, caption, UITextRole.Help, UIInkRole.Muted);
         }
@@ -75,8 +75,8 @@ namespace Seyra.UI.Presentations
             var status = Text(v, "", v.Actions, UITextRole.Help);
             // Empty text is normally omitted; pager status is always present.
             if (status == null) status = v.Factory.InstantiateText("1", v.Actions, new UITextOptions { Role = UITextRole.Help });
-            var previous = v.Factory.InstantiateCancelButton(v.Actions, new UIButtonOptions { Label = "Anterior" });
-            var next = v.Factory.InstantiateAcceptButton(v.Actions, new UIButtonOptions { Label = "Siguiente" });
+            var previous = v.Factory.InstantiateCancelButton(v.Actions, new UIButtonOptions { Label = "Previous" });
+            var next = v.Factory.InstantiateAcceptButton(v.Actions, new UIButtonOptions { Label = "Next" });
             void Show(int index, bool record)
             {
                 v.SetIndex(index, pages); status.text = $"{noun} {index + 1} / {pages.Count}";
@@ -91,13 +91,13 @@ namespace Seyra.UI.Presentations
         {
             var pages = new List<RectTransform>();
             foreach (var image in d.images) { var page = Column(v, v.Body); Photo(v, image, page); pages.Add(page); }
-            Pager(v, pages, "Imagen");
+            Pager(v, pages, "Image");
         }
         static void Guide(UIPresentationView v, StepGuideData d)
         {
             if (d.prerequisites.Length > 0)
             {
-                var prior = Card(v, v.Body, "Antes de empezar");
+                var prior = Card(v, v.Body, "Before you start");
                 foreach (var item in d.prerequisites) Text(v, "• " + item, prior);
             }
             var pages = new List<RectTransform>();
@@ -107,11 +107,11 @@ namespace Seyra.UI.Presentations
                 Text(v, step.notice, page, UITextRole.Label);
                 foreach (var image in step.images) Photo(v, image, page);
                 v.Values[step.id] = "false";
-                var control = v.Factory.InstantiateToggle(page, new UIToggleOptions { Label = "Paso completado" }, on => { v.Values[step.id] = on ? "true" : "false"; v.Record("step.checked"); });
+                var control = v.Factory.InstantiateToggle(page, new UIToggleOptions { Label = "Step completed" }, on => { v.Values[step.id] = on ? "true" : "false"; v.Record("step.checked"); });
                 v.BindValue(step.id, value => ((UnityEngine.UI.Toggle)control.Control).SetIsOnWithoutNotify(value == "true"));
                 pages.Add(page);
             }
-            Pager(v, pages, "Paso");
+            Pager(v, pages, "Step");
         }
         static void Documents(UIPresentationView v, DocumentViewerData d)
         {
@@ -120,11 +120,11 @@ namespace Seyra.UI.Presentations
             {
                 var page = Column(v, v.Body);
                 Photo(v, new UIPhotoData { imageRef = document.imageRef, title = document.title, description = document.description, alt = document.alt }, page);
-                if (document.legend.Length > 0) Card(v, page, "Leyenda", document.legend);
+                if (document.legend.Length > 0) Card(v, page, "Legend", document.legend);
                 for (var i = 0; i < document.annotations.Length; i++) Text(v, $"{i + 1}. {document.annotations[i]}", page);
                 pages.Add(page);
             }
-            Pager(v, pages, "Documento");
+            Pager(v, pages, "Document");
         }
     }
 }

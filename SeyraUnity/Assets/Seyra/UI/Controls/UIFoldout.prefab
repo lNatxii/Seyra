@@ -516,7 +516,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7279467700578595206, guid: 99d9c4b429edd04429714ffbf5f44418, type: 3}
       propertyPath: m_text
-      value: Detalles
+      value: "Details"
       objectReference: {fileID: 0}
     - target: {fileID: 7937477244201451280, guid: 99d9c4b429edd04429714ffbf5f44418, type: 3}
       propertyPath: m_Name
@@ -641,7 +641,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: Contenido que se puede expandir o contraer.
+      value: "Content that can be expanded or collapsed."
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

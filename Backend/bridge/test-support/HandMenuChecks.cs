@@ -67,7 +67,7 @@ public static class HandMenuChecks
             chatRoot.transform.position = head.transform.position - head.transform.forward * 3;
             chatWindow.Close(); menu.OnBringChatClicked();
             Check(chatRoot.activeSelf && Vector3.Dot(chatRoot.transform.position - head.transform.position, head.transform.forward) > 0 &&
-                menu.StatusText.Contains("Chat delante de ti"), "Bring chat must recenter and report success.");
+                menu.StatusText.Contains("Chat in front of you"), "Bring chat must recenter and report success.");
 
             // 5. A visible menu never adds a placement reservation.
             chatWindow.Close(); hand.ToggleMenu();

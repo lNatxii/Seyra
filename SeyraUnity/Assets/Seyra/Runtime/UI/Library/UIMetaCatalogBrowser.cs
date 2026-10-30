@@ -23,11 +23,11 @@ namespace Seyra.UI.Library
             factory.InstantiateText("Meta Horizon · UI Set", options:new UITextOptions {Role=UITextRole.Title});
             heading = factory.InstantiateText("");
             var navigation = factory.InstantiateRow();
-            factory.InstantiateCancelButton(navigation, new UIButtonOptions {Label="Anterior"}, ()=>Show(index-1));
-            factory.InstantiateAcceptButton(navigation, new UIButtonOptions {Label="Siguiente"}, ()=>Show(index+1));
-            factory.InstantiateInteractButton(navigation, new UIButtonOptions {Label="Cambiar tema"}, ToggleTheme);
+            factory.InstantiateCancelButton(navigation, new UIButtonOptions {Label="Previous"}, ()=>Show(index-1));
+            factory.InstantiateAcceptButton(navigation, new UIButtonOptions {Label="Next"}, ()=>Show(index+1));
+            factory.InstantiateInteractButton(navigation, new UIButtonOptions {Label="Change theme"}, ToggleTheme);
             preview = factory.InstantiateColumn(options:new UIElementOptions {Layout=UILayoutOptions.Weight(1,1)});
-            status = factory.InstantiateText("Componentes oficiales del SDK instalado. Prueba el agarre y la interacción XR en el visor.", options:new UITextOptions {Role=UITextRole.Help});
+            status = factory.InstantiateText("Official components from the installed SDK. Try grabbing and XR interaction on the headset.", options:new UITextOptions {Role=UITextRole.Help});
             if (entries.Length > 0) Show(0);
         }
         void Show(int next)

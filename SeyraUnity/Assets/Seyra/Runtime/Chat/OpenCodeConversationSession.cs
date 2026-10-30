@@ -14,7 +14,7 @@ namespace Seyra.Chat
     public sealed class ChatMessageItem
     {
         public string Key { get; set; }
-        public string Role { get; set; } // "Tú", "Seyra", "Herramienta", "Sistema"
+        public string Role { get; set; } // "You", "Seyra", "Tool", "System"
         public string Text { get; set; }
         public bool IsTool { get; set; }
         public bool IsWorkStep { get; set; }
@@ -57,7 +57,7 @@ namespace Seyra.Chat
         DateTime lastProgressUtc;
         string progressSignature;
         TurnState executionState = TurnState.Ready;
-        string executionDetail = "Escribe un mensaje para empezar.";
+        string executionDetail = "Write a message to get started.";
 
         readonly HashSet<string> submittedPermissions = new HashSet<string>();
         JObject pendingPermission;
@@ -148,7 +148,7 @@ namespace Seyra.Chat
             lifetime = new CancellationTokenSource();
             connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
             if (connectionSettings.CanConnect) http = new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings);
-            SetConnected(false, "Conectando…");
+            SetConnected(false, "Connecting…");
             _ = ConnectAsync(lifetime.Token);
             _ = MonitorAsync(lifetime.Token);
         }
@@ -163,11 +163,11 @@ namespace Seyra.Chat
             http = null;
 
             if (HasTurn && !terminalConfirmed)
-                SetState(TurnState.Unresolved, "Conexión interrumpida. Reconecta para consultar el mismo turno.");
+                SetState(TurnState.Unresolved, "Connection interrupted. Reconnect to check the same turn.");
 
             connected = connecting = syncing = submissionInFlight = interruptInFlight = false;
             ClearPermissions();
-            ConnectionChanged?.Invoke(false, "Desconectado");
+            ConnectionChanged?.Invoke(false, "Disconnected");
             ControlsRefreshRequested?.Invoke();
         }
 
@@ -199,7 +199,7 @@ namespace Seyra.Chat
         public async Task ConnectAsync(CancellationToken token)
         {
             connecting = true;
-            SetConnected(false, "Conectando…");
+            SetConnected(false, "Connecting…");
             try
             {
                 while (syncing) await Task.Delay(20, token);
@@ -264,7 +264,7 @@ namespace Seyra.Chat
                         {
                             await http.RequestAsync("GET", SessionPath, null, token);
                             sessionMissing = false;
-                            SetConnected(true, "Conectado · " + agent);
+                            SetConnected(true, "Connected · " + agent);
                         }
                     }
                     catch (OperationCanceledException) { throw; }
@@ -290,8 +290,8 @@ namespace Seyra.Chat
             activeUserCreated = 0;
             progressSignature = null;
             lastProgressUtc = DateTime.UtcNow;
-            SetState(TurnState.Sending, "Enviando el mensaje una sola vez…");
-            UpsertMessage(pendingEchoKey, "Tú", text);
+            SetState(TurnState.Sending, "Sending the message once…");
+            UpsertMessage(pendingEchoKey, "You", text);
             try
             {
                 while (syncing) await Task.Delay(20, token);
@@ -300,7 +300,7 @@ namespace Seyra.Chat
                 if (cancelRequested)
                 {
                     terminalConfirmed = true;
-                    SetState(TurnState.Cancelled, "Cancelado antes de enviar. No se ejecutaron acciones de este turno.");
+                    SetState(TurnState.Cancelled, "Cancelled before sending. No actions ran in this turn.");
                     return;
                 }
                 // Never retry admission: the server may execute tools even if its response is lost.
@@ -310,7 +310,7 @@ namespace Seyra.Chat
                 if (string.IsNullOrEmpty(activeUserId))
                     throw new InvalidOperationException("Submission was not confirmed. Reconnect to inspect the session; do not resend.");
                 AdoptEcho(activeUserId);
-                SetState(cancelRequested ? TurnState.Cancelling : TurnState.Running, cancelRequested ? "Esperando detener el turno…" : "El asistente está trabajando.");
+                SetState(cancelRequested ? TurnState.Cancelling : TurnState.Running, cancelRequested ? "Waiting for the turn to stop…" : "The assistant is working.");
             }
             catch (OperationCanceledException) { }
             catch (Exception error)
@@ -338,7 +338,7 @@ namespace Seyra.Chat
                 var session = (await http.RequestAsync("GET", SessionPath, null, token))["data"] as JObject
                     ?? throw new InvalidOperationException("Invalid API v2 session.");
                 sessionMissing = false;
-                SetConnected(true, "Conectado · " + agent);
+                SetConnected(true, "Connected · " + agent);
                 if (pendingText != null && activeUserId == null && !terminalConfirmed && !submissionInFlight)
                 {
                     var baselineIndex = submissionBaselineId == null ? -1 : messagesResponse.FindIndex(m => (string)m["id"] == submissionBaselineId);
@@ -353,7 +353,7 @@ namespace Seyra.Chat
                     }
                     else
                     {
-                        SetState(TurnState.Unresolved, "No se puede confirmar qué ocurrió con el envío. No se repetirá. Cancela para detener cualquier trabajo pendiente.");
+                        SetState(TurnState.Unresolved, "The submission outcome is unknown. It will not be resent. Cancel to stop any pending work.");
                     }
                 }
                 RenderMessages(messagesResponse);
@@ -382,12 +382,12 @@ namespace Seyra.Chat
                         await RefreshPermissionsAsync(token);
                         if (pendingPermission != null) lastProgressUtc = DateTime.UtcNow;
                         if (cancelRequested && interruptAttempted && !interruptInFlight && !interruptAcknowledged)
-                            SetState(TurnState.Unresolved, "Cancelación sin confirmar. Puedes volver a pulsar Cancelar para solicitar la detención; no se repetirán las herramientas.");
-                        else if (cancelRequested) SetState(TurnState.Cancelling, "Cancelación solicitada. Esperando confirmación del servidor; las acciones anteriores permanecen.");
-                        else if (pendingPermission != null) SetState(TurnState.WaitingForPermission, "El turno espera tu decisión en el panel de permisos.");
+                            SetState(TurnState.Unresolved, "Cancellation is unconfirmed. Press Cancel again to request a stop; tools will not be repeated.");
+                        else if (cancelRequested) SetState(TurnState.Cancelling, "Cancellation requested. Waiting for server confirmation; previous actions remain.");
+                        else if (pendingPermission != null) SetState(TurnState.WaitingForPermission, "The turn is waiting for your decision in the permissions panel.");
                         else if ((DateTime.UtcNow - lastProgressUtc).TotalSeconds >= 120)
-                            SetState(TurnState.Unresolved, "Sin progreso confirmado durante 120 s. Inspeccionando el mismo turno; no se reenviará nada.");
-                        else SetState(TurnState.Running, "El asistente está trabajando. Puedes cancelar las acciones siguientes.");
+                            SetState(TurnState.Unresolved, "No confirmed progress for 120 s. Checking the same turn; nothing will be resent.");
+                        else SetState(TurnState.Running, "The assistant is working. You can cancel subsequent actions.");
                     }
                 }
             }
@@ -409,23 +409,23 @@ namespace Seyra.Chat
             ClearPermissions();
             if (outcome == "succeeded" && !unknownToolOutcome)
             {
-                SetState(TurnState.Completed, cancelRequested ? "El turno ya había terminado antes de la cancelación." : "Turno completado. Resultados confirmados por el servidor.");
+                SetState(TurnState.Completed, cancelRequested ? "The turn had already finished before cancellation." : "Turn completed. Results confirmed by the server.");
                 ResetTurn();
             }
             else if (outcome == "interrupted" || outcome == "cancelled")
             {
-                SetState(TurnState.Cancelled, "Turno interrumpido. Las acciones ya ejecutadas permanecen. Cierra el turno antes de continuar.");
+                SetState(TurnState.Cancelled, "Turn interrupted. Completed actions remain. Close the turn before continuing.");
             }
             else
             {
                 var failed = turnMessages.FirstOrDefault(m => m["error"] != null);
-                SetState(TurnState.Failed, unknownToolOutcome ? "Hay resultados de herramientas sin confirmar. Inspecciona la escena antes de repetir cambios y cierra el turno." : (string)failed?["error"]?["message"] ?? "Turn outcome: " + outcome);
+                SetState(TurnState.Failed, unknownToolOutcome ? "Some tool outcomes are unconfirmed. Check the scene before repeating changes, then close the turn." : (string)failed?["error"]?["message"] ?? "Turn outcome: " + outcome);
                 var detail = ((string)failed?["error"]?["message"])?.Trim();
-                var friendlyError = "No he podido completar la petición.";
+                var friendlyError = "I could not complete the request.";
                 if (!string.IsNullOrEmpty(detail) && detail.Length <= 200 && !detail.StartsWith("{", StringComparison.Ordinal) && !detail.StartsWith("[", StringComparison.Ordinal))
                     friendlyError += "\n" + detail;
-                UpsertMessage("turn-error-" + activeUserId, "Sistema", unknownToolOutcome
-                    ? "No he podido confirmar si se aplicó el último cambio. Revisa lo que ves antes de pedirlo otra vez."
+                UpsertMessage("turn-error-" + activeUserId, "System", unknownToolOutcome
+                    ? "I could not confirm whether the last change was applied. Check the scene before requesting it again."
                     : friendlyError);
             }
         }
@@ -435,7 +435,7 @@ namespace Seyra.Chat
             if (!HasTurn || terminalConfirmed || interruptInFlight || (cancelRequested && (!interruptAttempted || interruptAcknowledged))) return;
             interruptAttempted = false;
             cancelRequested = true;
-            SetState(TurnState.Cancelling, "Solicitando cancelación. No se deshacen las acciones ya ejecutadas.");
+            SetState(TurnState.Cancelling, "Requesting cancellation. Actions already completed will not be undone.");
             if (submissionInFlight) return;
             if (connected && lifetime != null) await InterruptAsync(lifetime.Token);
         }
@@ -457,7 +457,7 @@ namespace Seyra.Chat
                     if (activeUserId == null)
                     {
                         terminalConfirmed = true;
-                        SetState(TurnState.Cancelled, "El servidor confirmó la detención. El resultado del envío sigue sin conocerse: inspecciona la escena antes de repetirlo.");
+                        SetState(TurnState.Cancelled, "The server confirmed the stop. The submission outcome is still unknown: check the scene before repeating it.");
                     }
                 }
             }
@@ -479,10 +479,10 @@ namespace Seyra.Chat
         public void CloseTurn()
         {
             if ((!HasTurn && !sessionMissing) || (!terminalConfirmed && !sessionMissing) || submissionInFlight || interruptInFlight) return;
-            UpsertMessage("closed-" + (activeUserId ?? pendingEchoKey), "Sistema", "Turno cerrado explícitamente. No se ha repetido ni revertido ninguna acción.");
+            UpsertMessage("closed-" + (activeUserId ?? pendingEchoKey), "System", "Turn explicitly closed. No actions were repeated or undone.");
             ResetTurn();
             ClearPermissions();
-            SetState(TurnState.Ready, "Puedes enviar una nueva petición.");
+            SetState(TurnState.Ready, "You can send a new request.");
             if (sessionMissing)
             {
                 sessionId = null;
@@ -549,7 +549,7 @@ namespace Seyra.Chat
             if (next == null) return;
             if (changed)
             {
-                PermissionStatusChanged?.Invoke("Permitir autoriza esta petición. Rechazar cancela también los permisos pendientes de esta sesión.");
+                PermissionStatusChanged?.Invoke("Allow authorizes this request. Reject also cancels pending permissions in this session.");
             }
             ControlsRefreshRequested?.Invoke();
         }
@@ -562,13 +562,13 @@ namespace Seyra.Chat
             var token = lifetime.Token;
             replyingPermission = true;
             ControlsRefreshRequested?.Invoke();
-            PermissionStatusChanged?.Invoke("Enviando decisión…");
+            PermissionStatusChanged?.Invoke("Sending decision…");
             try
             {
                 await http.RequestAsync("POST", "/api/session/" + Uri.EscapeDataString(sessionId) + "/permission/" + Uri.EscapeDataString(id) + "/reply",
                     new JObject { ["decision"] = allow ? "once" : "reject" }, token);
                 if (!token.IsCancellationRequested && (string)pendingPermission?["id"] == id)
-                    PermissionStatusChanged?.Invoke("Decisión enviada. Esperando confirmación del servidor…");
+                    PermissionStatusChanged?.Invoke("Decision sent. Waiting for server confirmation…");
             }
             catch (OperationCanceledException) { }
             catch (Exception error)
@@ -576,8 +576,8 @@ namespace Seyra.Chat
                 if (!token.IsCancellationRequested)
                 {
                     if ((string)pendingPermission?["id"] == id)
-                        PermissionStatusChanged?.Invoke("No se confirmó la decisión; no se reenvía. Resuélvela en OpenCode si sigue pendiente.");
-                    UpsertMessage("permission-error-" + id, "Sistema", error.Message);
+                        PermissionStatusChanged?.Invoke("The decision was not confirmed and will not be resent. Resolve it in OpenCode if still pending.");
+                    UpsertMessage("permission-error-" + id, "System", error.Message);
                 }
             }
             finally
@@ -624,7 +624,7 @@ namespace Seyra.Chat
                     if (string.IsNullOrEmpty(id)) continue;
                     if ((string)message["type"] == "user")
                     {
-                        UpsertMessage("user-" + id, "Tú", (string)message["text"] ?? "");
+                        UpsertMessage("user-" + id, "You", (string)message["text"] ?? "");
                     }
                     if ((string)message["type"] != "assistant") continue;
                     var parts = (message["content"] as JArray ?? new JArray()).OfType<JObject>().ToArray();
@@ -652,7 +652,7 @@ namespace Seyra.Chat
                         var key = "tool-" + id + "-" + ((string)part["id"] ?? index.ToString());
                         var (summary, isUnknown) = ToolSummary(part, userId == activeUserId);
                         if (isUnknown) unknownToolOutcome = true;
-                        UpsertMessage(key, "Herramienta", summary, true, (string)part["name"]);
+                        UpsertMessage(key, "Tool", summary, true, (string)part["name"]);
                     }
                 }
                 start = end;
@@ -665,7 +665,7 @@ namespace Seyra.Chat
             var name = (string)part["name"] ?? "tool";
             var state = part["state"] as JObject;
             var status = (string)state?["status"];
-            string label = status == "completed" ? "completada" : status == "error" ? "falló" : status == "pending" ? "pendiente" : "en ejecución";
+            string label = status == "completed" ? "completed" : status == "error" ? "failed" : status == "pending" ? "pending" : "running";
             var detail = "";
             bool unknown = false;
             if (name.StartsWith("seyra_", StringComparison.Ordinal) && status == "completed")
@@ -677,19 +677,19 @@ namespace Seyra.Chat
                     if (trackOutcome && (bool?)result["outcomeUnknown"] == true) unknown = true;
                     if ((bool?)result["success"] == false)
                     {
-                        label = (bool?)result["outcomeUnknown"] == true ? "resultado desconocido" : "rechazada";
+                        label = (bool?)result["outcomeUnknown"] == true ? "unknown outcome" : "rejected";
                         detail = (string)result["error"]?["code"];
                     }
                     else if ((bool?)result["success"] == true)
                     {
-                        label = "confirmada";
+                        label = "confirmed";
                         detail = (string)result["data"]?["name"] ?? (string)result["data"]?["slot"];
                         if (result["data"]?["deleted"]?.Type == JTokenType.Boolean)
-                            detail = (detail ?? "Objeto") + ((bool)result["data"]["deleted"] ? " · en papelera" : " · disponible");
+                            detail = (detail ?? "Object") + ((bool)result["data"]["deleted"] ? " · in trash" : " · available");
                     }
-                    else { label = "respuesta sin confirmar"; if (trackOutcome) unknown = true; }
+                    else { label = "unconfirmed response"; if (trackOutcome) unknown = true; }
                 }
-                catch (JsonException) { label = "respuesta sin confirmar"; if (trackOutcome) unknown = true; }
+                catch (JsonException) { label = "unconfirmed response"; if (trackOutcome) unknown = true; }
             }
             if (status == "error") detail = (string)state?["error"]?["message"];
             var text = ToolTitle(name) + " · " + label + (string.IsNullOrEmpty(detail) ? "" : "\n" + detail.Substring(0, Math.Min(detail.Length, 200)));
@@ -700,41 +700,41 @@ namespace Seyra.Chat
         {
             switch (name)
             {
-                case "seyra_scene_hierarchy": return "Consultar jerarquía";
-                case "seyra_scene_find": return "Buscar objetos";
-                case "seyra_scene_get": return "Consultar objeto";
-                case "seyra_scene_build": return "Construir escena";
-                case "seyra_scene_edit": return "Editar escena";
-                case "seyra_create_gameobject": return "Crear contenedor";
-                case "seyra_create_primitive": return "Crear primitiva";
-                case "seyra_rename_object": return "Renombrar objeto";
-                case "seyra_set_transform": return "Mover, girar o escalar";
-                case "seyra_set_parent": return "Cambiar de contenedor";
-                case "seyra_request_begin": return "Abrir petición";
-                case "seyra_request_end": return "Cerrar petición";
-                case "seyra_request_list": return "Consultar peticiones";
-                case "seyra_delete_object": return "Enviar a papelera";
-                case "seyra_restore_object": return "Recuperar objeto";
-                case "seyra_history_list": return "Consultar historial";
-                case "seyra_undo": return "Deshacer";
-                case "seyra_content_save": return "Guardar contenido";
-                case "seyra_content_load": return "Cargar contenido";
-                case "seyra_content_list": return "Consultar guardados";
-                case "seyra_set_appearance": return "Cambiar apariencia";
-                case "seyra_scene_bounds": return "Consultar dimensiones";
-                case "seyra_place_relative": return "Colocar relativamente";
-                case "seyra_create_panel": return "Crear panel";
-                case "seyra_update_panel": return "Actualizar panel";
-                case "seyra_ui_catalog": return "Consultar catálogo UI";
-                case "seyra_ui_media_list": return "Consultar medios UI";
-                case "seyra_ui_present": return "Presentar panel UI";
-                case "seyra_ui_update": return "Actualizar presentación";
-                case "seyra_ui_list": return "Listar presentaciones";
-                case "seyra_ui_get": return "Consultar presentación";
-                case "seyra_ui_close": return "Ocultar presentación";
-                case "seyra_ui_open": return "Mostrar presentación";
-                case "seyra_ui_remove": return "Eliminar presentación";
-                case "read": return "Leer archivo";
+                case "seyra_scene_hierarchy": return "Inspect hierarchy";
+                case "seyra_scene_find": return "Find objects";
+                case "seyra_scene_get": return "Inspect object";
+                case "seyra_scene_build": return "Build scene";
+                case "seyra_scene_edit": return "Edit scene";
+                case "seyra_create_gameobject": return "Create container";
+                case "seyra_create_primitive": return "Create primitive";
+                case "seyra_rename_object": return "Rename object";
+                case "seyra_set_transform": return "Move, rotate or scale";
+                case "seyra_set_parent": return "Change container";
+                case "seyra_request_begin": return "Open request";
+                case "seyra_request_end": return "Close request";
+                case "seyra_request_list": return "Inspect requests";
+                case "seyra_delete_object": return "Move to trash";
+                case "seyra_restore_object": return "Restore object";
+                case "seyra_history_list": return "Inspect history";
+                case "seyra_undo": return "Undo";
+                case "seyra_content_save": return "Save content";
+                case "seyra_content_load": return "Load content";
+                case "seyra_content_list": return "Inspect saved content";
+                case "seyra_set_appearance": return "Change appearance";
+                case "seyra_scene_bounds": return "Inspect dimensions";
+                case "seyra_place_relative": return "Place relative";
+                case "seyra_create_panel": return "Create panel";
+                case "seyra_update_panel": return "Update panel";
+                case "seyra_ui_catalog": return "Inspect UI catalog";
+                case "seyra_ui_media_list": return "Inspect UI media";
+                case "seyra_ui_present": return "Show UI panel";
+                case "seyra_ui_update": return "Update presentation";
+                case "seyra_ui_list": return "List presentations";
+                case "seyra_ui_get": return "Inspect presentation";
+                case "seyra_ui_close": return "Hide presentation";
+                case "seyra_ui_open": return "Show presentation";
+                case "seyra_ui_remove": return "Remove presentation";
+                case "read": return "Read file";
                 default: return name;
             }
         }
@@ -772,14 +772,14 @@ namespace Seyra.Chat
         {
             SetActivity(null);
             sessionMissing = error is OpenCodeHttpException failure && failure.StatusCode == 404;
-            SetConnected(false, sessionMissing ? "Sesión no disponible" : Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings));
+            SetConnected(false, sessionMissing ? "Session unavailable" : Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings));
             if (sessionMissing || (HasTurn && !terminalConfirmed))
             {
                 SetState(TurnState.Unresolved, sessionMissing
-                    ? "La sesión ya no está disponible. Cierra este turno para iniciar otra conversación."
-                    : "Resultado sin confirmar. Reconecta para inspeccionar la misma sesión; no se reenviará la petición.");
+                    ? "The session is no longer available. Close this turn to start another conversation."
+                    : "Unconfirmed outcome. Reconnect to check the same session; the request will not be resent.");
             }
-            UpsertMessage("connection-error", "Sistema", connectionSettings?.IsGateway == true || error is Seyra.Configuration.ConnectionException
+            UpsertMessage("connection-error", "System", connectionSettings?.IsGateway == true || error is Seyra.Configuration.ConnectionException
                 ? Seyra.Configuration.ConnectionErrors.Describe(error, connectionSettings)
                 : Seyra.Configuration.SeyraEnvironmentCredentials.RedactToken(error.Message));
         }

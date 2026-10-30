@@ -21,25 +21,25 @@ namespace Seyra.UI.Library
             ControlsWindow.name = "ControlsWindow";
             GalleryWindow.name = "GalleryWindow";
             var factory = ControlsWindow.Factory;
-            factory.InstantiateText("SeYRA · Biblioteca UI", options: new UITextOptions { Role = UITextRole.Title });
-            factory.InstantiateText("Controles locales y ventanas independientes.");
-            var status = factory.InstantiateText("Prueba un control para ver su resultado.");
-            factory.InstantiateAcceptButton(options: new UIButtonOptions { Label = "Probar acción" },
-                onClick: () => status.text = "Acción recibida.");
-            factory.InstantiateToggle(options: new UIToggleOptions { Label = "Opción de ejemplo" },
-                onChanged: value => status.text = value ? "Opción activada." : "Opción desactivada.");
-            factory.InstantiateSlider(options: new UISliderOptions { Label = "Valor", Min = 0, Max = 100, Value = 50 },
-                onChanged: value => status.text = "Valor: " + value.ToString("0"));
-            factory.InstantiateInputField(options: new UIInputOptions { Label = "Texto", Placeholder = "Escribe aquí", CharacterLimit = 256 },
-                onChanged: value => status.text = "Texto: " + value);
-            factory.InstantiateDropdown(options: new UIDropdownOptions { Choices = new[] { "Primera opción", "Segunda opción", "Tercera opción" } },
-                onChanged: value => status.text = "Opción: " + (value + 1));
+            factory.InstantiateText("SeYRA · UI Library", options: new UITextOptions { Role = UITextRole.Title });
+            factory.InstantiateText("Local controls and independent windows.");
+            var status = factory.InstantiateText("Try a control to see its result.");
+            factory.InstantiateAcceptButton(options: new UIButtonOptions { Label = "Test action" },
+                onClick: () => status.text = "Action received.");
+            factory.InstantiateToggle(options: new UIToggleOptions { Label = "Example option" },
+                onChanged: value => status.text = value ? "Option enabled." : "Option disabled.");
+            factory.InstantiateSlider(options: new UISliderOptions { Label = "Value", Min = 0, Max = 100, Value = 50 },
+                onChanged: value => status.text = "Value: " + value.ToString("0"));
+            factory.InstantiateInputField(options: new UIInputOptions { Label = "Text", Placeholder = "Type here", CharacterLimit = 256 },
+                onChanged: value => status.text = "Text: " + value);
+            factory.InstantiateDropdown(options: new UIDropdownOptions { Choices = new[] { "First option", "Second option", "Third option" } },
+                onChanged: value => status.text = "Option: " + (value + 1));
             var actions = factory.InstantiateRow();
-            factory.InstantiateCancelButton(actions, new UIButtonOptions { Label = "Mostrar / ocultar catálogo" },
+            factory.InstantiateCancelButton(actions, new UIButtonOptions { Label = "Show / hide catalog" },
                 () => { if (GalleryWindow.gameObject.activeSelf) GalleryWindow.Close(); else GalleryWindow.Open(); });
-            factory.InstantiateInteractButton(actions, new UIButtonOptions { Label = "Cambiar tema" },
+            factory.InstantiateInteractButton(actions, new UIButtonOptions { Label = "Change theme" },
                 () => ControlsWindow.SetTheme((ControlsWindow.Themes.CurrentThemeIndex + 1) % catalog.MetaThemes.Count));
-            factory.InstantiateInteractButton(options: new UIButtonOptions { Label = "Cambiar tamaño" }, onClick: () =>
+            factory.InstantiateInteractButton(options: new UIButtonOptions { Label = "Resize" }, onClick: () =>
             {
                 var size = ((RectTransform)ControlsWindow.Canvas.transform).rect.size;
                 ControlsWindow.Resize(size.x > 800 ? new Vector2(800, 700) : new Vector2(900, 800));

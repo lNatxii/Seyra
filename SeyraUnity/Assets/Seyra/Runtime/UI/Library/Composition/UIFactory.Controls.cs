@@ -35,11 +35,11 @@ namespace Seyra.UI.Library
             }).View<UIActionButton>();
         }
         public UIActionButton InstantiateAcceptButton(RectTransform parent = null, UIButtonOptions options = null, UnityAction onClick = null)
-            => CreateButton(UITemplateIds.PrimaryButton, parent, options, onClick, "Aceptar");
+            => CreateButton(UITemplateIds.PrimaryButton, parent, options, onClick, "Accept");
         public UIActionButton InstantiateCancelButton(RectTransform parent = null, UIButtonOptions options = null, UnityAction onClick = null)
-            => CreateButton(UITemplateIds.SecondaryButton, parent, options, onClick, "Cancelar");
+            => CreateButton(UITemplateIds.SecondaryButton, parent, options, onClick, "Cancel");
         public UIActionButton InstantiateInteractButton(RectTransform parent = null, UIButtonOptions options = null, UnityAction onClick = null)
-            => CreateButton(UITemplateIds.Button, parent, options, onClick, "Interactuar");
+            => CreateButton(UITemplateIds.Button, parent, options, onClick, "Interact");
         public UIActionButton InstantiateDangerButton(RectTransform parent = null, UIButtonOptions options = null, UnityAction onClick = null)
             => InstantiateButton(parent, options, onClick, UITemplateIds.DangerButton);
 

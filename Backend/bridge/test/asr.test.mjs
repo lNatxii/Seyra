@@ -58,7 +58,7 @@ test('ASR requires configuration and device authentication', async t => {
 });
 test('ASR relays handshake, binary audio, partial and final snapshots', async t => {
   const f = await fixture(t); const start = await f.request('start'); assert.equal(start.status, 200); const id = start.body.asrId;
-  assert.deepEqual(f.handshake, { authorization: { accessToken: 'Bearer fixture-key' }, model: 'muse-voice-transcribe-1.0', audioEncoding: 'PCM_16KHZ', mode: 'PUSH_TO_TALK', partialMode: 'CUMULATIVE', emitAudioProgress: false, languageBias: ['Spanish', 'English'], keywords: ['Seyra'] });
+  assert.deepEqual(f.handshake, { authorization: { accessToken: 'Bearer fixture-key' }, model: 'muse-voice-transcribe-1.0', audioEncoding: 'PCM_16KHZ', mode: 'PUSH_TO_TALK', partialMode: 'CUMULATIVE', emitAudioProgress: false, languageBias: ['English'], keywords: ['Seyra'] });
   const initial = await f.request('events', { id });
   const audio = Buffer.alloc(6400, 7);
   assert.equal((await f.request('audio', { id, body: audio })).status, 200); await delay(120);

@@ -11,8 +11,8 @@ namespace Seyra.UI.Presentations
     {
         static void Checklist(UIPresentationView v, ChecklistData d)
         {
-            var status = Text(v, "Comprobaciones", v.Body, UITextRole.Label);
-            void Refresh() => status.text = $"{v.Values.Count(p => p.Value == "true")} / {d.items.Length} comprobaciones completadas";
+            var status = Text(v, "Checks", v.Body, UITextRole.Label);
+            void Refresh() => status.text = $"{v.Values.Count(p => p.Value == "true")} / {d.items.Length} checks completed";
             foreach (var group in d.items.GroupBy(i => i.group))
             {
                 var parent = group.Key.Length > 0 ? Card(v, v.Body, group.Key) : v.Body;
@@ -41,9 +41,9 @@ namespace Seyra.UI.Presentations
                 foreach (var answer in node.answers)
                     v.Factory.InstantiateInteractButton(page, new UIButtonOptions { Label = answer.label }, () =>
                     { v.Values[node.id] = answer.id; Show(answer.nextNodeId, true); });
-                if (node.answers.Length == 0) Text(v, "Fin de esta comprobación", page, UITextRole.Help);
+                if (node.answers.Length == 0) Text(v, "End of this check", page, UITextRole.Help);
             }
-            v.Factory.InstantiateCancelButton(v.Actions, new UIButtonOptions { Label = "Reiniciar" }, () =>
+            v.Factory.InstantiateCancelButton(v.Actions, new UIButtonOptions { Label = "Reset" }, () =>
             { v.Values.Clear(); Show(d.startNodeId, false); v.Record("diagnostic.restart"); });
             Show(d.startNodeId, false);
             v.RestoreNode = node => Show(node, false);
@@ -51,7 +51,7 @@ namespace Seyra.UI.Presentations
         static void Choices(UIPresentationView v, ChoiceSelectorData d)
         {
             var controls = new Dictionary<string, UnityEngine.UI.Toggle>();
-            var feedback = Text(v, "Selecciona una opción" + (d.multiple ? " o varias." : "."), v.Body, UITextRole.Help);
+            var feedback = Text(v, "Select an option" + (d.multiple ? " or more." : "."), v.Body, UITextRole.Help);
             foreach (var option in d.options)
             {
                 var card = Column(v, v.Body, "ChoiceContainer");
@@ -69,16 +69,16 @@ namespace Seyra.UI.Presentations
             v.Factory.InstantiateAcceptButton(v.Actions, new UIButtonOptions { Label = d.submitLabel }, () =>
             {
                 var selected = v.Values.Where(p => p.Value == "true").Select(p => p.Key).ToArray();
-                if (selected.Length == 0) { feedback.text = "Selecciona al menos una opción."; return; }
+                if (selected.Length == 0) { feedback.text = "Select at least one option."; return; }
                 v.Submission = new JObject { ["selectedIds"] = new JArray(selected) };
-                feedback.text = "Selección registrada."; v.Record("selection.submit", true);
+                feedback.text = "Selection recorded."; v.Record("selection.submit", true);
             });
-            v.Restored += () => { if (v.Submitted) feedback.text = "Selección registrada."; };
+            v.Restored += () => { if (v.Submitted) feedback.text = "Selection recorded."; };
         }
         static void Form(UIPresentationView v, ParameterFormData d)
         {
             var controls = new Dictionary<string, UIField>();
-            var feedback = Text(v, "Completa los campos y pulsa " + d.submitLabel + ".", v.Body, UITextRole.Help);
+            var feedback = Text(v, "Complete the fields and press " + d.submitLabel + ".", v.Body, UITextRole.Help);
             foreach (var field in d.fields)
             {
                 var label = field.label + (field.unit.Length > 0 ? " (" + field.unit + ")" : "") + (field.required ? " *" : "");
@@ -117,18 +117,18 @@ namespace Seyra.UI.Presentations
                 foreach (var field in d.fields)
                 {
                     var valid = UIPresentationCodec.TryFieldValue(field, v.Values[field.id], out var value);
-                    controls[field.id].SetHelp(valid ? field.help : "Revisa el valor" + (field.type == "number" ? $" ({Number(field.min)} … {Number(field.max)})" : "."), !valid);
+                    controls[field.id].SetHelp(valid ? field.help : "Check the value" + (field.type == "number" ? $" ({Number(field.min)} … {Number(field.max)})" : "."), !valid);
                     if (!valid) { if (firstInvalid == null) firstInvalid = controls[field.id]; }
                     else values[field.id] = value;
                 }
                 if (firstInvalid != null)
                 {
-                    feedback.text = "Hay campos pendientes o valores fuera de rango.";
+                    feedback.text = "Some fields are incomplete or out of range.";
                     v.Factory.Focus(v.Factory.InstanceOf(firstInvalid).Id); v.Record("form.invalid"); return;
                 }
-                feedback.text = "Datos registrados."; v.Submission = values; v.Record("form.submit", true);
+                feedback.text = "Data recorded."; v.Submission = values; v.Record("form.submit", true);
             });
-            v.Restored += () => { if (v.Submitted) feedback.text = "Datos registrados."; };
+            v.Restored += () => { if (v.Submitted) feedback.text = "Data recorded."; };
         }
     }
 }

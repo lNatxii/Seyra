@@ -68,7 +68,7 @@ public static class SpatialChatChecks
             var reason=Get<string>(currentMenu,"bringChatStatus");
             var sameHead=head==SeyraLazyFollow.ResolveHead();
             var diagnostic=" Reason: "+reason+"; controller head matches ResolveHead: "+sameHead+".";
-            Check(reason=="Chat delante de ti","Bring chat did not report success."+diagnostic);
+            Check(reason=="Chat in front of you","Bring chat did not report success."+diagnostic);
             Check(head!=null&&Vector3.Distance(head.position,currentChat.transform.position)<3,"Planner recenter did not place the chat near the controller viewer."+diagnostic);
             return "planner-driven chat recenter passed."+diagnostic;
         }
@@ -131,7 +131,7 @@ public static class SpatialChatChecks
         Check(SeyraEnvironmentCredentials.HasWitToken, "Wit.ai token should be readable from .env.local (SEYRA_CLIENT_TOKEN).");
         var redacted = SeyraEnvironmentCredentials.RedactToken("Secret token: " + SeyraEnvironmentCredentials.WitClientToken);
         Check(!redacted.Contains(SeyraEnvironmentCredentials.WitClientToken), "RedactToken must mask the Wit token.");
-        Check(redacted.Contains("[token oculto]"), "Redacted token must contain placeholder.");
+        Check(redacted.Contains("[token hidden]"), "Redacted token must contain placeholder.");
         checks.Add("unified environment credentials reading and token redaction");
 
         // 4. Voice Dictation & Push-to-Talk Components Presence
@@ -183,7 +183,7 @@ public static class SpatialChatChecks
         sendBtn.onClick.Invoke();
         sendBtn.onClick.Invoke();
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Draft turn completion");
-        Check(chat.Session.Messages.Count(m => m.Role == "Tú" && m.Text == "complete") == 1, "Send must submit exactly once.");
+        Check(chat.Session.Messages.Count(m => m.Role == "You" && m.Text == "complete") == 1, "Send must submit exactly once.");
         Check(chat.Draft == "" && !sendBtn.interactable, "Successful send must clear the draft.");
         Check(chat.Submit("hold"), "Programmatic turn submission failed.");
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Running, "Running turn");
@@ -236,10 +236,10 @@ public static class SpatialChatChecks
         allowBtn.onClick.Invoke();
 
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Completed, "Permission turn completion");
-        Check(chat.Session.Messages.Any(m => m.Role == "Tú" && m.Text == "permission"), "User message missing in history.");
+        Check(chat.Session.Messages.Any(m => m.Role == "You" && m.Text == "permission"), "User message missing in history.");
         Check(chat.Session.Messages.Any(m => m.IsTool), "Tool execution row missing in history.");
         var messagesContainer = Get<RectTransform>(chat, "messagesContainer");
-        Check(!messagesContainer.Cast<Transform>().Any(t => t.name.StartsWith("Msg_Herramienta_", StringComparison.Ordinal)), "Spatial chat must hide technical tool rows.");
+        Check(!messagesContainer.Cast<Transform>().Any(t => t.name.StartsWith("Msg_Tool_", StringComparison.Ordinal)), "Spatial chat must hide technical tool rows.");
         Check(chat.Session.CurrentActivity == null && messagesContainer.Find("Msg_Seyra_activity") == null, "Completed turns must not retain an activity row.");
         checks.Add("transparent spatial chat hides tools without removing session history, suppresses permission activity and removes completed activity");
         checks.Add("real send button click, permission panel display, allow once, tool summary and turn completion");
@@ -255,7 +255,7 @@ public static class SpatialChatChecks
 
         await Wait(() => chat.Session.ExecutionState == OpenCodeConversationSession.TurnState.Cancelled, "Turn cancellation");
         var execLabel = Get<TMP_Text>(chat, "executionLabel");
-        Check(execLabel.text.Contains("permanecen"), "Cancellation explanation must state that executed actions remain.");
+        Check(execLabel.text.Contains("remain"), "Cancellation explanation must state that executed actions remain.");
 
         var closeTurnBtn = Get<Button>(chat, "closeTurnButton");
         Check(closeTurnBtn.gameObject.activeSelf && closeTurnBtn.interactable, "Close turn button must be enabled after cancel.");

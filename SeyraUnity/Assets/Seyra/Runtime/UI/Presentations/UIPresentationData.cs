@@ -107,7 +107,7 @@ namespace Seyra.UI.Presentations
         public override string Type => "choiceSelector";
         public bool multiple;
         [UIRequired, UICount(1, 30)] public UIChoiceData[] options;
-        public string submitLabel = "Elegir";
+        public string submitLabel = "Choose";
     }
     public sealed class UIFormFieldData
     {
@@ -122,7 +122,7 @@ namespace Seyra.UI.Presentations
     {
         public override string Type => "parameterForm";
         [UIRequired, UICount(1, 30)] public UIFormFieldData[] fields;
-        public string submitLabel = "Enviar";
+        public string submitLabel = "Send";
     }
     public sealed class UITableRowData { [UIRequired, UICount(1, 12)] public string[] cells; }
     public sealed class UIBarData

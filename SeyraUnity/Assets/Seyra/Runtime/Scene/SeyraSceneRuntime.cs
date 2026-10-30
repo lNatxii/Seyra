@@ -15,7 +15,7 @@ namespace Seyra.SceneTools
         BridgeSocketClient bridge;
         public SceneToolService Tools { get; private set; }
         public bool IsBridgeConnected => bridge != null && bridge.IsConnected;
-        public string BridgeStatus { get; private set; } = "Desconectado";
+        public string BridgeStatus { get; private set; } = "Disconnected";
 
         void OnEnable()
         {
@@ -24,7 +24,7 @@ namespace Seyra.SceneTools
             var settings = SeyraConnectionSettings.Load();
             if (!settings.CanConnect) { BridgeStatus = ConnectionErrors.Describe(null, settings); return; }
             if (!settings.IsGateway && (!Uri.TryCreate(bridgeUrl, UriKind.Absolute, out var uri) || uri.Scheme != "ws" || !uri.IsLoopback))
-            { BridgeStatus = "Configuración de conexión inválida"; return; }
+            { BridgeStatus = "Invalid connection configuration"; return; }
             owner=this;
             if (Tools == null) Tools=new SceneToolService(generatedRoot,panelCatalog:uiCatalog);
             bridge=new BridgeSocketClient(settings);bridge.Message+=Receive;
@@ -49,7 +49,7 @@ namespace Seyra.SceneTools
         {
             bridge?.Dispose();bridge=null;Tools?.Dispose();Tools=null;
             if(owner==this)owner=null;
-            BridgeStatus="Desconectado";
+            BridgeStatus="Disconnected";
         }
     }
 }

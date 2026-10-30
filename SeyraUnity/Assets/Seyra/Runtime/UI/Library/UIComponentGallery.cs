@@ -27,13 +27,13 @@ namespace Seyra.UI.Library
             confirmation.Accepted.RemoveListener(Accept); confirmation.Cancelled.RemoveListener(Cancel);
             dropdown.OnValueChanged.RemoveListener(Choose); toggle.onValueChanged.RemoveListener(Check); slider.onValueChanged.RemoveListener(Slide);
         }
-        void Accept() => status.text = "Aceptar · evento local recibido";
-        void Cancel() => status.text = "Cancelar · evento local recibido";
-        void Interact() => status.text = "Interactuar · evento local recibido";
-        void Danger() => status.text = "Acción de peligro · demostración local";
-        void Choose(int value) => status.text = "Selección · " + dropdown.Choices[value];
-        void Check(bool value) => status.text = value ? "Opción activada" : "Opción desactivada";
-        void Slide(float value) => status.text = "Valor · " + value.ToString("0.##");
+        void Accept() => status.text = "Accept · local event received";
+        void Cancel() => status.text = "Cancel · local event received";
+        void Interact() => status.text = "Interact · local event received";
+        void Danger() => status.text = "Dangerous action · local demonstration";
+        void Choose(int value) => status.text = "Selection · " + dropdown.Choices[value];
+        void Check(bool value) => status.text = value ? "Option enabled" : "Option disabled";
+        void Slide(float value) => status.text = "Value · " + value.ToString("0.##");
         public void Configure(TMP_Text feedback, UIActionButton primary, UIActionButton secondary, UIActionButton action,
             UIActionButton destructive, UIConfirmationPanel dialog, UIMetaDropdown selection, UnityEngine.UI.Toggle boolean, UnityEngine.UI.Slider range)
         { status = feedback; accept = primary; cancel = secondary; interact = action; danger = destructive; confirmation = dialog; dropdown = selection; toggle = boolean; slider = range; }

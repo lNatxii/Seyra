@@ -27,7 +27,7 @@ public static class MuseDictationChecks
             host.SetActive(false);
             var dictation = host.AddComponent<VoiceDictation>();
             dictation.ReloadEditorSettings();
-            Check(dictation.Available && dictation.Provider == "Muse Voice Transcribe · pasarela", "Gateway must select Muse.");
+            Check(dictation.Available && dictation.Provider == "Muse Voice Transcribe · gateway", "Gateway must select Muse.");
 
             File.WriteAllText(path, "SEYRA_CLIENT_TOKEN=fixture-wit-token\n");
             SeyraEnvironmentCredentials.ForceReload();

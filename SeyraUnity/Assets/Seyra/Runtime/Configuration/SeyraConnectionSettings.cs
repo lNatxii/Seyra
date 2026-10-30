@@ -62,13 +62,13 @@ namespace Seyra.Configuration
         public static string Describe(Exception error, SeyraConnectionSettings settings)
         {
             string code = (error as ConnectionException)?.Code ?? settings?.ErrorCode;
-            if (code == "CONNECTION_UNPAIRED") return "Sin emparejar · copia el .env.local de seyra-device.ps1 pair";
-            if (code == "CONNECTION_CONFIG_INVALID") return "Configuración de conexión inválida";
-            if (code == "CERTIFICATE_MISMATCH") return "Certificado del backend no reconocido · vuelve a emparejar";
+            if (code == "CONNECTION_UNPAIRED") return "Not paired · copy the .env.local from seyra-device.ps1 pair";
+            if (code == "CONNECTION_CONFIG_INVALID") return "Invalid connection configuration";
+            if (code == "CERTIFICATE_MISMATCH") return "Backend certificate not recognized · pair again";
             var http = error as Seyra.Networking.OpenCodeHttpException;
-            if (settings?.IsGateway == true && http?.StatusCode == 401) return "Dispositivo no autorizado o revocado";
-            if (settings?.IsGateway == true && http?.StatusCode == 429) return "Demasiados intentos · espera unos minutos";
-            return "No se encuentra el backend en " + (settings?.Endpoint ?? "backend");
+            if (settings?.IsGateway == true && http?.StatusCode == 401) return "Device unauthorized or revoked";
+            if (settings?.IsGateway == true && http?.StatusCode == 429) return "Too many attempts · wait a few minutes";
+            return "Cannot reach the backend at " + (settings?.Endpoint ?? "backend");
         }
     }
 }

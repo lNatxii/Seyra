@@ -140,7 +140,7 @@ namespace Seyra.UI
             var text = IsDictating ? previewText : draft;
             if (draftText != null)
             {
-                draftText.text = string.IsNullOrEmpty(text) ? "Mantén pulsado Hablar para dictar" : text;
+                draftText.text = string.IsNullOrEmpty(text) ? "Hold Talk to dictate" : text;
                 var style = draftText.GetComponent<UIStyle>();
                 if (style != null) style.InkRole = IsDictating || string.IsNullOrEmpty(text) ? UIInkRole.Muted : UIInkRole.Text;
             }
@@ -272,15 +272,15 @@ namespace Seyra.UI
                 string title;
                 switch (state)
                 {
-                    case OpenCodeConversationSession.TurnState.Sending: title = "Enviando"; break;
-                    case OpenCodeConversationSession.TurnState.Running: title = "En ejecución"; break;
-                    case OpenCodeConversationSession.TurnState.WaitingForPermission: title = "Esperando permiso"; break;
-                    case OpenCodeConversationSession.TurnState.Cancelling: title = "Cancelando"; break;
-                    case OpenCodeConversationSession.TurnState.Completed: title = "Completado"; break;
-                    case OpenCodeConversationSession.TurnState.Cancelled: title = "Interrumpido"; break;
-                    case OpenCodeConversationSession.TurnState.Failed: title = "Fallo"; break;
-                    case OpenCodeConversationSession.TurnState.Unresolved: title = "Resultado desconocido"; break;
-                    default: title = "Listo"; break;
+                    case OpenCodeConversationSession.TurnState.Sending: title = "Sending"; break;
+                    case OpenCodeConversationSession.TurnState.Running: title = "Running"; break;
+                    case OpenCodeConversationSession.TurnState.WaitingForPermission: title = "Waiting for permission"; break;
+                    case OpenCodeConversationSession.TurnState.Cancelling: title = "Cancelling"; break;
+                    case OpenCodeConversationSession.TurnState.Completed: title = "Completed"; break;
+                    case OpenCodeConversationSession.TurnState.Cancelled: title = "Interrupted"; break;
+                    case OpenCodeConversationSession.TurnState.Failed: title = "Failed"; break;
+                    case OpenCodeConversationSession.TurnState.Unresolved: title = "Unknown outcome"; break;
+                    default: title = "Ready"; break;
                 }
                 executionLabel.text = $"<b>{title}</b> · {detail}";
             }
@@ -328,9 +328,9 @@ namespace Seyra.UI
             permissionPanel.SetActive(permission != null);
             if (permission == null) return;
 
-            var action = (string)permission["action"] ?? "desconocida";
+            var action = (string)permission["action"] ?? "unknown";
             if (permissionHeading != null)
-                permissionHeading.text = $"Permiso solicitado · {action}";
+                permissionHeading.text = $"Permission requested · {action}";
 
             if (permissionDetails != null)
                 permissionDetails.text = permission.ToString(Formatting.Indented);
@@ -356,7 +356,7 @@ namespace Seyra.UI
             if (runtimeStatusDot != null)
                 runtimeStatusDot.color = connected ? new Color(0.2f, 0.85f, 0.45f) : new Color(0.6f, 0.65f, 0.7f);
             if (runtimeStatusLabel != null)
-                runtimeStatusLabel.text = connected ? "Runtime: Conectado" : "Runtime: Desconectado";
+                runtimeStatusLabel.text = connected ? "Runtime: Connected" : "Runtime: Disconnected";
         }
 
         public void RefreshControls()
@@ -432,9 +432,9 @@ namespace Seyra.UI
 
         GameObject CreateRowGameObject(ChatMessageItem item)
         {
-            var isUser = item.Role == "Tú";
-            var isTool = item.IsTool || item.Role == "Herramienta";
-            var isError = item.Role == "Sistema" || item.Role == "Error";
+            var isUser = item.Role == "You";
+            var isTool = item.IsTool || item.Role == "Tool";
+            var isError = item.Role == "System" || item.Role == "Error";
 
             var row = new GameObject($"Msg_{item.Role}_{item.Key}", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
             row.transform.SetParent(messagesContainer, false);

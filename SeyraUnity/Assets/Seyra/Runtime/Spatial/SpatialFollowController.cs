@@ -36,7 +36,7 @@ namespace Seyra.Spatial
 #endif
         public FollowMode Mode { get; private set; }=FollowMode.Adaptive;
         public FollowState State { get; private set; }=FollowState.Stable;
-        public string Status { get; private set; }="Seguimiento adaptativo";
+        public string Status { get; private set; }="Adaptive following";
         public void Configure(Transform viewer,SeyraSpatialChatWindow conversation,UIXRWindow window,SpatialPlacementService service)
         {Unsubscribe();head=viewer;chat=conversation;chatWindow=window;placement=service;initialized=false;if(isActiveAndEnabled)Subscribe();}
         void OnEnable()=>Subscribe();
@@ -64,7 +64,7 @@ namespace Seyra.Spatial
         {
             lastInteraction=Time.unscaledTime;ResetWait();
             if(held)wasHeld=true;
-            else if(wasHeld){pinned=true;wasHeld=false;Status="Fijado · pulsa Traer chat";}
+            else if(wasHeld){pinned=true;wasHeld=false;Status="Pinned · press Bring chat";}
         }
         void ResetWait(){outsideTime=0;stableTime=0;State=FollowState.Stable;}
         bool Held=>chatGrab!=null&&chatGrab.IsGrabbed;
@@ -85,28 +85,28 @@ namespace Seyra.Spatial
 #endif
             return !paused&&applicationFocused&&head!=null&&(placement.Room!=null?placement.Room.ViewerReady:OVRManager.isHmdPresent&&OVRPlugin.GetNodePositionTracked(OVRPlugin.Node.EyeCenter));
         }
-        public void ResumeFollow(){pinned=false;ResetWait();lastInteraction=Time.unscaledTime;Status="Seguimiento adaptativo";}
+        public void ResumeFollow(){pinned=false;ResetWait();lastInteraction=Time.unscaledTime;Status="Adaptive following";}
         void LateUpdate()=>Tick(Time.unscaledDeltaTime);
         public void Tick(float dt)
         {
             if(!float.IsFinite(dt)||dt<=0||chatWindow==null||placement==null)return;
             var room=placement.Snapshot;
             if(!TrackingReady()||!SpatialGeometry.Finite(head.position)||room.State==RoomState.Loading||room.State==RoomState.Suspended||room.State==RoomState.WaitingForPermission)
-            {Mode=FollowMode.Suspended;if(State!=FollowState.Recovery)ResetWait();initialized=false;Status="Seguimiento suspendido";return;}
+            {Mode=FollowMode.Suspended;if(State!=FollowState.Recovery)ResetWait();initialized=false;Status="Following suspended";return;}
             Mode=pinned?FollowMode.Pinned:FollowMode.Adaptive;
-            if(pinned)Status="Fijado · pulsa Traer chat";else if(State==FollowState.Stable&&Status=="Seguimiento suspendido")Status="Seguimiento adaptativo";
+            if(pinned)Status="Pinned · press Bring chat";else if(State==FollowState.Stable&&Status=="Following suspended")Status="Adaptive following";
             if(!initialized){previousHead=head.rotation;if(!roomInitialized){previousRoom=room.RoomId;roomInitialized=true;}initialized=true;}
-            if(room.State==RoomState.Ready&&room.RoomId!=previousRoom){previousRoom=room.RoomId;State=FollowState.Recovery;Status="Habitación cambiada · pulsa Traer chat";}
+            if(room.State==RoomState.Ready&&room.RoomId!=previousRoom){previousRoom=room.RoomId;State=FollowState.Recovery;Status="Room changed · press Bring chat";}
             float angularSpeed=Quaternion.Angle(head.rotation,previousHead)/dt;previousHead=head.rotation;
             if(InteractionBlocked){lastInteraction=Time.unscaledTime;if(State!=FollowState.Recovery)ResetWait();return;}
             if(Mode==FollowMode.Pinned||State==FollowState.Recovery||!chatWindow.gameObject.activeInHierarchy)return;
             if(Time.unscaledTime-lastInteraction<SpatialPlacementSettings.InteractionDelay){ResetWait();return;}
             if(State==FollowState.Moving)
             {
-                if(room.Revision!=movingRevision){Recover("La habitación cambió durante el movimiento");return;}
+                if(room.Revision!=movingRevision){Recover("The room changed during movement");return;}
                 var view=new Pose(head.position,SpatialGeometry.Yaw(head.forward));
                 if(!placement.PathClear(moveRequest,new Pose(chatWindow.transform.position,chatWindow.transform.rotation),destination,view,chatWindow.transform))
-                {Recover("El recorrido está ocupado");return;}
+                {Recover("The path is blocked");return;}
                 float smoothing=1-Mathf.Exp(-dt/SpatialPlacementSettings.ResponseTime);
                 var next=new Pose(Vector3.MoveTowards(chatWindow.transform.position,Vector3.Lerp(chatWindow.transform.position,destination.position,smoothing),SpatialPlacementSettings.FollowSpeed*dt),
                     Quaternion.RotateTowards(chatWindow.transform.rotation,Quaternion.Slerp(chatWindow.transform.rotation,destination.rotation,smoothing),SpatialPlacementSettings.FollowAngularSpeed*dt));
@@ -114,7 +114,7 @@ namespace Seyra.Spatial
                 if(Vector3.Distance(next.position,destination.position)<.005f&&Quaternion.Angle(next.rotation,destination.rotation)<.5f){State=FollowState.Cooldown;cooldown=SpatialPlacementSettings.Cooldown;}
                 return;
             }
-            if(State==FollowState.Cooldown){cooldown-=dt;if(cooldown<=0){State=FollowState.Stable;Status="Seguimiento adaptativo";}return;}
+            if(State==FollowState.Cooldown){cooldown-=dt;if(cooldown<=0){State=FollowState.Stable;Status="Adaptive following";}return;}
             var delta=Quaternion.Inverse(SpatialGeometry.Yaw(head.forward))*(chatWindow.transform.position-head.position);
             float yaw=Mathf.Abs(Mathf.Atan2(delta.x,delta.z)*Mathf.Rad2Deg),distance=delta.magnitude;
             bool outside=yaw>SpatialPlacementSettings.TriggerYaw||distance<SpatialPlacementSettings.TriggerMin||distance>SpatialPlacementSettings.TriggerMax;
@@ -124,12 +124,12 @@ namespace Seyra.Spatial
             State=FollowState.Waiting;outsideTime+=dt;stableTime=angularSpeed<SpatialPlacementSettings.HeadSpeed?stableTime+dt:0;
             if(outsideTime<SpatialPlacementSettings.FollowDelay||stableTime<SpatialPlacementSettings.HeadStableTime)return;
             State=FollowState.Plan;
-            if(yaw>SpatialPlacementSettings.LongTurn){Recover("El chat quedó detrás");return;}
-            if(!TryTarget(out var plan)){Recover("No hay un destino compatible");return;}
+            if(yaw>SpatialPlacementSettings.LongTurn){Recover("The chat is behind you");return;}
+            if(!TryTarget(out var plan)){Recover("No compatible destination");return;}
             destination=plan.Best.Pose;movingRevision=room.Revision;
             if(!placement.PathClear(moveRequest,new Pose(chatWindow.transform.position,chatWindow.transform.rotation),destination,new Pose(head.position,SpatialGeometry.Yaw(head.forward)),chatWindow.transform))
-            {Recover("El recorrido está ocupado");return;}
-            State=FollowState.Moving;Status="Reubicando chat";
+            {Recover("The path is blocked");return;}
+            State=FollowState.Moving;Status="Moving chat";
         }
         SpatialPlacementRequest ChatRequest()
         {
@@ -146,19 +146,19 @@ namespace Seyra.Spatial
         {
             chatWindow.transform.SetPositionAndRotation(pose.position,pose.rotation);
         }
-        void Recover(string reason){State=FollowState.Recovery;Status=reason+" · pulsa Traer chat";}
+        void Recover(string reason){State=FollowState.Recovery;Status=reason+" · press Bring chat";}
         public bool Recenter() => Recenter(out _);
         public bool Recenter(out string reason)
         {
-            reason="Seguimiento suspendido";
+            reason="Following suspended";
             if(chatWindow==null||placement==null||!TrackingReady()||!SpatialGeometry.Finite(head.position)||
                 placement.Snapshot.State==RoomState.Loading||placement.Snapshot.State==RoomState.Suspended||placement.Snapshot.State==RoomState.WaitingForPermission)return false;
-            if(InteractionBlocked){reason="Interacción en curso";return false;}
+            if(InteractionBlocked){reason="Interaction in progress";return false;}
             bool opened=chatWindow.gameObject.activeSelf;chatWindow.Open();
-            if(!TryTarget(out var plan)){if(!opened)chatWindow.Close();reason="Sin destino compatible";Status=reason+" · se conserva la posición";return false;}
+            if(!TryTarget(out var plan)){if(!opened)chatWindow.Close();reason="No compatible destination";Status=reason+" · position preserved";return false;}
             MoveChat(plan.Best.Pose);ResetWait();State=FollowState.Cooldown;cooldown=SpatialPlacementSettings.Cooldown;
-            reason="Chat delante de ti";
-            Status=plan.PhysicalValidation?"Compatible con la habitación capturada":"En el aire · sin validación física";
+            reason="Chat in front of you";
+            Status=plan.PhysicalValidation?"Compatible with the captured room":"In the air · no physical validation";
             return true;
         }
     }

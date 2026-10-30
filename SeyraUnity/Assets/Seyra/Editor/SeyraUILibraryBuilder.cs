@@ -104,7 +104,7 @@ namespace Seyra.Editor
         {
             var root = Rect("UIText");
             var text = root.gameObject.AddComponent<TextMeshProUGUI>();
-            text.text = "Texto";
+            text.text = "Text";
             text.richText = false;
             text.raycastTarget = false;
             text.textWrappingMode = TextWrappingModes.Normal;
@@ -115,10 +115,10 @@ namespace Seyra.Editor
 
         static void BuildButton()
         {
-            Save(SeyraMetaUIAuthoring.Button("UIButton", "Borderless", "Interactuar"), "Controls/UIButton");
-            Save(SeyraMetaUIAuthoring.Button("UIButtonPrimary", "Primary", "Aceptar"), "Controls/UIButtonPrimary");
-            Save(SeyraMetaUIAuthoring.Button("UIButtonSecondary", "Secondary", "Cancelar"), "Controls/UIButtonSecondary");
-            Save(SeyraMetaUIAuthoring.Button("UIButtonDanger", "Destructive", "Eliminar"), "Controls/UIButtonDanger");
+            Save(SeyraMetaUIAuthoring.Button("UIButton", "Borderless", "Interact"), "Controls/UIButton");
+            Save(SeyraMetaUIAuthoring.Button("UIButtonPrimary", "Primary", "Accept"), "Controls/UIButtonPrimary");
+            Save(SeyraMetaUIAuthoring.Button("UIButtonSecondary", "Secondary", "Cancel"), "Controls/UIButtonSecondary");
+            Save(SeyraMetaUIAuthoring.Button("UIButtonDanger", "Destructive", "Delete"), "Controls/UIButtonDanger");
         }
 
         static void BuildPanels()
@@ -137,8 +137,8 @@ namespace Seyra.Editor
             root.name = "UITitledPanel";
             var header = Column(root, "HeaderContainer");
             header.SetSiblingIndex(root.GetComponent<UIPanelView>().Content.GetSiblingIndex());
-            var title = TextSlot(header, "TitleContainer", "Título del panel", UITextRole.Heading);
-            var description = TextSlot(header, "DescriptionContainer", "Descripción opcional del contenido.", UITextRole.Help, UIInkRole.Muted);
+            var title = TextSlot(header, "TitleContainer", "Panel title", UITextRole.Heading);
+            var description = TextSlot(header, "DescriptionContainer", "Optional content description.", UITextRole.Help, UIInkRole.Muted);
             content = root.GetComponent<UIPanelView>().Content;
             var actions = Row(root, "ActionsContainer");
             actions.gameObject.SetActive(false);
@@ -183,7 +183,7 @@ namespace Seyra.Editor
         static void BuildToggle()
         {
             var root = Instance("Layout/UIColumn"); root.name = "UIToggle";
-            var label = TextSlot(root, "LabelContainer", "Activar opción", UITextRole.Label);
+            var label = TextSlot(root, "LabelContainer", "Enable option", UITextRole.Label);
             var help = TextSlot(root, "HelpContainer", "", UITextRole.Help, UIInkRole.Muted); help.transform.parent.gameObject.SetActive(false);
             SeyraMetaUIAuthoring.Toggle("UIToggle", label, help, root);
             Save(root, "Controls/UIToggle");
@@ -192,7 +192,7 @@ namespace Seyra.Editor
         static void BuildSlider()
         {
             var root = Instance("Layout/UIColumn"); root.name = "UISlider";
-            var label = TextSlot(root, "LabelContainer", "Valor", UITextRole.Label);
+            var label = TextSlot(root, "LabelContainer", "Value", UITextRole.Label);
             var value = TextSlot(root, "ValueContainer", "", UITextRole.Body);
             var help = TextSlot(root, "HelpContainer", "", UITextRole.Help, UIInkRole.Muted); help.transform.parent.gameObject.SetActive(false);
             SeyraMetaUIAuthoring.Slider(root, label, help, value);
@@ -203,10 +203,10 @@ namespace Seyra.Editor
         {
             var root = Instance("Layout/UIColumn");
             root.name = "UIFoldout";
-            var header = Button(root, "HeaderContainer", "Controls/UIButtonSecondary", "Detalles");
+            var header = Button(root, "HeaderContainer", "Controls/UIButtonSecondary", "Details");
             header.SetIcon(arrow);
             var body = Column(root, "BodyContainer");
-            TextSlot(body, "DescriptionContainer", "Contenido que se puede expandir o contraer.", UITextRole.Body);
+            TextSlot(body, "DescriptionContainer", "Content that can be expanded or collapsed.", UITextRole.Body);
             root.gameObject.AddComponent<UIFoldout>().Configure(header, body.gameObject);
             Save(root, "Controls/UIFoldout");
         }
@@ -221,9 +221,9 @@ namespace Seyra.Editor
             var iconImage = Image(Rect("Icon", icon), false);
             icon.gameObject.SetActive(false);
             var content = FlexibleColumn(root, "TextContainer");
-            var title = TextSlot(content, "TitleContainer", "Elemento de lista", UITextRole.Label);
-            var description = TextSlot(content, "DescriptionContainer", "Descripción del elemento.", UITextRole.Help, UIInkRole.Muted);
-            var action = Button(root, "ActionContainer", "Controls/UIButtonSecondary", "Abrir");
+            var title = TextSlot(content, "TitleContainer", "List item", UITextRole.Label);
+            var description = TextSlot(content, "DescriptionContainer", "Item description.", UITextRole.Help, UIInkRole.Muted);
+            var action = Button(root, "ActionContainer", "Controls/UIButtonSecondary", "Open");
             action.transform.parent.gameObject.SetActive(false);
             var panel = root.gameObject.AddComponent<UIPanelView>();
             panel.Configure(content, (RectTransform)action.transform.parent, title, description);
@@ -236,12 +236,12 @@ namespace Seyra.Editor
             var root = Instance("Panels/UITitledPanel");
             root.name = "UIConfirmationPanel";
             var panel = root.GetComponent<UIPanelView>();
-            panel.Title = "Confirmar acción";
-            panel.Description = "Revisa el mensaje antes de continuar.";
-            var message = TextSlot(panel.Content, "MessageContainer", "Este panel emite eventos locales de aceptar o cancelar.", UITextRole.Body);
+            panel.Title = "Confirm action";
+            panel.Description = "Review the message before continuing.";
+            var message = TextSlot(panel.Content, "MessageContainer", "This panel emits local accept or cancel events.", UITextRole.Body);
             panel.Actions.gameObject.SetActive(true);
-            var cancel = Button(panel.Actions, "CancelContainer", "Controls/UIButtonSecondary", "Cancelar", true);
-            var accept = Button(panel.Actions, "AcceptContainer", "Controls/UIButtonPrimary", "Aceptar", true);
+            var cancel = Button(panel.Actions, "CancelContainer", "Controls/UIButtonSecondary", "Cancel", true);
+            var accept = Button(panel.Actions, "AcceptContainer", "Controls/UIButtonPrimary", "Accept", true);
             root.gameObject.AddComponent<UIConfirmationPanel>().Configure(accept, cancel, message);
             Save(root, "Panels/UIConfirmationPanel");
         }

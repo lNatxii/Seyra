@@ -69,20 +69,20 @@ namespace Seyra.UI.Presentations
                 foreach (var advantage in alternative.advantages) Text(v, "+ " + advantage, card);
                 foreach (var disadvantage in alternative.disadvantages) Text(v, "− " + disadvantage, card);
             }
-            if (d.recommendation.Length > 0) Card(v, v.Body, "Recomendación", d.recommendation);
+            if (d.recommendation.Length > 0) Card(v, v.Body, "Recommendation", d.recommendation);
         }
         static void Plan(UIPresentationView v, WorkPlanData d)
         {
-            Text(v, $"{d.tasks.Count(t => t.status == "done")} / {d.tasks.Length} tareas completadas", v.Body, UITextRole.Label);
+            Text(v, $"{d.tasks.Count(t => t.status == "done")} / {d.tasks.Length} tasks completed", v.Body, UITextRole.Label);
             foreach (var group in d.tasks.GroupBy(t => t.phase))
             {
                 var parent = group.Key.Length > 0 ? Card(v, v.Body, group.Key) : v.Body;
                 foreach (var task in group)
                 {
-                    var state = task.status == "done" ? "Completada" : task.status == "active" ? "En curso" : task.status == "blocked" ? "Bloqueada" : "Pendiente";
+                    var state = task.status == "done" ? "Completed" : task.status == "active" ? "In progress" : task.status == "blocked" ? "Blocked" : "Pending";
                     var card = Card(v, parent, task.title, task.description);
                     Text(v, state, card, UITextRole.Label);
-                    if (task.dependsOn.Length > 0) Text(v, "Depende de: " + string.Join(", ", task.dependsOn.Select(id => d.tasks.First(t => t.id == id).title)), card, UITextRole.Help);
+                    if (task.dependsOn.Length > 0) Text(v, "Depends on: " + string.Join(", ", task.dependsOn.Select(id => d.tasks.First(t => t.id == id).title)), card, UITextRole.Help);
                 }
             }
         }

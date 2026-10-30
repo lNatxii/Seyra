@@ -434,7 +434,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: "T\xEDtulo del panel"
+      value: "Panel title"
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_fontSize
@@ -567,7 +567,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: "Descripci\xF3n opcional del contenido."
+      value: "Optional content description."
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_fontSize

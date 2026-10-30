@@ -22,9 +22,9 @@ namespace Seyra.Voice
     [DisallowMultipleComponent]
     public sealed class VoiceDictation : MonoBehaviour
     {
-        public const string Idle = "Mantén pulsado para hablar";
-        public const string ListeningText = "Escuchando…";
-        public const string Processing = "Transcribiendo…";
+        public const string Idle = "Hold to talk";
+        public const string ListeningText = "Listening…";
+        public const string Processing = "Transcribing…";
 
         [SerializeField, Range(5, 120)] float maximumSeconds = 45f;
 
@@ -76,7 +76,7 @@ namespace Seyra.Voice
             settings = SeyraConnectionSettings.Load();
             useMuse = settings.IsGateway && settings.CanConnect;
             useWit = !useMuse && Application.isEditor;
-            Provider = useMuse ? "Muse Voice Transcribe · pasarela" : useWit ? "Wit.ai · micrófono del PC" : "Sin proveedor de voz";
+            Provider = useMuse ? "Muse Voice Transcribe · gateway" : useWit ? "Wit.ai · PC microphone" : "No voice provider";
         }
 
         void OnDisable() => Cancel();
@@ -97,7 +97,7 @@ namespace Seyra.Voice
             if (useMuse) { SetStatus(Idle, true); return; }
             if (!useWit) { SetStatus(ConnectionErrors.Describe(null, settings), false); return; }
             var configured = SeyraEnvironmentCredentials.HasWitToken;
-            SetStatus(configured ? Idle : "Configura SEYRA_CLIENT_TOKEN en Backend/.env.local para usar dictado.", configured);
+            SetStatus(configured ? Idle : "Set SEYRA_CLIENT_TOKEN in Backend/.env.local to use dictation.", configured);
         }
 
         void CreateService(WitConfiguration configuration)
@@ -160,7 +160,7 @@ namespace Seyra.Voice
             finalText = "";
             Transcription = "";
             ++generation;
-            SetStatus(useMuse ? "Conectando…" : "Conectando con Wit.ai… Mantén pulsado", true);
+            SetStatus(useMuse ? "Connecting…" : "Connecting to Wit.ai… Keep holding", true);
             Changed?.Invoke();
 
             try
@@ -190,7 +190,7 @@ namespace Seyra.Voice
                 };
                 microphonePermission.PermissionDenied += _ =>
                 {
-                    if (current == generation) Errored("Micrófono", "Permiso de micrófono denegado. Actívalo en Ajustes → Privacidad.");
+                    if (current == generation) Errored("Microphone", "Microphone permission denied. Enable it in Settings → Privacy.");
                 };
                 UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Microphone, microphonePermission);
                 return;
@@ -209,7 +209,7 @@ namespace Seyra.Voice
                 limit = StartCoroutine(StopAtLimit());
                 _ = RunMuseAsync(muse, current);
             }
-            catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+            catch (Exception error) { Errored("Microphone", DescribeMuseError(error)); }
         }
 
         void Update()
@@ -217,7 +217,7 @@ namespace Seyra.Voice
             for (int i = 0; i < 64 && inbox.TryDequeue(out var action); i++) action();
             if (capture == null || !accepting) return;
             try { EnqueueAudio(capture.Poll()); }
-            catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+            catch (Exception error) { Errored("Microphone", DescribeMuseError(error)); }
         }
 
         void EnqueueAudio(byte[] pcm)
@@ -332,16 +332,16 @@ namespace Seyra.Voice
             var code = (error as ConnectionException)?.Code ?? error.Message;
             switch (code)
             {
-                case "ASR_NOT_CONFIGURED": return "El backend no tiene META_API_KEY";
-                case "ASR_UPSTREAM": return "Muse Voice Transcribe no respondió. Vuelve a intentarlo";
-                case "ASR_RATE_LIMITED": return "Límite de transcripciones alcanzado. Espera un momento";
-                case "ASR_TIMEOUT": return "La transcripción tardó demasiado";
-                case "ASR_IDLE": case "ASR_BACKLOG": return "Se cortó el audio. Vuelve a dictar";
-                case "MIC_NOT_STARTED": return "No se pudo iniciar el micrófono. Revisa los permisos de micrófono.";
-                case "MIC_READ_FAILED": case "MIC_BUFFER_OVERRUN": return "Se cortó el audio del micrófono. Vuelve a dictar";
+                case "ASR_NOT_CONFIGURED": return "The backend has no META_API_KEY";
+                case "ASR_UPSTREAM": return "Muse Voice Transcribe did not respond. Try again";
+                case "ASR_RATE_LIMITED": return "Transcription limit reached. Wait a moment";
+                case "ASR_TIMEOUT": return "Transcription timed out";
+                case "ASR_IDLE": case "ASR_BACKLOG": return "Audio was interrupted. Dictate again";
+                case "MIC_NOT_STARTED": return "Could not start the microphone. Check microphone permissions.";
+                case "MIC_READ_FAILED": case "MIC_BUFFER_OVERRUN": return "Microphone audio was interrupted. Dictate again";
             }
             if (error is OpenCodeHttpException httpError && httpError.StatusCode == 410)
-                return "La sesión de voz caducó. Vuelve a dictar";
+                return "The voice session expired. Dictate again";
             return ConnectionErrors.Describe(error, settings);
         }
 
@@ -364,7 +364,7 @@ namespace Seyra.Voice
         void ActivateRequest()
         {
             if (!accepting) return;
-            if (service == null) throw new InvalidOperationException("El servicio de dictado no está inicializado.");
+            if (service == null) throw new InvalidOperationException("The dictation service is not initialized.");
 
             var requestEvents = new VoiceServiceRequestEvents();
             int current = generation;
@@ -404,13 +404,13 @@ namespace Seyra.Voice
                     SetStatus(Processing, Available);
                     if (accepting && pending == null) pending = StartCoroutine(ResetIfSilent(15f));
                 }
-                catch (Exception error) { Errored("Micrófono", DescribeMuseError(error)); }
+                catch (Exception error) { Errored("Microphone", DescribeMuseError(error)); }
                 return;
             }
 
             if (preparing != null)
             {
-                Errored("Audio", "La grabación todavía se estaba preparando. Mantén pulsado hasta que aparezca Escuchando.");
+                Errored("Audio", "Recording was still preparing. Keep holding until Listening appears.");
                 return;
             }
 
@@ -423,7 +423,7 @@ namespace Seyra.Voice
             SetStatus(Processing, Available);
             try
             {
-                if (service == null) throw new InvalidOperationException("El servicio de dictado se ha desconectado.");
+                if (service == null) throw new InvalidOperationException("The dictation service disconnected.");
                 service.Deactivate();
             }
             catch (Exception error)
@@ -472,7 +472,7 @@ namespace Seyra.Voice
         void Stopped()
         {
             if (!accepting) return;
-            SetStatus(listening ? "Grabación detenida · Suelta para terminar" : Processing, Available);
+            SetStatus(listening ? "Recording stopped · Release to finish" : Processing, Available);
         }
 
         void Partially(string transcription)
@@ -492,7 +492,7 @@ namespace Seyra.Voice
             Transcription = finalText;
             Changed?.Invoke();
             if (listening)
-                SetStatus("Dictado terminado · Suelta para terminar", Available);
+                SetStatus("Dictation complete · Release to finish", Available);
             else
                 PublishFinal();
         }
@@ -502,7 +502,7 @@ namespace Seyra.Voice
             ReleaseMuse();
             accepting = listening = finishing = false;
             StopTimers();
-            SetStatus(finalText.Length > 0 ? Idle : "No se ha reconocido voz. Mantén pulsado y vuelve a hablar.", Available);
+            SetStatus(finalText.Length > 0 ? Idle : "No speech recognized. Hold and speak again.", Available);
             Changed?.Invoke();
             if (finalText.Length > 0)
                 Final?.Invoke(finalText);
@@ -522,7 +522,7 @@ namespace Seyra.Voice
             var detail = string.IsNullOrEmpty(message) ? type : message;
             detail = SeyraEnvironmentCredentials.RedactToken(detail);
 
-            SetStatus("No se pudo dictar: " + detail, Available);
+            SetStatus("Could not transcribe: " + detail, Available);
             Failed?.Invoke(detail);
 
             try
@@ -536,21 +536,21 @@ namespace Seyra.Voice
         void RequestCanceled(string reason)
         {
             if (!accepting) return;
-            string detail = reason ?? "La petición se canceló antes de recibir una transcripción.";
+            string detail = reason ?? "The request was cancelled before a transcription arrived.";
             if (detail.IndexOf("no audio", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 detail.IndexOf("no data", StringComparison.OrdinalIgnoreCase) >= 0)
-                detail = "No llegó audio a Wit.ai. Mantén pulsado hasta que aparezca Escuchando.";
+                detail = "Wit.ai received no audio. Keep holding until Listening appears.";
             else if (detail.IndexOf("Failed to start audio", StringComparison.OrdinalIgnoreCase) >= 0)
-                detail = "No se pudo iniciar el micrófono. Revisa los permisos de micrófono.";
+                detail = "Could not start the microphone. Check microphone permissions.";
 
-            Errored("Cancelado", detail);
+            Errored("Cancelled", detail);
         }
 
         IEnumerator ResetIfSilent(float seconds)
         {
             yield return new WaitForSecondsRealtime(seconds);
             pending = null;
-            if (accepting) Errored("Timeout", "No llegó la transcripción final. Revisa la conexión y vuelve a dictar.");
+            if (accepting) Errored("Timeout", "The final transcription did not arrive. Check the connection and dictate again.");
         }
 
         IEnumerator StopAtLimit()
@@ -598,7 +598,7 @@ namespace Seyra.Voice
             if (mic == null)
             {
                 preparing = null;
-                Errored("Audio", "El Voice SDK no ha podido crear la entrada de micrófono.");
+                Errored("Audio", "The Voice SDK could not create the microphone input.");
                 yield break;
             }
 
@@ -628,7 +628,7 @@ namespace Seyra.Voice
         {
             var devices = Microphone.devices;
             if (devices.Length == 0)
-                throw new InvalidOperationException("Unity no detecta ningún micrófono. Revisa los dispositivos de audio.");
+                throw new InvalidOperationException("Unity detected no microphone. Check your audio devices.");
 
 #if UNITY_EDITOR
             string selected = SeyraEnvironmentCredentials.PreferredMicrophone;
@@ -637,7 +637,7 @@ namespace Seyra.Voice
 #endif
             var mic = Meta.WitAi.Data.AudioBuffer.Instance.MicInput as Meta.WitAi.Lib.Mic;
             if (mic == null)
-                throw new InvalidOperationException("El Voice SDK no ha podido crear la entrada de micrófono.");
+                throw new InvalidOperationException("The Voice SDK could not create the microphone input.");
 
             int index = (!string.IsNullOrEmpty(selected) && mic.Devices != null) ? mic.Devices.IndexOf(selected) : 0;
             if (index < 0) index = 0;

@@ -96,7 +96,7 @@ export function createAsrRelay(options: Options) {
         if (active !== s) return;
         socket.send(JSON.stringify({ authorization: { accessToken: `Bearer ${options.apiKey}` }, model: 'muse-voice-transcribe-1.0',
           audioEncoding: 'PCM_16KHZ', mode: 'PUSH_TO_TALK', partialMode: 'CUMULATIVE', emitAudioProgress: false,
-          languageBias: options.languageBias ?? ['Spanish', 'English'], keywords: options.keywords ?? ['Seyra'] }));
+          languageBias: options.languageBias ?? ['English'], keywords: options.keywords ?? ['Seyra'] }));
       });
       socket.on('message', (bytes, binary) => {
         if (active !== s || s.done || s.error || binary) return;

@@ -104,7 +104,7 @@ namespace Seyra.Voice
             notice = "";
             if (dictation == null)
             {
-                notice = "No se ha configurado el servicio de dictado.";
+                notice = "The dictation service is not configured.";
                 chat?.SetVoiceHint(notice);
                 Refresh();
                 return;
@@ -145,11 +145,11 @@ namespace Seyra.Voice
             if (chat != null)
             {
                 chat.CommitDictation(text);
-                notice = "Revisa el texto y pulsa Enviar";
+                notice = "Review the text and press Send";
                 if (!chat.CanSend)
                     notice += chat.IsConnected
-                        ? " · Enviar estará disponible al terminar el turno"
-                        : " · Conecta con OpenCode para enviar";
+                        ? " · Send will be available when the turn ends"
+                        : " · Connect to OpenCode to send";
                 chat.SetVoiceHint(notice);
             }
             Refresh();
@@ -158,7 +158,7 @@ namespace Seyra.Voice
         void OnDictationFailed(string message)
         {
             chat?.CancelDictationPreview();
-            notice = "Voz: " + message;
+            notice = "Voice: " + message;
             chat?.SetVoiceHint(notice);
             Refresh();
         }
@@ -195,11 +195,11 @@ namespace Seyra.Voice
                 if (dictation == null || !dictation.Available)
                     label.text = "Mic";
                 else if (dictation.Listening)
-                    label.text = "Escuchando…";
+                    label.text = "Listening…";
                 else if (dictation.Busy)
-                    label.text = "Transcribiendo…";
+                    label.text = "Transcribing…";
                 else
-                    label.text = "Hablar";
+                    label.text = "Talk";
             }
         }
 

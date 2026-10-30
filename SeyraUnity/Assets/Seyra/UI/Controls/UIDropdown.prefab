@@ -213,9 +213,9 @@ MonoBehaviour:
   optionsRoot: {fileID: 3949120928801170560}
   caption: {fileID: 348636104994478970}
   choices:
-  - "Opci\xF3n 1"
-  - "Opci\xF3n 2"
-  - "Opci\xF3n 3"
+  - "Option 1"
+  - "Option 2"
+  - "Option 3"
   value: 0
   changed:
     m_PersistentCalls:

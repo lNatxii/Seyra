@@ -56,7 +56,7 @@ namespace Seyra.Editor
                     button.name == "PushToTalkButton" ? 196 : button.name == "ReconnectButton" ? 160 :
                     button.name == "ToggleChatButton" ? 192 : 152;
                 var label = button.GetComponentInChildren<TMP_Text>(true);
-                label.text = button.name == "RecenterButton" ? "Reubicar" : button.name == "VoiceButton" ? "Dictar" : label.text;
+                label.text = button.name == "RecenterButton" ? "Recenter" : button.name == "VoiceButton" ? "Dictate" : label.text;
                 // Action labels use the same on-action ink in either window theme.
                 Object.DestroyImmediate(label.GetComponent<UIStyle>());
                 label.font = theme.font;
@@ -199,8 +199,8 @@ namespace Seyra.Editor
             {
                 var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
                 foreach (var item in new[] {
-                    new Seyra.Chat.ChatMessageItem { Key = "preview-user", Role = "Tú", Text = "Organiza el espacio de trabajo para empezar." },
-                    new Seyra.Chat.ChatMessageItem { Key = "preview-assistant", Role = "Seyra", Text = "Puedo ayudarte a organizarlo. Dime qué necesitas tener a mano y prepararé el espacio contigo." } })
+                    new Seyra.Chat.ChatMessageItem { Key = "preview-user", Role = "You", Text = "Organize the workspace to get started." },
+                    new Seyra.Chat.ChatMessageItem { Key = "preview-assistant", Role = "Seyra", Text = "I can help you organize it. Tell me what you need nearby and I will set up the space with you." } })
                 {
                     var row = typeof(SeyraSpatialChatWindow).GetMethod("CreateRowGameObject", flags).Invoke(chat, new object[] { item });
                     typeof(SeyraSpatialChatWindow).GetMethod("UpdateRowContent", flags).Invoke(chat, new[] { row, item });

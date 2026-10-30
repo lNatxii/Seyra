@@ -44,7 +44,7 @@ public static class ChatExecutionChecks
         Click("cancelButton");Click("cancelButton");
         await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Cancelled,"Cancel not confirmed");
         Check(!Get<UnityEngine.UI.Button>("sendButton").interactable,"Interrupted turn was silently discarded");
-        Check(Get<TMP_Text>("executionLabel").text.Contains("permanecen"),"Cancellation claims rollback or omits remaining actions");
+        Check(Get<TMP_Text>("executionLabel").text.Contains("remain"),"Cancellation claims rollback or omits remaining actions");
     }
     public static async Task<string> Run()
     {
@@ -110,7 +110,7 @@ public static class ChatExecutionChecks
 
             await Start("unknown_tool");
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Failed,"Unknown tool outcome accepted as success");
-            Check(Get<TMP_Text>("executionLabel").text.Contains("Inspecciona"),"Missing inspection requirement");
+            Check(Get<TMP_Text>("executionLabel").text.Contains("Check the scene"),"Missing inspection requirement");
             await Close();
             await Start("disconnect");
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Running,"History isolation setup");
@@ -154,7 +154,7 @@ public static class ChatExecutionChecks
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Unresolved&&Get<bool>("connected"),"Unconfirmed submission setup");
             Click("cancelButton");
             await Wait(()=>chat.ExecutionState==OpenCodeTestChat.TurnState.Cancelled,"Unconfirmed submission closure");
-            Check(Get<TMP_Text>("executionLabel").text.Contains("sigue sin conocerse"),"Unconfirmed submission was presented as a known result");
+            Check(Get<TMP_Text>("executionLabel").text.Contains("is still unknown"),"Unconfirmed submission was presented as a known result");
             await Close();
             checks.Add("unadmitted ambiguous POST is never resubmitted or misrepresented as executed");
 
@@ -178,7 +178,7 @@ public static class ChatExecutionChecks
             var state=await State();
             var prompts=((JArray)state["events"]).OfType<JObject>().Where(e=>(string)e["type"]=="prompt").ToArray();
             Check(prompts.Length==13,"A submission was lost or repeated: "+prompts.Length);
-            Check(rows.Count(t=>t.text=="Tú\ndrop_prompt")==1,"Lost admission duplicated the local echo");
+            Check(rows.Count(t=>t.text=="You\ndrop_prompt")==1,"Lost admission duplicated the local echo");
             var sessionState=((JArray)state["sessions"]).OfType<JObject>().Single(s=>(string)s["id"]==session);
             Check((int)sessionState["interrupts"]==9,"Interrupt was automatically retried or duplicated");
             Check((int)sessionState["mutations"]==7,"Cancelled turns continued executing actions");

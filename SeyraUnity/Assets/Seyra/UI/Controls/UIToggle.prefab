@@ -370,7 +370,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: "Activar opci\xF3n"
+      value: "Enable option"
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_fontStyle

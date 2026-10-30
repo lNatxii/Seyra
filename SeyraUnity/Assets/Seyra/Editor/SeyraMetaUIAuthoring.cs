@@ -52,12 +52,12 @@ namespace Seyra.Editor
             var field = root.GetComponentInChildren<TMP_InputField>(true);
             var title = root.GetComponentsInChildren<TMP_Text>(true).First(t => t.name == "Title");
             var help = root.GetComponentsInChildren<TMP_Text>(true).First(t => t.name == "HelperText");
-            title.text = "Etiqueta"; help.text = ""; help.gameObject.SetActive(false);
+            title.text = "Label"; help.text = ""; help.gameObject.SetActive(false);
             field.richText = false; field.characterLimit = 4000;
             var icon = field.transform.Find("Icon"); if (icon != null) icon.gameObject.SetActive(false);
             var size = Get<UnityEngine.UI.LayoutElement>(field.gameObject); size.minHeight = 48; size.flexibleWidth = 1;
             field.textComponent.raycastTarget = false;
-            ((TMP_Text)field.placeholder).text = "Escribe aquí…";
+            ((TMP_Text)field.placeholder).text = "Type here…";
             if (growing)
             {
                 field.lineType = TMP_InputField.LineType.MultiLineNewline;

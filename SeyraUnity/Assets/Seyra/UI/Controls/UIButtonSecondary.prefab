@@ -110,7 +110,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9210260128077714954, guid: b9b87f4caa5968745bb0a1ee2a51f575, type: 3}
       propertyPath: m_text
-      value: Cancelar
+      value: "Cancel"
       objectReference: {fileID: 0}
     - target: {fileID: 9210260128077714954, guid: b9b87f4caa5968745bb0a1ee2a51f575, type: 3}
       propertyPath: m_isRichText

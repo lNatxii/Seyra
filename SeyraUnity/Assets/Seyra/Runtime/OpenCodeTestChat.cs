@@ -66,7 +66,7 @@ namespace Seyra.UI
         string activeUserId;
         string pendingText;
         TurnState executionState = TurnState.Ready;
-        string executionDetail = "Escribe un mensaje para empezar.";
+        string executionDetail = "Write a message to get started.";
         JObject pendingPermission;
 
         public TurnState ExecutionState => executionState;
@@ -273,13 +273,13 @@ namespace Seyra.UI
             if (perm == null) return;
 
             if (permissionHeading != null)
-                permissionHeading.text = "Permiso solicitado · " + (string)perm["action"];
+                permissionHeading.text = "Permission requested · " + (string)perm["action"];
 
             if (permissionDetails != null)
                 permissionDetails.text = perm.ToString(Formatting.Indented);
 
             if (permissionStatus != null)
-                permissionStatus.text = "Permitir autoriza esta petición. Rechazar cancela también los permisos pendientes de esta sesión.";
+                permissionStatus.text = "Allow authorizes this request. Reject also cancels pending permissions in this session.";
 
             if (permissionScroll != null)
             {

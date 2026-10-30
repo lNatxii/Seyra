@@ -792,7 +792,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: Elemento de lista
+      value: "List item"
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_fontStyle
@@ -917,7 +917,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_text
-      value: "Descripci\xF3n del elemento."
+      value: "Item description."
       objectReference: {fileID: 0}
     - target: {fileID: 1626036754024045206, guid: 2c37ca1d04bdc7c4f992d0b6ca53b8ae, type: 3}
       propertyPath: m_fontSize
@@ -1058,7 +1058,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7279467700578595206, guid: 99d9c4b429edd04429714ffbf5f44418, type: 3}
       propertyPath: m_text
-      value: Abrir
+      value: "Open"
       objectReference: {fileID: 0}
     - target: {fileID: 7937477244201451280, guid: 99d9c4b429edd04429714ffbf5f44418, type: 3}
       propertyPath: m_Name

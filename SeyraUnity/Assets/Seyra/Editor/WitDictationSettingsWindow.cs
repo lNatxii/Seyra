@@ -11,8 +11,8 @@ namespace Seyra.Editor
         string microphone;
         string[] devices = Array.Empty<string>();
 
-        [MenuItem("Seyra/Voz/Configurar Wit.ai para Play Mode")]
-        public static void Open() => GetWindow<WitDictationSettingsWindow>("Voz · Wit.ai");
+        [MenuItem("Seyra/Voice/Configure Wit.ai for Play Mode")]
+        public static void Open() => GetWindow<WitDictationSettingsWindow>("Voice · Wit.ai");
 
         void OnEnable()
         {
@@ -24,10 +24,10 @@ namespace Seyra.Editor
 
         void OnGUI()
         {
-            EditorGUILayout.LabelField("Dictado en Play Mode (PC)", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Play Mode dictation (PC)", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "En Play Mode se utiliza el micrófono del PC y Wit.ai para transcribir voz a texto.\n" +
-                "En el visor Quest se utiliza el dictado nativo de plataforma de Meta.",
+                "Play Mode uses the PC microphone and Wit.ai to transcribe speech to text.\n" +
+                "On Quest, Meta platform dictation is used.",
                 MessageType.Info);
 
             EditorGUILayout.Space();
@@ -36,33 +36,33 @@ namespace Seyra.Editor
             if (hasToken)
             {
                 EditorGUILayout.HelpBox(
-                    "Token cargado desde Backend/.env.local (SEYRA_CLIENT_TOKEN):\n" +
+                    "Token loaded from Backend/.env.local (SEYRA_CLIENT_TOKEN):\n" +
                     SeyraEnvironmentCredentials.RedactToken(SeyraEnvironmentCredentials.WitClientToken),
                     MessageType.None);
             }
             else
             {
                 EditorGUILayout.HelpBox(
-                    "No se encontró SEYRA_CLIENT_TOKEN en Backend/.env.local.\n" +
-                    "Configura la variable SEYRA_CLIENT_TOKEN con tu Client Access Token de Wit.ai.",
+                    "SEYRA_CLIENT_TOKEN was not found in Backend/.env.local.\n" +
+                    "Set SEYRA_CLIENT_TOKEN to your Wit.ai Client Access Token.",
                     MessageType.Warning);
             }
 
-            if (GUILayout.Button("Abrir Wit.ai"))
+            if (GUILayout.Button("Open Wit.ai"))
             {
                 Application.OpenURL("https://wit.ai/");
             }
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Dispositivo de entrada de audio", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Audio input device", EditorStyles.boldLabel);
 
             var choices = new string[devices.Length + 1];
-            choices[0] = "Automático (primer micrófono disponible)";
+            choices[0] = "Automatic (first available microphone)";
             Array.Copy(devices, 0, choices, 1, devices.Length);
 
             int selected = string.IsNullOrEmpty(microphone) ? 0 : Array.IndexOf(devices, microphone) + 1;
             EditorGUI.BeginChangeCheck();
-            int next = EditorGUILayout.Popup("Micrófono del PC", selected, choices);
+            int next = EditorGUILayout.Popup("PC microphone", selected, choices);
             if (EditorGUI.EndChangeCheck())
             {
                 microphone = next > 0 ? devices[next - 1] : "";
@@ -70,17 +70,17 @@ namespace Seyra.Editor
 
             if (!string.IsNullOrEmpty(microphone) && Array.IndexOf(devices, microphone) < 0)
             {
-                EditorGUILayout.HelpBox("El micrófono guardado no está conectado: " + microphone, MessageType.Warning);
+                EditorGUILayout.HelpBox("The saved microphone is not connected: " + microphone, MessageType.Warning);
             }
 
-            if (GUILayout.Button("Actualizar lista de dispositivos"))
+            if (GUILayout.Button("Refresh device list"))
             {
                 devices = Microphone.devices;
             }
 
             EditorGUILayout.Space();
 
-            if (GUILayout.Button("Guardar y aplicar"))
+            if (GUILayout.Button("Save and apply"))
             {
                 SeyraEnvironmentCredentials.PreferredMicrophone = microphone;
                 SeyraEnvironmentCredentials.ForceReload();
@@ -93,12 +93,12 @@ namespace Seyra.Editor
                     }
                 }
 
-                ShowNotification(new GUIContent("Configuración guardada"));
+                ShowNotification(new GUIContent("Settings saved"));
             }
 
             EditorGUILayout.HelpBox(
-                "Selecciona tu micrófono físico para evitar capturar por accidente la entrada virtual de Oculus.\n" +
-                "Mantén pulsado el botón en el chat para grabar y suelta para enviar.",
+                "Select your physical microphone to avoid capturing the Oculus virtual input by accident.\n" +
+                "Hold the chat button to record and release to finish.",
                 MessageType.None);
         }
     }

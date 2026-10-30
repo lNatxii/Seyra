@@ -14,7 +14,7 @@ namespace Seyra.UI.Library
         [SerializeField] UnityEngine.UI.Toggle optionPrefab;
         [SerializeField] RectTransform optionsRoot;
         [SerializeField] TMP_Text caption;
-        [SerializeField] string[] choices = { "Opción 1", "Opción 2", "Opción 3" };
+        [SerializeField] string[] choices = { "Option 1", "Option 2", "Option 3" };
         [SerializeField] int value;
         [SerializeField] UnityEvent<int> changed = new UnityEvent<int>();
         readonly List<UnityEngine.UI.Toggle> options = new List<UnityEngine.UI.Toggle>();

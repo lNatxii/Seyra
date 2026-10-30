@@ -229,6 +229,16 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 **Cierre P0:** en el visor, pedir una composición de primitivas con colores y explicación espacial; corregirla en varios turnos, renombrarla, borrar y deshacer; guardar y volver a cargar tras reiniciar. Validar el flujo con Muse Spark para cerrar el objetivo de integración original, conservando el proveedor existente como alternativa de desarrollo.
 
+### 31. Seyra en inglés
+
+**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Compila; MuseDictationChecks, PanelChecks y HandMenuChecks aprobadas. Tres suites y recorrido manual pendientes; ver limitaciones. [Implementación](Progress/Completed/31-english-experience.md).
+
+**Entrega:** interfaz, escena, prefabs, errores, textos de respaldo, respuestas del modelo y dictado en inglés, sin capa de localización.
+
+**Aceptación:** ningún texto visible en español en el recorrido principal; Seyra responde en inglés aunque le hablen en español; referencias serializadas conservadas.
+
+**Dependencias:** ninguna. Requisito de 18.
+
 ## P1 — Comprensión e interacción con el entorno
 
 ### 22. Habitación, muebles y colocación espacial

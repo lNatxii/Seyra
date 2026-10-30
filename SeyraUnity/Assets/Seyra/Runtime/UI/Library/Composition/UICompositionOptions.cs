@@ -74,7 +74,7 @@ namespace Seyra.UI.Library
     }
     public sealed class UIConfirmationOptions : UIPanelOptions
     {
-        public string Message, AcceptLabel = "Aceptar", CancelLabel = "Cancelar";
+        public string Message, AcceptLabel = "Accept", CancelLabel = "Cancel";
         public bool CloseOnDecision;
     }
     public class UIFieldOptions : UIElementOptions

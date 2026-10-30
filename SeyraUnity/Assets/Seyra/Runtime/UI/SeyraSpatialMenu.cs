@@ -77,7 +77,7 @@ namespace Seyra.UI
         }
         public void OnBringChatClicked()
         {
-            if (spatialFollow == null) bringChatStatus = "Seguimiento suspendido";
+            if (spatialFollow == null) bringChatStatus = "Following suspended";
             else
             {
                 spatialFollow.ResumeFollow();
@@ -108,7 +108,7 @@ namespace Seyra.UI
             if (runtimeStatusDot != null) runtimeStatusDot.color = runtime != null && runtime.IsBridgeConnected
                 ? new Color(.2f, .85f, .45f) : new Color(.6f, .65f, .7f);
             if (statusSummary != null) statusSummary.text = !string.IsNullOrEmpty(bringChatStatus) ? bringChatStatus :
-                listening ? VoiceDictation.ListeningText : connected ? "Chat conectado" : "Chat sin conexión";
+                listening ? VoiceDictation.ListeningText : connected ? "Chat connected" : "Chat offline";
         }
     }
 }

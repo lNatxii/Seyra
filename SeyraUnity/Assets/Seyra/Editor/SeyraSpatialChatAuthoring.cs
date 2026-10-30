@@ -153,14 +153,14 @@ namespace Seyra.Editor
             var titleText = CreateText(header.transform, "Title", "Seyra", 22, FontStyles.Bold, new Color(0.95f, 0.96f, 0.98f), font);
             titleText.GetComponent<LayoutElement>().preferredWidth = 70;
 
-            var statusText = CreateText(header.transform, "ConnectionLabel", "Conectado · seyra", 15, FontStyles.Normal, new Color(0.7f, 0.8f, 0.85f), font);
+            var statusText = CreateText(header.transform, "ConnectionLabel", "Connected · seyra", 15, FontStyles.Normal, new Color(0.7f, 0.8f, 0.85f), font);
             statusText.GetComponent<LayoutElement>().flexibleWidth = 1;
 
             var runDotImg = CreateImage(header.transform, "RuntimeStatusDot", 12, 12, new Color(0.2f, 0.85f, 0.45f));
-            var runStatusText = CreateText(header.transform, "RuntimeStatusLabel", "Runtime: Conectado", 14, FontStyles.Normal, new Color(0.65f, 0.75f, 0.8f), font);
+            var runStatusText = CreateText(header.transform, "RuntimeStatusLabel", "Runtime: Connected", 14, FontStyles.Normal, new Color(0.65f, 0.75f, 0.8f), font);
             runStatusText.GetComponent<LayoutElement>().preferredWidth = 150;
 
-            var reconnectBtn = CreateButton(header.transform, "ReconnectButton", "Reconectar", 100, 36, new Color(0.18f, 0.25f, 0.32f), font, 14);
+            var reconnectBtn = CreateButton(header.transform, "ReconnectButton", "Reconnect", 100, 36, new Color(0.18f, 0.25f, 0.32f), font, 14);
             var closeBtn = CreateButton(header.transform, "CloseWindowButton", "✕", 36, 36, new Color(0.28f, 0.16f, 0.18f), font, 16);
 
             // 2. Execution Status Banner
@@ -171,13 +171,13 @@ namespace Seyra.Editor
             bannerLayout.spacing = 10;
             bannerLayout.childAlignment = TextAnchor.MiddleLeft;
 
-            var execLabel = CreateText(banner.transform, "ExecutionLabel", "<b>Listo</b> · Dicta un mensaje para empezar.", 15, FontStyles.Normal, new Color(0.85f, 0.9f, 0.95f), font);
+            var execLabel = CreateText(banner.transform, "ExecutionLabel", "<b>Ready</b> · Dictate a message to get started.", 15, FontStyles.Normal, new Color(0.85f, 0.9f, 0.95f), font);
             execLabel.GetComponent<LayoutElement>().flexibleWidth = 1;
 
-            var cancelBtn = CreateButton(banner.transform, "CancelTurnButton", "Cancelar", 95, 34, new Color(0.42f, 0.18f, 0.15f), font, 14);
+            var cancelBtn = CreateButton(banner.transform, "CancelTurnButton", "Cancel", 95, 34, new Color(0.42f, 0.18f, 0.15f), font, 14);
             cancelBtn.gameObject.SetActive(false);
 
-            var closeTurnBtn = CreateButton(banner.transform, "CloseTurnButton", "Cerrar turno", 110, 34, new Color(0.15f, 0.30f, 0.45f), font, 14);
+            var closeTurnBtn = CreateButton(banner.transform, "CloseTurnButton", "Close turn", 110, 34, new Color(0.15f, 0.30f, 0.45f), font, 14);
             closeTurnBtn.gameObject.SetActive(false);
 
             // 3. Permission Request Panel (initially hidden)
@@ -188,18 +188,18 @@ namespace Seyra.Editor
             permLayout.spacing = 6;
             permPanel.SetActive(false);
 
-            var permHeading = CreateText(permPanel.transform, "PermissionHeading", "Permiso solicitado · read", 16, FontStyles.Bold, new Color(1f, 0.85f, 0.45f), font);
+            var permHeading = CreateText(permPanel.transform, "PermissionHeading", "Permission requested · read", 16, FontStyles.Bold, new Color(1f, 0.85f, 0.45f), font);
             var permDetailsScroll = CreateScrollView(permPanel.transform, "DetailsScroll", 60);
             var permDetails = CreateText(permDetailsScroll.content, "PermissionDetails", "{\n  \"action\": \"read\"\n}", 13, FontStyles.Normal, new Color(0.9f, 0.9f, 0.9f), font);
             permDetails.GetComponent<LayoutElement>().flexibleWidth = 1;
 
-            var permStatus = CreateText(permPanel.transform, "PermissionStatus", "Permitir autoriza esta petición. Rechazar cancela también los pendientes.", 12, FontStyles.Italic, new Color(0.8f, 0.8f, 0.8f), font);
+            var permStatus = CreateText(permPanel.transform, "PermissionStatus", "Allow authorizes this request. Reject also cancels pending requests.", 12, FontStyles.Italic, new Color(0.8f, 0.8f, 0.8f), font);
 
             var permBtns = CreateRow(permPanel.transform, "ButtonsRow", 36);
             var permBtnsLayout = permBtns.GetComponent<HorizontalLayoutGroup>();
             permBtnsLayout.spacing = 12;
-            var allowBtn = CreateButton(permBtns.transform, "AllowButton", "Permitir una vez", 140, 34, new Color(0.16f, 0.45f, 0.28f), font, 14);
-            var rejectBtn = CreateButton(permBtns.transform, "RejectButton", "Rechazar", 110, 34, new Color(0.55f, 0.18f, 0.18f), font, 14);
+            var allowBtn = CreateButton(permBtns.transform, "AllowButton", "Allow once", 140, 34, new Color(0.16f, 0.45f, 0.28f), font, 14);
+            var rejectBtn = CreateButton(permBtns.transform, "RejectButton", "Reject", 110, 34, new Color(0.55f, 0.18f, 0.18f), font, 14);
 
             // 4. Conversation Scroll Area
             var convScroll = CreateScrollView(content, "ConversationScroll", 0);
@@ -239,19 +239,19 @@ namespace Seyra.Editor
             draftLayout.childForceExpandWidth = true;
             draftLayout.childForceExpandHeight = false;
             draftScroll.content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            var draftText = CreateText(draftScroll.content, "DraftText", "Mantén pulsado Hablar para dictar", 20, FontStyles.Normal, Color.white, font);
+            var draftText = CreateText(draftScroll.content, "DraftText", "Hold Talk to dictate", 20, FontStyles.Normal, Color.white, font);
             draftText.richText = false;
             draftText.alignment = TextAlignmentOptions.TopLeft;
             draftText.raycastTarget = false;
 
-            var voiceBtn = CreateButton(composer.transform, "PushToTalkButton", "Hablar", 110, 42, new Color(0.22f, 0.28f, 0.38f), font, 15);
-            var sendBtn = CreateButton(composer.transform, "SendButton", "Enviar", 88, 42, new Color(0.12f, 0.48f, 0.35f), font, 16);
+            var voiceBtn = CreateButton(composer.transform, "PushToTalkButton", "Talk", 110, 42, new Color(0.22f, 0.28f, 0.38f), font, 15);
+            var sendBtn = CreateButton(composer.transform, "SendButton", "Send", 88, 42, new Color(0.12f, 0.48f, 0.35f), font, 16);
 
             // 6. Voice Status / Composer Hint Row
             var hintRow = CreateRow(content, "VoiceHintRow", 26);
             var hintLayout = hintRow.GetComponent<HorizontalLayoutGroup>();
             hintLayout.padding = new RectOffset(6, 6, 2, 2);
-            var voiceHintLabel = CreateText(hintRow.transform, "VoiceHintLabel", "Mantén pulsado Hablar para dictar por voz", 13, FontStyles.Italic, new Color(0.6f, 0.7f, 0.8f), font);
+            var voiceHintLabel = CreateText(hintRow.transform, "VoiceHintLabel", "Hold Talk to dictate a message", 13, FontStyles.Italic, new Color(0.6f, 0.7f, 0.8f), font);
             voiceHintLabel.GetComponent<LayoutElement>().flexibleWidth = 1;
 
             // Voice Dictation and PushToTalk components
@@ -355,7 +355,7 @@ namespace Seyra.Editor
             var chatDot = CreateImage(top.transform, "ChatDot", 8, 8, Color.gray).GetComponent<Image>();
             var runtimeDot = CreateImage(top.transform, "RuntimeDot", 8, 8, Color.gray).GetComponent<Image>();
             chatDot.raycastTarget = runtimeDot.raycastTarget = false;
-            var summary = CreateText(top.transform, "StatusSummary", "Habitación: sin mapa", 12, FontStyles.Normal, Color.white, font);
+            var summary = CreateText(top.transform, "StatusSummary", "Room: no map", 12, FontStyles.Normal, Color.white, font);
             summary.enableAutoSizing = true;
             summary.fontSizeMin = 7; summary.fontSizeMax = 12;
             summary.textWrappingMode = TextWrappingModes.NoWrap;
@@ -381,9 +381,9 @@ namespace Seyra.Editor
                 text.textWrappingMode = TextWrappingModes.Normal; text.alignment = TextAlignmentOptions.Center;
                 return view.Button;
             }
-            var toggle = Action("ToggleChatButton", "Abrir chat");
-            var voice = Action("VoiceButton", "Voz");
-            var bring = Action("BringChatButton", "Traer chat");
+            var toggle = Action("ToggleChatButton", "Open chat");
+            var voice = Action("VoiceButton", "Voice");
+            var bring = Action("BringChatButton", "Bring chat");
             var menu = menuGo.AddComponent<SeyraSpatialMenu>();
             var serialized = new SerializedObject(menu);
             void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;
@@ -417,7 +417,7 @@ namespace Seyra.Editor
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
             var gridSize = grid.GetComponent<LayoutElement>(); gridSize.minHeight = gridSize.preferredHeight = 80;
             var status = menu.GetComponentsInChildren<TMP_Text>(true).First(t => t.name == "StatusSummary");
-            status.text = "Chat sin conexión";
+            status.text = "Chat offline";
             var rowSize = status.transform.parent.GetComponent<LayoutElement>(); rowSize.minHeight = rowSize.preferredHeight = 36;
             var serialized = new SerializedObject(menu);
             void Reference(string name, UnityEngine.Object value) => serialized.FindProperty(name).objectReferenceValue = value;

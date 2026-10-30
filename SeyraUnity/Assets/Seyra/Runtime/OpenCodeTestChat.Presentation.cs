@@ -46,15 +46,15 @@ namespace Seyra.UI
                 var state = session != null ? session.ExecutionState : OpenCodeConversationSession.TurnState.Ready;
                 switch (state)
                 {
-                    case OpenCodeConversationSession.TurnState.Sending: title = "Enviando"; break;
-                    case OpenCodeConversationSession.TurnState.Running: title = "En ejecución"; break;
-                    case OpenCodeConversationSession.TurnState.WaitingForPermission: title = "Esperando permiso"; break;
-                    case OpenCodeConversationSession.TurnState.Cancelling: title = "Cancelando"; break;
-                    case OpenCodeConversationSession.TurnState.Completed: title = "Completado"; break;
-                    case OpenCodeConversationSession.TurnState.Cancelled: title = "Interrumpido"; break;
-                    case OpenCodeConversationSession.TurnState.Failed: title = "Fallo"; break;
-                    case OpenCodeConversationSession.TurnState.Unresolved: title = "Resultado desconocido"; break;
-                    default: title = "Listo"; break;
+                    case OpenCodeConversationSession.TurnState.Sending: title = "Sending"; break;
+                    case OpenCodeConversationSession.TurnState.Running: title = "Running"; break;
+                    case OpenCodeConversationSession.TurnState.WaitingForPermission: title = "Waiting for permission"; break;
+                    case OpenCodeConversationSession.TurnState.Cancelling: title = "Cancelling"; break;
+                    case OpenCodeConversationSession.TurnState.Completed: title = "Completed"; break;
+                    case OpenCodeConversationSession.TurnState.Cancelled: title = "Interrupted"; break;
+                    case OpenCodeConversationSession.TurnState.Failed: title = "Failed"; break;
+                    case OpenCodeConversationSession.TurnState.Unresolved: title = "Unknown outcome"; break;
+                    default: title = "Ready"; break;
                 }
                 executionLabel.richText = false;
                 var detail = session != null ? session.ExecutionDetail : executionDetail;

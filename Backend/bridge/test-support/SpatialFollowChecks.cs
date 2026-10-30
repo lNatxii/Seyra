@@ -40,7 +40,7 @@ public static class SpatialFollowChecks
             Check(controller.Mode==SpatialFollowController.FollowMode.Pinned,"A manual release must pin the chat.");
             controller.ResumeFollow();controller.Tick(.1f);Check(controller.Mode==SpatialFollowController.FollowMode.Adaptive,"Follow action must restore adaptive mode.");
             Check(controller.Recenter(),"Explicit recenter should use the air planner without a map.");
-            Check(controller.Status.Contains("sin validación física"),"No-map recenter must declare its limit.");
+            Check(controller.Status.Contains("no physical validation"),"No-map recenter must declare its limit.");
             Check(menuGo.transform.position==menuPosition,"Recenter must move only the chat.");
             return "Spatial follow basic checks passed: "+checks;
         }

@@ -106,7 +106,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7245100564521035695, guid: abce30a9cdfe4c94d807e69d718db55a, type: 3}
       propertyPath: m_text
-      value: Interactuar
+      value: "Interact"
       objectReference: {fileID: 0}
     - target: {fileID: 7245100564521035695, guid: abce30a9cdfe4c94d807e69d718db55a, type: 3}
       propertyPath: m_isRichText
