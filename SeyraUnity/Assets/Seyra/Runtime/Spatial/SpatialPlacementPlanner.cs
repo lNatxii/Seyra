@@ -15,12 +15,15 @@ namespace Seyra.Spatial
         public Bounds Content;
         public string Destination="air",PhysicalId,PreviousSupport;
         public bool AllowAirFallback=true,Readable;
+        public bool RelaxViewerComfort;
         public float MinScale=1;
         public IReadOnlyList<ReadingTarget> ReadingTargets;
     }
     public sealed class SpatialCandidate
     {
         public string Destination,PhysicalId;
+        public bool Relaxed;
+        public string WaivedReason;
         public Pose Pose;
         public SpatialBox Box;
         public float Scale=1,Score,Distance,Yaw,Elevation,AngularHeight;
@@ -47,6 +50,7 @@ namespace Seyra.Spatial
             var reserved=reservations.ToArray();
             if(room.State==RoomState.Suspended||room.State==RoomState.Loading||room.State==RoomState.WaitingForPermission){result.Reason="Room tracking or loading is suspended.";return result;}
             var scales=request.MinScale==1?new[]{1f}:new[]{1f,(1+request.MinScale)*.5f,request.MinScale};
+            SpatialCandidate bestRelaxed=null;
             void Try(string destination,string id,Vector3 center,Quaternion rotation,PhysicalSurface support=null)
             {
                 foreach(var scale in scales)
@@ -61,7 +65,18 @@ namespace Seyra.Spatial
                     }
                     var candidate=new SpatialCandidate{Destination=destination,PhysicalId=id,Scale=scale,Box=box,Pose=new Pose(box.Center-rotation*(request.Content.center*scale),rotation)};
                     string reason=ValidatePose(room,request,candidate,view,reserved);
-                    if(reason!=null){if(result.Rejected.Count<40)result.Rejected.Add((id,reason));continue;}
+                    if(reason!=null)
+                    {
+                        if(result.Rejected.Count<40)result.Rejected.Add((id,reason));
+                        if(support!=null&&request.RelaxViewerComfort&&IsComfortReason(reason)&&ValidateGeometry(room,candidate,reserved)==null)
+                        {
+                            candidate.Relaxed=true;
+                            candidate.WaivedReason=reason;
+                            candidate.Score=Score(request,candidate);
+                            if(bestRelaxed==null||candidate.Score>bestRelaxed.Score+.000001f||Mathf.Abs(candidate.Score-bestRelaxed.Score)<.000001f&&string.CompareOrdinal(id,bestRelaxed.PhysicalId)<0)bestRelaxed=candidate;
+                        }
+                        continue;
+                    }
                     candidate.Score=Score(request,candidate);
                     if(result.Best==null||candidate.Score>result.Best.Score+.000001f||Mathf.Abs(candidate.Score-result.Best.Score)<.000001f&&string.CompareOrdinal(id,result.Best.PhysicalId)<0)result.Best=candidate;
                 }
@@ -100,6 +115,7 @@ namespace Seyra.Spatial
             result.Reason=result.Best==null?"No compatible placement was found.":!result.PhysicalValidation?"Air placement without physical room validation.":fallback?"No suitable support; air fallback checked only against captured geometry.":"Compatible with captured geometry; moved or new furniture is unknown.";
             return result;
         }
+        static bool IsComfortReason(string reason)=>reason=="TOO_FAR"||reason=="TOO_CLOSE"||reason=="OCCLUDED"||reason=="OUTSIDE_COMFORT"||reason=="OBLIQUE_WALL"||reason=="TOO_SMALL_TO_READ";
         // Smallest ratio between a reading target's angular height and its required angle; >=1 is readable.
         internal static float ReadingRatio(SpatialPlacementRequest request,SpatialCandidate candidate)
         {
