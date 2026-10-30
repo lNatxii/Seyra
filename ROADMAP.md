@@ -231,7 +231,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 31. Seyra en inglés
 
-**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Compila; MuseDictationChecks, PanelChecks y HandMenuChecks aprobadas. Tres suites y recorrido manual pendientes; ver limitaciones. [Implementación](Progress/Completed/31-english-experience.md).
+**Estado:** Completed · Pendiente de revisión (30 de octubre de 2026). Tres suites repetidas y aprobadas: ChatExecutionChecks (15 grupos), SpatialChatChecks (12 grupos) y PresentationChecks (242 aserciones, Meta XR Simulator). Contrato ASR corregido y renombrado WITAI_CLIENT_TOKEN confirmado por separado. Recorrido manual pendiente. [Implementación y revisión](Progress/Completed/31-english-experience.md).
 
 **Entrega:** interfaz, escena, prefabs, errores, textos de respaldo, respuestas del modelo y dictado en inglés, sin capa de localización.
 

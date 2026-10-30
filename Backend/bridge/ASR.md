@@ -32,8 +32,8 @@ Clients must not retry requests automatically.
 The relay opens `wss://api.meta.ai/v1/asr/realtime?sessionId=<uuid>`, sends the
 credential-bearing handshake first, and waits at most 8 seconds for the untyped
 session acknowledgement. It uses `muse-voice-transcribe-1.0`, `PCM_16KHZ`,
-`PUSH_TO_TALK`, `CUMULATIVE`, no audio-progress events, language bias Spanish and
-English, and keyword Seyra. The provider configuration comes from `META_API_KEY`.
+`PUSH_TO_TALK`, `CUMULATIVE`, no audio-progress events, language bias English,
+and keyword Seyra. The provider configuration comes from `META_API_KEY`.
 `SEYRA_ASR_URL` overrides the endpoint only when `NODE_ENV=test`, for local tests.
 The handshake and transcript fields follow [Meta Voice schemas](https://dev.meta.ai/docs/api-reference/voice/schemas).
 
