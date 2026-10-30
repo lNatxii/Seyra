@@ -40,7 +40,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 4 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
 | 5 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 6 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
-| 7 | 30. Indicador de scroll | 60 | Completed · Pendiente de revisión. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
+| 7 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 8 | 19. Imágenes generadas | 55 | Barata tras 26. |
 | 9 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
 | 10 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
@@ -283,6 +283,8 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 **Estado 26b:** Future · pausada (30 de octubre de 2026). Pexels ha pausado la emisión de claves. Las imágenes web están desactivadas: el schema del bridge rechaza `imageSearch` e `imageUrl` (`webImagesEnabled = false`) y el prompt no usa imágenes, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
 
+**Estado 26c:** In progress · diseño listo. Retira la extracción de `og:image` y los campos `imageSearch` e `imageUrl`. [Diseño](Progress/InProgress/26c-remove-web-image-sources.md).
+
 **Entrega:** tarjeta `mediaCard` con imagen fija y texto desplazable, sola con `ui_present` o en `layout_create`. `imageSearch` es una consulta web resuelta por el buscador de Meta; `imageUrl` permite una imagen o página ya conocida. El bridge descarga, valida y reduce a JPEG de hasta 512 px; Unity recibe bytes por el transporte autenticado y los guarda en caché, sin conexiones web desde el visor.
 
 **Aceptación:** «muéstrame las películas de la fase tres» crea tarjetas con su póster y su resumen; una URL caída, no permitida o demasiado grande muestra la tarjeta sin imagen y lo indica en `missingMedia`, sin bloquear la creación; memoria de texturas acotada y liberada al borrar; guardar/cargar conserva la referencia y recupera la imagen de la caché. Unity nunca descarga directamente de internet.
@@ -321,7 +323,7 @@ Revisado el 29 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 30. Indicador de scroll en paneles, tarjetas y chat
 
-**Estado:** Completed · Pendiente de revisión (2026-10-30). Segunda revisión aplicada: pista y pulgar se ocultan mediante alfa del CanvasRenderer, sin SetActive; geometría, colores, eventos y Ensure conservados. Compilación con 0 errores; PanelChecks 229 aprobadas y consola sin errores de rebuild de ScrollIndicator. Prueba física en Quest pendiente. [Implementación y revisión](Progress/Completed/30-scroll-indicator.md).
+**Estado:** Completed · Revisada (2026-10-30). Pista y pulgar se ocultan mediante alfa del CanvasRenderer, sin SetActive; geometría, colores, eventos y Ensure conservados. Compilación con 0 errores; PanelChecks 229 aprobadas y consola sin errores de rebuild de ScrollIndicator. Prueba física en Quest pendiente. [Implementación y revisión](Progress/Completed/30-scroll-indicator.md).
 
 **Entrega:** barra fina con el pulgar y degradado con flecha cuando hay más texto abajo, en paneles de texto, presentaciones (incluida `mediaCard`) y chat espacial. Solo visual, añadido en tiempo de ejecución sin regenerar prefabs.
 
