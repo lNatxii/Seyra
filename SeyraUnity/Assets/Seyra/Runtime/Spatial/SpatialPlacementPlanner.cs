@@ -111,9 +111,9 @@ namespace Seyra.Spatial
         }
         internal static float Score(SpatialPlacementRequest request,SpatialCandidate candidate)
         {
-            float orientation=(1-candidate.Yaw/90)*(1-candidate.Elevation/90);
+            float orientation=Mathf.Clamp01(1-candidate.Yaw/90)*Mathf.Clamp01(1-candidate.Elevation/90);
             float distance=1-Mathf.Clamp01(Mathf.Max(SpatialPlacementSettings.PreferredMin-candidate.Distance,candidate.Distance-SpatialPlacementSettings.PreferredMax)/SpatialPlacementSettings.PreferredMin);
-            float readability=request.Readable?Mathf.Clamp01(ReadingRatio(request,candidate))*(1-candidate.Yaw/90):1;
+            float readability=request.Readable?Mathf.Clamp01(ReadingRatio(request,candidate))*Mathf.Clamp01(1-candidate.Yaw/90):1;
             return .30f*orientation+.20f*distance+.20f*readability+.15f*candidate.Scale+.15f*(request.PreviousSupport==candidate.PhysicalId?1:0);
         }
         static float minComponent(this Vector3 v)=>Mathf.Min(v.x,Mathf.Min(v.y,v.z));
