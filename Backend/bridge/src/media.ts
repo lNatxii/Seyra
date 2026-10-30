@@ -94,7 +94,7 @@ export const downloadMedia: MediaDownloader = async (initial, options) => {
           res.destroy(); resolve({ body: Buffer.alloc(0), contentType, location: res.headers.location, status }); return;
         }
         if (status < 200 || status >= 300) { res.destroy(); reject(new MediaError(`MEDIA_HTTP_${status}`, undefined, res.headers['retry-after'])); return; }
-        const limit = /text\/html/i.test(contentType) ? Math.min(options.maxBytes, 1024 * 1024) : options.maxBytes;
+        const limit = options.maxBytes;
         if (Number(res.headers['content-length']) > limit) { res.destroy(); reject(new MediaError('MEDIA_TOO_LARGE')); return; }
         const chunks: Buffer[] = []; let length = 0;
         res.on('data', (chunk: Buffer) => {
@@ -145,20 +145,6 @@ function imageMagic(b: Buffer): boolean {
     b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
     /^GIF8[79]a$/.test(b.toString('ascii', 0, 6)) || b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP');
 }
-function htmlImage(html: string): string | undefined {
-  for (const tag of html.match(/<(?:meta|link)\b[^>]*>/gi) ?? []) {
-    const attrs: Record<string, string> = {};
-    for (const a of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) attrs[a[1].toLowerCase()] = a[2] ?? a[3] ?? a[4];
-    const key = (attrs.property ?? attrs.name ?? '').toLowerCase();
-    const value = ['og:image', 'twitter:image'].includes(key) ? attrs.content : attrs.rel?.toLowerCase() === 'image_src' ? attrs.href : undefined;
-    if (value) return value.replace(/&(?:amp|quot|apos|lt|gt|#(\d+)|#x([\da-f]+));/gi, (entity, decimal, hex) => {
-      if (decimal || hex) { const n = parseInt(decimal ?? hex, decimal ? 10 : 16); return n <= 0x10ffff ? String.fromCodePoint(n) : ''; }
-      return ({ '&amp;': '&', '&quot;': '"', '&apos;': "'", '&lt;': '<', '&gt;': '>' } as Record<string, string>)[entity.toLowerCase()];
-    });
-  }
-  return undefined;
-}
-
 /** Each factory has isolated caches; production always uses the real host checker. */
 export function createMediaResolver(dependencies: { checkHost?: HostChecker; download?: MediaDownloader; metaRequest?: typeof fetch; env?: NodeJS.ProcessEnv } = {}) {
   const checkHost = dependencies.checkHost ?? checkPublicHost;
@@ -264,18 +250,9 @@ export function createMediaResolver(dependencies: { checkHost?: HostChecker; dow
     }
     async function convert(url: string): Promise<ResolvedImage> {
       const cached = images.get(url); if (cached) return cached;
-      let result = await get(url, MAX_BYTES);
+      const result = await get(url, MAX_BYTES);
       const source: SearchSource = { title: '', url: result.url };
-      if (!imageMagic(result.body)) {
-        if (!/text\/html/i.test(result.contentType) && !/^\s*(?:<!doctype\s+html|<html|<head|<meta)/i.test(result.body.toString('utf8', 0, 512))) throw new MediaError('MEDIA_UNSUPPORTED');
-        if (result.body.length > 1024 * 1024) throw new MediaError('MEDIA_TOO_LARGE');
-        const html = result.body.toString();
-        source.title = (/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/gi, '&');
-        const imageLink = htmlImage(html);
-        if (!imageLink) throw new MediaError('MEDIA_NO_IMAGE');
-        result = await get(safeUrl(imageLink, result.url).href, MAX_BYTES);
-        if (!imageMagic(result.body)) throw new MediaError('MEDIA_UNSUPPORTED');
-      }
+      if (!imageMagic(result.body)) throw new MediaError('MEDIA_UNSUPPORTED');
       const image = sharp(result.body, { limitInputPixels: 40_000_000, animated: false });
       const metadata = await image.metadata();
       if (Math.max(metadata.width ?? 0, metadata.height ?? 0) < 200) throw new MediaError('MEDIA_TOO_SMALL');

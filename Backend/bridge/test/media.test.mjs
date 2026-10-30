@@ -41,8 +41,7 @@ test('Meta search skips an imageless page and cites the next valid result in sea
   const requests = [];
   const resolve = offlineResolver(new Map([
     [empty, { body: Buffer.from('<html><head><title>No image</title></head></html>'), contentType: 'text/html' }],
-    [pageUrl, { body: Buffer.from(`<html><meta property="og:image" content="${imageUrl}"></html>`), contentType: 'text/html' }],
-    [imageUrl, { body: await makeImage(), contentType: 'image/jpeg' }],
+    [pageUrl, { body: await makeImage(), contentType: 'image/jpeg' }],
   ]), requests, { env: { META_API_KEY: 'fixture-key', SEYRA_MEDIA_SEARCH_MODEL: 'fixture-model' }, metaRequest: async (url, options) => {
     assert.equal(url, 'https://api.meta.ai/v1/responses');
     assert.equal(options.method, 'POST');
@@ -112,22 +111,6 @@ test('media never downloads more than three images concurrently per host', async
   assert.deepEqual(result.failures, []); assert.equal(peak, 3); assert.equal(active, 0);
 });
 
-test('media HTML og:image resolves to the same id as the direct image', async () => {
-  const resolve = offlineResolver(new Map([
-    [pageUrl, { body: Buffer.from('<!doctype html><html><head><meta property="og:image" content="/poster.jpg"></head></html>'), contentType: 'text/html' }],
-    [imageUrl, { body: await makeImage(), contentType: 'image/jpeg' }],
-  ]));
-  // Resolve HTML first so the test exercises its image download before caching.
-  const html = await resolve('ui_present', { image: { imageUrl: pageUrl } });
-  const direct = await resolve('ui_present', { image: { imageUrl } });
-  assert.deepEqual(html.failures, []);
-  assert.deepEqual(direct.failures, []);
-  assert.equal(html.media.length, 1);
-  assert.equal(direct.media.length, 1);
-  assert.equal(html.args.image.imageRef, direct.args.image.imageRef);
-  assert.deepEqual(html.media, direct.media);
-});
-
 test('media real host checker blocks a private IP before any connection', async () => {
   let connections = 0;
   const url = 'https://192.168.1.10/x.jpg';
@@ -142,6 +125,7 @@ test('media real host checker blocks a private IP before any connection', async 
 
 test('media rejects plain text, a 5 MiB body and a 68 by 100 thumbnail', async () => {
   const cases = [
+    ['html', Buffer.from('<html><meta property="og:image" content="/poster.jpg"></html>'), 'text/html', 'MEDIA_UNSUPPORTED'],
     ['text', Buffer.from('This is plain text.'), 'text/plain', 'MEDIA_UNSUPPORTED'],
     ['large', Buffer.alloc(5 * 1024 * 1024), 'image/jpeg', 'MEDIA_TOO_LARGE'],
     ['small', await makeImage(68, 100), 'image/jpeg', 'MEDIA_TOO_SMALL'],
@@ -165,7 +149,7 @@ test('media rejects 13 distinct images with INVALID_ARGUMENT before downloads', 
   assert.equal(downloads, 0);
 });
 
-test('ui_present accepts catalog photos and rejects disabled web images, multiple sources or reserved web references', () => {
+test('ui_present accepts catalog photos and rejects web image fields', () => {
   const schema = tools.find(tool => tool.name === 'ui_present').schema;
   const args = {
     name: 'Movie card', parentId: 'Generated', position: { x: 0, y: 1.4, z: 1.5 },
