@@ -78,8 +78,7 @@ remote JPEGs use the separate disk cache described in [MEDIA.md](MEDIA.md).
 Replacement prepares an inactive view before retiring the old one.
 
 Photos accept only a registered `imageRef`. The model cannot supply `web:` references. Missing references
-render alternate content and appear in `missingMedia`; successful tool results
-may include `data.mediaFailures`. See [the media contract](MEDIA.md).
+render alternate content and appear in `missingMedia`. See [the media contract](MEDIA.md).
 `ui_media_list` lists only registered catalog sprites. The document viewer keeps
 registered `imageRef` only and does not parse PDFs. Work plans do not execute
 tasks. Physical headset comfort and interaction remain to be validated.

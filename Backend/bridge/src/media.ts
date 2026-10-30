@@ -12,7 +12,6 @@ export class MediaError extends Error {
   constructor(public readonly code: string, message = code, public readonly retryAfter?: string) { super(message); }
 }
 export interface MediaEntry { id: string; mime: 'image/jpeg'; width: number; height: number; data: string }
-export type MediaFailure = { search: string; code: string } | { url: string; code: string };
 export type HostChecker = (hostname: string) => Promise<{ address: string; family: number }>;
 export interface DownloadResponse { body: Buffer; contentType: string; url: string }
 export type MediaDownloader = (url: URL, options: { signal: AbortSignal; maxBytes: number; checkHost: HostChecker; userAgent: string }) => Promise<DownloadResponse>;
@@ -38,9 +37,7 @@ class Slots {
   }
 }
 const hostSlots = new Slots();
-const searchSlots = new Slots();
-interface SearchSource { title: string; url: string }
-interface ResolvedImage { entry: MediaEntry; source: SearchSource }
+export interface LoadedImage { entry: MediaEntry; sourceUrl: string }
 
 function blocked(address: string): boolean {
   if (isIP(address) === 4) {
@@ -145,35 +142,14 @@ function imageMagic(b: Buffer): boolean {
     b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ||
     /^GIF8[79]a$/.test(b.toString('ascii', 0, 6)) || b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP');
 }
-/** Each factory has isolated caches; production always uses the real host checker. */
-export function createMediaResolver(dependencies: { checkHost?: HostChecker; download?: MediaDownloader; metaRequest?: typeof fetch; env?: NodeJS.ProcessEnv } = {}) {
+/** Each factory has an isolated cache; production always uses the real host checker. */
+export function createImageLoader(dependencies: { checkHost?: HostChecker; download?: MediaDownloader; env?: NodeJS.ProcessEnv } = {}) {
   const checkHost = dependencies.checkHost ?? checkPublicHost;
   const download = dependencies.download ?? downloadMedia;
-  const metaRequest = dependencies.metaRequest ?? fetch;
   const env = dependencies.env ?? process.env;
-  const images = new Cache<ResolvedImage>();
-  const searches = new Cache<ResolvedImage>();
-  return async function resolveMedia<T extends Record<string, unknown>>(tool: string, args: T): Promise<{ args: T; media: MediaEntry[]; failures: MediaFailure[] }> {
-    if (!['ui_present', 'ui_update', 'layout_create'].includes(tool)) return { args, media: [], failures: [] };
-    const copy = structuredClone(args);
-    const sources = new Map<string, { kind: 'search' | 'url'; value: string; targets: Record<string, unknown>[] }>();
-    function collect(value: unknown): void {
-      if (!value || typeof value !== 'object') return;
-      if (Array.isArray(value)) { value.forEach(collect); return; }
-      const object = value as Record<string, unknown>;
-      const kind = typeof object.imageSearch === 'string' ? 'search' : typeof object.imageUrl === 'string' ? 'url' : undefined;
-      if (kind) {
-        const value = String(kind === 'search' ? object.imageSearch : object.imageUrl);
-        const key = `${kind}:${value}`;
-        const source = sources.get(key) ?? { kind, value, targets: [] };
-        source.targets.push(object); sources.set(key, source);
-      }
-      Object.values(object).forEach(collect);
-    }
-    collect(copy);
-    if (sources.size > 12) throw new MediaError('INVALID_ARGUMENT', 'At most 12 images per call');
+  const images = new Cache<LoadedImage>();
+  return async function loadImage(url: string): Promise<LoadedImage> {
     const signal = AbortSignal.timeout(10000);
-    const pending = new Map<string, Promise<ResolvedImage>>();
     async function get(url: string, maxBytes: number): Promise<DownloadResponse> {
       const target = safeUrl(url);
       for (let attempt = 0; ; attempt++) {
@@ -193,65 +169,9 @@ export function createMediaResolver(dependencies: { checkHost?: HostChecker; dow
         }
       }
     }
-    async function search(text: string): Promise<ResolvedImage> {
-      const key = env.META_API_KEY?.trim();
-      if (!key) throw new MediaError('MEDIA_NOT_CONFIGURED');
-      const cached = searches.get(text); if (cached) return cached;
-      const found = await searchSlots.run('meta', 4, signal, async () => {
-        const searchSignal = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
-        return bounded((async () => {
-          const response = await metaRequest('https://api.meta.ai/v1/responses', {
-            method: 'POST', redirect: 'error', signal: searchSignal,
-            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'User-Agent': env.SEYRA_MEDIA_USER_AGENT || USER_AGENT },
-            body: JSON.stringify({ model: env.SEYRA_MEDIA_SEARCH_MODEL || 'muse-spark-1.3',
-              tools: [{ type: 'web_search', search_context_size: 'low' }], include: ['web_search_call.results'],
-              reasoning: { effort: 'low' }, max_output_tokens: 2048,
-              input: `Use web search now to find: ${text}. Then reply with the single word done.` }),
-          });
-          if (!response.ok) { await response.body?.cancel(); throw new MediaError(`MEDIA_SEARCH_${response.status}`); }
-          const reader = response.body?.getReader();
-          if (!reader) throw new MediaError('MEDIA_NOT_FOUND');
-          const chunks: Uint8Array[] = []; let length = 0;
-          try {
-            while (true) {
-              const chunk = await reader.read(); if (chunk.done) break;
-              length += chunk.value.byteLength;
-              if (length > 1024 * 1024) { await reader.cancel(); throw new MediaError('MEDIA_TOO_LARGE'); }
-              chunks.push(chunk.value);
-            }
-          } finally { reader.releaseLock(); }
-          return JSON.parse(Buffer.concat(chunks).toString()) as { output?: { type?: string; results?: { type?: string; title?: string; url?: string }[] }[] };
-        })(), searchSignal);
-      });
-      const candidates = (found.output ?? []).filter(item => item.type === 'web_search_call').flatMap(item => item.results ?? [])
-        .filter(item => item.type === 'text_result' && typeof item.url === 'string' && /^https?:\/\//i.test(item.url)).slice(0, 8);
-      const tasks = candidates.map(async candidate => {
-        try {
-          const page = safeUrl(candidate.url!);
-          const host = page.hostname.replace(/^www\./, '');
-          const videoId = host === 'youtu.be' ? page.pathname.slice(1).split('/')[0] :
-            (host === 'youtube.com' || host === 'm.youtube.com') && page.pathname === '/watch' ? page.searchParams.get('v') : null;
-          const url = videoId && /^[\w-]{11}$/.test(videoId) ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : page.href;
-          const image = await resolveUrl(url);
-          return { entry: image.entry, source: { title: candidate.title ?? '', url: page.href } };
-        } catch { return null; }
-      });
-      for (const task of tasks) {
-        const image = await task;
-        if (image) { searches.set(text, image); return image; }
-      }
-      signal.throwIfAborted();
-      throw new MediaError('MEDIA_NOT_FOUND');
-    }
-    function resolveUrl(url: string): Promise<ResolvedImage> {
-      let task = pending.get(url);
-      if (!task) { task = bounded(convert(url), signal); pending.set(url, task); }
-      return task;
-    }
-    async function convert(url: string): Promise<ResolvedImage> {
+    async function convert(url: string): Promise<LoadedImage> {
       const cached = images.get(url); if (cached) return cached;
       const result = await get(url, MAX_BYTES);
-      const source: SearchSource = { title: '', url: result.url };
       if (!imageMagic(result.body)) throw new MediaError('MEDIA_UNSUPPORTED');
       const image = sharp(result.body, { limitInputPixels: 40_000_000, animated: false });
       const metadata = await image.metadata();
@@ -259,29 +179,15 @@ export function createMediaResolver(dependencies: { checkHost?: HostChecker; dow
       const output = await image.rotate().resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer({ resolveWithObject: true });
       signal.throwIfAborted();
       const entry: MediaEntry = { id: `web:${createHash('sha256').update(output.data).digest('hex').slice(0, 32)}`, mime: 'image/jpeg', width: output.info.width, height: output.info.height, data: output.data.toString('base64') };
-      const resolved = { entry, source };
+      const resolved = { entry, sourceUrl: result.url };
       images.set(url, resolved); return resolved;
     }
-    const results = await Promise.all([...sources.values()].map(async source => {
-      try {
-        const image = source.kind === 'search' ? await search(source.value) : await resolveUrl(source.value);
-        const { entry } = image;
-        for (const target of source.targets) {
-          delete target.imageSearch; delete target.imageUrl; target.imageRef = entry.id;
-          const domain = new URL(image.source.url).hostname.replace(/^www\./, '');
-          const title = (image.source.title || String(target.title ?? domain)).replace(/\s+/g, ' ').trim().slice(0, 80);
-          target.source = `${domain} · ${title}`; target.sourceUrl = image.source.url;
-        }
-        return { entry };
-      } catch (error) {
-        const code = signal.aborted || error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name) ? 'MEDIA_TIMEOUT' : error instanceof MediaError ? error.code : 'MEDIA_UNSUPPORTED';
-        for (const target of source.targets) { delete target.imageSearch; delete target.imageUrl; target.imageRef = 'web:unavailable'; }
-        return { failure: { [source.kind]: source.value, code } as MediaFailure };
-      }
-    }));
-    const media = [...new Map(results.flatMap(r => r.entry ? [[r.entry.id, r.entry] as const] : [])).values()];
-    return { args: copy, media, failures: results.flatMap(r => r.failure ? [r.failure] : []) };
+    try {
+      return await bounded(convert(url), signal);
+    } catch (error) {
+      const code = signal.aborted || error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name) ? 'MEDIA_TIMEOUT' : error instanceof MediaError ? error.code : 'MEDIA_UNSUPPORTED';
+      if (error instanceof MediaError && error.code === code) throw error;
+      throw new MediaError(code);
+    }
   };
 }
-
-export const resolveMedia = createMediaResolver();
