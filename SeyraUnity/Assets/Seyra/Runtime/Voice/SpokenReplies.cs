@@ -118,7 +118,13 @@ namespace Seyra.Voice
                     if (current != generation) return;
                     State = SpokenReplyState.Speaking; Changed?.Invoke();
                 });
-                events.OnLoadFailed.AddListener((_, clip, error) => { if (current == generation) Fail(); });
+                events.OnLoadFailed.AddListener((_, clip, error) =>
+                {
+                    if (current != generation) return;
+                    var diagnostic = error == "Audio source is missing" ? "Audio source is missing" : "SDK load error (details omitted)";
+                    Debug.LogWarning("SpokenReplies: OnLoadFailed: " + diagnostic);
+                    Fail();
+                });
                 events.OnPlaybackCancelled.AddListener((_, clip, reason) =>
                 { if (current == generation && !speaker.IsActive) { State = SpokenReplyState.Idle; Changed?.Invoke(); } });
                 LastSpokenText = preparedReply;
@@ -126,7 +132,12 @@ namespace Seyra.Voice
                 speaker.Speak(preparedReply, events);
             }
             catch (OperationCanceledException) when (current != generation || cancellation.IsCancellationRequested) { }
-            catch { if (current == generation) Fail(); }
+            catch (Exception error)
+            {
+                if (current != generation) return;
+                Debug.LogWarning("SpokenReplies: speech preparation failed (" + error.GetType().Name + ").");
+                Fail();
+            }
         }
 
         void Update()
@@ -156,10 +167,12 @@ namespace Seyra.Voice
             request.audioMaxDuration = 30f;
             service.RequestSettings = request;
             host.AddComponent<TTSSpeechSplitter>();
+            var audioSource = host.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f;
             speaker = host.AddComponent<TTSSpeaker>();
             speaker.SetVoiceOverride(new TTSWitVoiceSettings { voice = voiceName, style = voiceStyle, speed = speed });
             host.SetActive(true);
-            if (speaker.AudioSource != null) speaker.AudioSource.spatialBlend = 0f;
         }
 
         void Fail()
