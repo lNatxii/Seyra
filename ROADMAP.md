@@ -19,7 +19,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Área | Implementado | Pendiente |
 | --- | --- | --- |
 | Conexión | Pasarela HTTPS con emparejamiento por dispositivo, CLI multiplataforma (`seyra.mjs`) y logs reducidos a `warn`; APK independiente probado en Quest 3. | Revisión de 08. |
-| Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas (18), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Botón único de voz (18b); confirmar en Quest el dictado por voz y los controles de voz. |
+| Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas con botón único de voz (18, 18b), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Medir la latencia de voz. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
@@ -36,8 +36,8 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | --- | --- | --- | --- |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
 | 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
-| 2b | 18. Respuestas habladas | 75 | Completed · Revisada. Voz `wit$Rebecca` oída en Quest 3; controles y latencia sin comprobar. |
-| 2c | 18b. Botón único de voz | — | Completed · Pendiente de revisión; SpatialChatChecks pendiente por entorno y prueba Quest pendiente. |
+| 2b | 18. Respuestas habladas | 75 | Completed · Cerrada. Voz `wit$Rebecca` probada en Quest 3; latencia sin medir. |
+| 2c | 18b. Botón único de voz | — | Completed · Cerrada. Probada por el usuario en Quest 3; SpatialChatChecks sin repetir. |
 | 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -450,7 +450,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18. Respuestas habladas
 
-**Estado:** Completed · Revisada; voz oída en Quest 3 por el usuario el 30 de octubre de 2026; controles, dictado durante la lectura y latencia sin comprobar. wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Los controles Listen/Stop/Mute se sustituyen en 18b. [Implementación](Progress/Completed/18-spoken-replies.md).
+**Estado:** Completed · Cerrada (30 de octubre de 2026). Probada por el usuario en Quest 3 junto con 18b; latencia sin medir. wit$Rebecca, lectura final y controles Listen/Stop/Mute implementados; bridge 29/29, filtro/estados simulados, ChatExecutionChecks (15) y SpatialChatChecks (12) aprobados. Los controles Listen/Stop/Mute se sustituyen en 18b. [Implementación](Progress/Completed/18-spoken-replies.md).
 
 **Entrega:** TTS con Meta Voice SDK, con reproducir, detener y silenciar. Leer la respuesta final o un resumen indicado, sin narrar logs ni payloads de tools.
 
@@ -460,7 +460,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 18b. Botón único de voz
 
-**Estado:** Completed · Revisada, `SpatialChatChecks` y Quest pendientes (30 de octubre de 2026). Botón único en chat y menú, iconos sincronizados y voz independiente del cierre del chat. Compilación, estados simulados y HandMenuChecks aprobados; SpatialChatChecks pendiente por timeout del Editor sin avanzar frames. Prueba Quest pendiente. [Implementación](Progress/Completed/18b-voice-toggle-button.md).
+**Estado:** Completed · Cerrada (30 de octubre de 2026). Botón único en chat y menú, iconos sincronizados y voz independiente del cierre del chat. Compilación, estados simulados y HandMenuChecks aprobados; probada por el usuario en Quest 3. SpatialChatChecks sin repetir tras un timeout del Editor sin avanzar frames. [Implementación](Progress/Completed/18b-voice-toggle-button.md).
 
 **Entrega:** un solo botón de icono (`volume_up`/`volume_off`), en chat y menú de mano, que activa o silencia la voz. Sustituye a Listen/Stop y Mute/Unmute; se deja de poder volver a escuchar una respuesta. La voz sigue sonando con el chat cerrado.
 
