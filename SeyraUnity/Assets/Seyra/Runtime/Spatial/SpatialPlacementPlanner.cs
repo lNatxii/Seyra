@@ -167,11 +167,20 @@ namespace Seyra.Spatial
             foreach(var reserved in reservations)if(SpatialCollision.Intersects(box,reserved,SpatialPlacementSettings.ReservationGap))return "RESERVED";
             return null;
         }
+        static void ComputeMetrics(SpatialCandidate candidate,Pose view)
+        {
+            var box=candidate.Box;var delta=box.Center-view.position;
+            candidate.Distance=delta.magnitude;
+            var local=Quaternion.Inverse(view.rotation)*delta;
+            candidate.Yaw=Mathf.Abs(Mathf.Atan2(local.x,local.z)*Mathf.Rad2Deg);
+            candidate.Elevation=Mathf.Abs(Mathf.Atan2(local.y,new Vector2(local.x,local.z).magnitude)*Mathf.Rad2Deg);
+            candidate.AngularHeight=2*Mathf.Atan2(box.Size.y*.5f,Mathf.Max(.0001f,candidate.Distance))*Mathf.Rad2Deg;
+        }
         public static string ValidatePose(RoomSnapshot room,SpatialPlacementRequest request,SpatialCandidate candidate,Pose view,IEnumerable<SpatialBox> reservations)
         {
             var box=candidate.Box;var delta=box.Center-view.position;
             var invalid=ValidateVolume(box);if(invalid!=null)return invalid;
-            candidate.Distance=delta.magnitude;
+            ComputeMetrics(candidate,view);
             if(candidate.Distance>SpatialPlacementSettings.MaxDistance)return "TOO_FAR";
             if(SpatialCollision.NearestDistance(box,view.position)<SpatialPlacementSettings.MinDistance)return "TOO_CLOSE";
             invalid=ValidateGeometryCore(room,candidate,reservations);if(invalid!=null)return invalid;
@@ -179,14 +188,10 @@ namespace Seyra.Spatial
             {
                 if(room.Objects.Any(o=>SpatialCollision.RayHits(view.position,point,o.Box))||room.Surfaces.Any(s=>s.Kind!="tabletop"&&s.Kind!="opening"&&SpatialCollision.RayHits(view.position,point,s)))return "OCCLUDED";
             }
-            var local=Quaternion.Inverse(view.rotation)*delta;
-            candidate.Yaw=Mathf.Abs(Mathf.Atan2(local.x,local.z)*Mathf.Rad2Deg);
-            candidate.Elevation=Mathf.Abs(Mathf.Atan2(local.y,new Vector2(local.x,local.z).magnitude)*Mathf.Rad2Deg);
             if(candidate.Yaw>SpatialPlacementSettings.MaxYaw||candidate.Elevation>SpatialPlacementSettings.MaxElevation)return "OUTSIDE_COMFORT";
             var front=box.Rotation*Vector3.forward;
             float incidence=Vector3.Angle(request.Readable?-front:front,-delta);
             if(candidate.Destination=="wall"&&incidence>SpatialPlacementSettings.MaxYaw)return "OBLIQUE_WALL";
-            candidate.AngularHeight=2*Mathf.Atan2(box.Size.y*.5f,Mathf.Max(.0001f,candidate.Distance))*Mathf.Rad2Deg;
             if(request.Readable&&ReadingRatio(request,candidate)<1)return "TOO_SMALL_TO_READ";
             return null;
         }
