@@ -17,6 +17,13 @@ Results include applied, code, reason, actual destination/support, pose (world
 position/Euler degrees), relative scale, score, distance, yaw, elevation,
 angularHeight, roomRevision, simulated, physicalValidation and up to 40 rejected
 supports/reasons. A query returns applied=false and CANDIDATE for a valid plan.
+Results also include `relaxed` (always boolean), `waivedReason` (string or null)
+and `supports`: an array of `{physicalId,tried,reasons}`. Each physical support
+has one summary; tried counts every evaluated candidate, including scale variants,
+and reasons maps each strict rejection reason to its count, including candidates
+accepted at the relaxed level. Air samples are excluded. These summaries have no
+40-entry cap; the existing `rejected` array retains its cap. `scene_build` copies
+the full result into `placement`.
 PLACEMENT_REJECTED with applied=false is a confirmed refusal, not an unknown
 mutation, and creates no history entry. A successful commit returns PLACED and
 one existing Transform history operation; undo restores position/rotation/scale.
@@ -29,6 +36,24 @@ captured data only. A missing map permits air with physicalValidation=false;
 loading/suspended tracking does not permit placement. A failed named support
 can fall back to checked air when requested. Settings defaults are centralized
 in SpatialPlacementSettings; SAT and polygon predicates are pure SpatialCollision.
+
+Tabletop requests from both tools enable a second, relaxed level. Strict candidates
+always win; otherwise the highest-scoring relaxed support wins before air fallback.
+Only viewer-dependent reasons can be waived: TOO_FAR, TOO_CLOSE, OCCLUDED,
+OUTSIDE_COMFORT, OBLIQUE_WALL and TOO_SMALL_TO_READ. Every relaxed candidate must
+still pass ValidateGeometry: NON_FINITE, SUPPORT_FOOTPRINT, OPENING, OUTSIDE_FLOOR,
+FURNITURE, CAPTURED_PLANE and RESERVED always prevent placement. A chosen relaxed
+candidate reports relaxed=true, waivedReason and
+`Placed on the requested support outside the comfortable view (<reason>).`
+Other outcomes report relaxed=false and waivedReason=null. Wall requests, layouts,
+snapping and following keep strict viewer validation.
+
+Tabletop sampling uses inset = EdgeMargin + 0.5 * length(content.size.xz).
+The local polygon AABB is inset on each axis; collapsed axes use their midpoint.
+Samples are ordered as desired clamped to that rectangle, its 5x5 grid at
+0/0.25/0.5/0.75/1, then the original nine GridFractions samples on the full AABB.
+Fits still validates the actual polygon, including concavity. Wall and air grids
+are unchanged.
 
 In `spatial_place` and `spatial_candidates`, `TOO_SMALL_TO_READ` is measured per
 managed panel, rather than from the whole group's bounding box. Labels use the
@@ -51,8 +76,14 @@ after undo/external movement, stale placement metadata is marked needsPlacement
 when it fails geometric validation. `ValidateGeometry` checks finite geometry,
 support footprint, openings, floor containment, furniture, planes and reservations
 without using the viewer. Thus turning or walking away never sets needsPlacement
-by itself. Planning/commit additionally use `ValidatePose` for distance, visibility,
-comfort and readability; wall incidence applies to both reading and 3D content.
+by itself. Planning first uses `ValidatePose` for distance, visibility, comfort
+and readability; wall incidence applies to both reading and 3D content. Commit
+uses `ValidatePose` for strict candidates and `ValidateGeometry` for relaxed ones.
+Reservation measurement excludes inactive descendants, panels with inactive
+windows and presentations with visible=false, including inside placed groups.
+Structural measurement (`Measure` by default and `CurrentBox`) is unchanged;
+only reservations use `OccupiedBox` with active-only measurement. Empty occupied
+geometry supplies no reservation.
 Surface attachment/snapping belongs to 22c.
 
 ## Application following (22d)
