@@ -42,7 +42,7 @@ namespace Seyra.SceneTools
             var min=args["minScale"]==null?1:(float)(double)args["minScale"];
             var bounds=SpatialGeometry.Project(GeometryPoints(go).Select(p=>Quaternion.Inverse(root.rotation)*(p-root.position)),Quaternion.identity);
             var request=new SpatialPlacementRequest{Content=bounds,Destination=Text(args,"destination"),PhysicalId=args["physicalId"]==null?null:String(args["physicalId"],128),
-                AllowAirFallback=Bool(args,"allowAirFallback",true),MinScale=min,Readable=go.GetComponentInChildren<ManagedPanel>(true)!=null};
+                AllowAirFallback=Bool(args,"allowAirFallback",true),MinScale=min,Readable=go.GetComponentInChildren<ManagedPanel>(true)!=null,RelaxViewerComfort=Text(args,"destination")=="tabletop"};
             var readingTargets=new List<ReadingTarget>();
             var corners=new Vector3[4];
             foreach(var panel in go.GetComponentsInChildren<ManagedPanel>(true))
@@ -97,6 +97,8 @@ namespace Seyra.SceneTools
                 ["destination"]=best?.Destination,["physicalId"]=best?.PhysicalId,["roomRevision"]=plan.RoomRevision,["simulated"]=plan.Simulated,["geometryKnownOnly"]=true,["physicalValidation"]=plan.PhysicalValidation,
                 ["pose"]=best==null?null:new JObject{["position"]=Vector(best.Pose.position),["rotation"]=Vector(best.Pose.rotation.eulerAngles)},["scale"]=best?.Scale,
                 ["score"]=best?.Score,["distance"]=best?.Distance,["yaw"]=best?.Yaw,["elevation"]=best?.Elevation,["angularHeight"]=best?.AngularHeight,
+                ["relaxed"]=best?.Relaxed==true,["waivedReason"]=best?.WaivedReason,
+                ["supports"]=new JArray(plan.Supports.Select(s=>new JObject{["physicalId"]=s.PhysicalId,["tried"]=s.Tried,["reasons"]=JObject.FromObject(s.Reasons)})),
                 ["rejected"]=new JArray(plan.Rejected.Select(r=>new JObject{["physicalId"]=r.support,["reason"]=r.reason}))};
         }
     }
