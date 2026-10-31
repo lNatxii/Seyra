@@ -50,6 +50,18 @@ public static class SpatialPlannerChecks
         Check(!SpatialPlacementPlanner.Plan(noMap,request,view,Array.Empty<SpatialBox>()).PhysicalValidation,"Air-only must not claim room validation.");
         request.Readable=false;request.MinScale=.5f;Check(SpatialPlacementPlanner.Plan(noMap,request,view,Array.Empty<SpatialBox>()).Best!=null,"3D scale candidates must be supported.");
         request.Content=new Bounds(Vector3.zero,new Vector3(float.NaN,1,1));bool invalid=false;try{SpatialPlacementPlanner.Plan(room,request,view,Array.Empty<SpatialBox>());}catch(ArgumentException){invalid=true;}Check(invalid,"Non-finite input must fail.");
+        var table=new PhysicalSurface("table","tabletop",new[]{"TABLE"},new Pose(new Vector3(1.5f,.75f,0),Quaternion.Euler(-90,0,0)),new[]{new Vector2(-.4725f,-.707f),new Vector2(.4725f,-.707f),new Vector2(.4725f,.707f),new Vector2(-.4725f,.707f)});
+        var tableRoom=new RoomSnapshot(3,"test",true,RoomState.Ready,new[]{floor,table});
+        var tableRequest=new SpatialPlacementRequest{Content=new Bounds(Vector3.zero,new Vector3(.22f,.05f,.22f)),Destination="tabletop",RelaxViewerComfort=true,AllowAirFallback=false};
+        var tablePlan=SpatialPlacementPlanner.Plan(tableRoom,tableRequest,view,Array.Empty<SpatialBox>());
+        Check(tablePlan.Best!=null&&tablePlan.Best.Destination=="tabletop"&&tablePlan.Best.Relaxed&&tablePlan.Best.WaivedReason=="OUTSIDE_COMFORT","A table outside comfortable yaw must accept a geometrically valid relaxed candidate.");
+        tableRequest.RelaxViewerComfort=false;
+        Check(SpatialPlacementPlanner.Plan(tableRoom,tableRequest,view,Array.Empty<SpatialBox>()).Best==null,"Strict tabletop placement outside comfortable yaw must reject without air fallback.");
+        tableRequest.RelaxViewerComfort=true;tableRequest.Content=new Bounds(Vector3.zero,new Vector3(3,.05f,3));
+        Check(SpatialPlacementPlanner.Plan(tableRoom,tableRequest,view,Array.Empty<SpatialBox>()).Best==null,"Relaxation must not place oversized content on a table.");
+        tableRequest.Content=new Bounds(Vector3.zero,new Vector3(.22f,.05f,.22f));
+        var reservedTable=SpatialPlacementPlanner.Plan(tableRoom,tableRequest,view,new[]{new SpatialBox(new Vector3(1.5f,.9f,0),new Vector3(3,1,3),Quaternion.identity)});
+        Check(reservedTable.Best==null&&reservedTable.Supports.Any(s=>s.PhysicalId=="table"&&s.Reasons.ContainsKey("RESERVED")),"An occupied table must reject relaxed placement and report RESERVED in its support summary.");
         return "Spatial planner basic checks passed: "+checks;
     }
 }
