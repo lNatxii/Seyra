@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_point","create_line","update_line","create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
 
         void InitializeLifecycle(string directory)
         {
@@ -83,6 +83,9 @@ namespace Seyra.SceneTools
             public AppearanceStyle? Style;
             public Color Color;
             public string AppearanceSignature;
+            public LineContent Line;
+            public Transform[] LineTargets;
+            public string LineSignature;
             public PanelContent Panel;
             public string PanelSignature;
             public JObject Presentation,Interaction,Layout;
@@ -95,12 +98,13 @@ namespace Seyra.SceneTools
                     EntityId=record!=null?record.EntityId:null,Kind=record!=null?record.Kind:null,Shape=record!=null?record.PrimitiveType:null,GroupId=record!=null?record.RequestGroupId:null,
                     Placement=UnityEngine.Object.FindObjectsByType<Seyra.Spatial.SpatialPlacementService>(FindObjectsSortMode.None).FirstOrDefault(s=>s.gameObject.scene==go.scene)?.Placement(t),
                     Layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification,Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
+                    Line=go.GetComponent<ManagedLine>()?.Content,LineTargets=go.GetComponent<ManagedLine>()?.Targets,LineSignature=go.GetComponent<ManagedLine>()?.Signature,
                     Panel=go.GetComponent<ManagedPanel>()?.Content,PanelSignature=go.GetComponent<ManagedPanel>()?.StateSignature,
                     Presentation=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().Presentation.ToJson():null,
                     Interaction=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().InteractionState:null};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
+                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && LineSignature==other.LineSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
@@ -120,6 +124,7 @@ namespace Seyra.SceneTools
                     var appearance=Object.GetComponent<ManagedAppearance>();
                     if(appearance.Style!=Style.Value || !appearance.Color.Equals(Color))appearance.SetAppearance(Style.Value,Color);
                 }
+                if(Line!=null)Object.GetComponent<ManagedLine>().Restore(Line,LineTargets);
                 if(Panel!=null)
                 {
                     var panel=Object.GetComponent<ManagedPanel>();

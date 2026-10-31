@@ -67,3 +67,22 @@ test('the entire MCP tool catalog emits non-recursive JSON Schemas', () => {
   const recursive = z.object({ children: z.array(z.lazy(() => recursive)) });
   assert.throws(() => assertNonRecursive(mcpJsonSchema(recursive), 'recursive control'), /recursive JSON Schema/);
 });
+
+test('guide point and line batch contracts', () => {
+  const build = schema('scene_build');
+  const valid = () => { const args = composition(); args.nodes.push(
+    { key: 'point', name: 'Point', type: 'point', targetKey: 'sun' },
+    { key: 'line', name: 'Line', type: 'line', line: { points: [{ key: 'point' }, { key: 'label' }], width: .003 } }); return args; };
+  assert.equal(build.safeParse(valid()).success, true);
+  assert.equal(schema('create_point').safeParse({ name: 'Point', targetId: 'go_test' }).success, true);
+  assert.equal(schema('create_line').safeParse({ name: 'Line', parentId: 'Generated', line: { points: [{ entityId: 'go_test' }, { position: { x: 0, y: 1, z: 0 } }] } }).success, true);
+  assert.equal(schema('scene_edit').safeParse({ operations: [{ tool: 'update_line', arguments: { entityId: 'go_line', line: { points: [{ entityId: 'go_point' }, { entityId: 'go_label' }] } } }] }).success, true);
+  const cases = [];
+  let args = valid(); args.nodes[5].line.points[0].entityId = 'go_test'; cases.push(args);
+  args = valid(); [args.nodes[1], args.nodes[4]] = [args.nodes[4], args.nodes[1]]; cases.push(args);
+  args = valid(); args.nodes.push({ ...empty('bad_parent'), parentKey: 'line' }); cases.push(args);
+  for (const radius of [.001, .101]) { args = valid(); args.nodes[4].radius = radius; cases.push(args); }
+  for (const width of [.0009, .051]) { args = valid(); args.nodes[5].line.width = width; cases.push(args); }
+  args = valid(); args.nodes[5].line.color = { r: 1, g: 1, b: 1, a: .5 }; cases.push(args);
+  for (const invalid of cases) assert.equal(build.safeParse(invalid).success, false, JSON.stringify(invalid));
+});

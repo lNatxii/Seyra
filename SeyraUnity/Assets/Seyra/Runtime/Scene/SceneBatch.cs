@@ -8,7 +8,7 @@ namespace Seyra.SceneTools
 {
     public sealed partial class SceneToolService
     {
-        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "set_parent", "delete_object", "place_relative" };
+        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "update_line", "set_parent", "delete_object", "place_relative" };
 
         JObject BatchCall(string tool, JObject args)
         {
@@ -60,12 +60,30 @@ namespace Seyra.SceneTools
                 string kind = Text(node, "type"), key = Text(node, "key");
                 if (!Regex.IsMatch(key, "^[a-z][a-z0-9_]{0,47}$") || byKey.ContainsKey(key)) throw new ArgumentException("Invalid or duplicate node key.");
                 var required = new[] { "key", "name", "type", "transform" };
-                if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
-                else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
-                else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
-                Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance" } : new[] { "relativeTo", "parentKey" });
-                var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
-                Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
+                if (kind == "point" || kind == "line")
+                {
+                    Keys(node, kind == "point" ? new[] { "key", "name", "type" } : new[] { "key", "name", "type", "line" },
+                        kind == "point" ? new[] { "targetKey", "targetId", "direction", "radius", "appearance" } : new[] { "parentKey" });
+                    if (kind == "point" && (node["targetKey"] == null) == (node["targetId"] == null)) throw new ArgumentException("Use exactly one point target.");
+                    if (node["radius"] != null) LineContent.Number(node["radius"], .002, .1);
+                    if (node["direction"] != null && ReadVector(node["direction"]).Equals(UnityEngine.Vector3.zero)) throw new ArgumentException("direction must be non-zero.");
+                    if (kind == "line")
+                    {
+                        var preview = (JObject)(node["line"] as JObject ?? throw new ArgumentException("line must be an object.")).DeepClone();
+                        if (preview["points"] is JArray endpoints) foreach (var endpoint in endpoints.OfType<JObject>())
+                            if (endpoint["key"] != null) { Keys(endpoint, new[] { "key" }); endpoint["entityId"] = endpoint["key"].DeepClone(); endpoint.Remove("key"); }
+                        LineContent.Parse(preview);
+                    }
+                }
+                else
+                {
+                    if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
+                    else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
+                    else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
+                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance" } : new[] { "relativeTo", "parentKey" });
+                    var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
+                    Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
+                }
                 string parent = null;
                 var ancestors = Array.Empty<string>();
                 if (node["parentKey"] != null)
@@ -73,8 +91,14 @@ namespace Seyra.SceneTools
                     parent = String(node["parentKey"], 48);
                     if (!Regex.IsMatch(parent, "^[a-z][a-z0-9_]{0,47}$") || parent == key || !byKey.TryGetValue(parent, out var previous))
                         throw new ArgumentException("parentKey must reference an earlier node.");
-                    if ((string)previous.node["type"] == "panel") throw new ArgumentException("A panel cannot be a parent.");
+                    if (new[] { "panel", "point", "line" }.Contains((string)previous.node["type"])) throw new ArgumentException("A view, point or line cannot be a node parent.");
                     ancestors = previous.ancestors.Concat(new[] { parent }).ToArray();
+                }
+                if (kind == "point" && node["targetKey"] != null)
+                {
+                    string target = String(node["targetKey"], 48);
+                    if (!byKey.TryGetValue(target, out var previous) || (string)previous.node["type"] != "primitive") throw new ArgumentException("targetKey must reference an earlier primitive.");
+                    ancestors = previous.ancestors.Concat(new[] { target }).ToArray();
                 }
                 if (ancestors.Length >= 6) throw new ArgumentException("Maximum node depth is 6.");
                 byKey.Add(key, (node, ancestors));
@@ -82,6 +106,9 @@ namespace Seyra.SceneTools
             }
             foreach (var entry in ordered)
             {
+                if ((string)entry.node["type"] == "line")
+                    foreach (var endpoint in (JArray)entry.node["line"]["points"])
+                        if (endpoint["key"] != null && (!byKey.TryGetValue((string)endpoint["key"], out var target) || (string)target.node["type"] == "line")) throw new ArgumentException("Line keys must reference a non-line node.");
                 if (entry.node["relativeTo"] == null) continue;
                 var relative = entry.node["relativeTo"] as JObject ?? throw new ArgumentException("relativeTo must be an object.");
                 Keys(relative, new[] { "direction", "gap" }, new[] { "key", "entityId" });
@@ -93,6 +120,7 @@ namespace Seyra.SceneTools
                     string reference = String(relative["key"], 48), key = Text(entry.node, "key");
                     if (!byKey.TryGetValue(reference, out var other) || reference == key || entry.ancestors.Contains(reference) || other.ancestors.Contains(key)) throw new ArgumentException("relativeTo must reference a disjoint node.");
                     if (other.node["relativeTo"] != null) throw new ArgumentException("relativeTo chains are not supported.");
+                    if (new[] { "point", "line" }.Contains((string)other.node["type"])) throw new ArgumentException("relativeTo cannot target a point or line.");
                 }
             }
             JObject placement = null;
@@ -119,6 +147,7 @@ namespace Seyra.SceneTools
                 {
                     var node = entry.node;
                     string kind = Text(node, "type"), key = Text(node, "key");
+                    if (kind == "point" || kind == "line") continue;
                     var creation = Creation(String(node["name"], 256), entry.parent == null ? new JValue(rootId) : ids[entry.parent], (JObject)node["transform"]);
                     if (kind == "primitive") creation["primitiveType"] = node["primitiveType"].DeepClone();
                     if (kind == "panel") creation["panel"] = node["panel"].DeepClone();
@@ -138,6 +167,20 @@ namespace Seyra.SceneTools
                     BatchCall("place_relative", new JObject { ["entityId"] = ids[Text(entry.node, "key")].DeepClone(),
                         ["referenceId"] = relative["key"] != null ? ids[(string)relative["key"]].DeepClone() : relative["entityId"].DeepClone(),
                         ["direction"] = relative["direction"].DeepClone(), ["gap"] = relative["gap"].DeepClone(), ["frame"] = "world" });
+                }
+                foreach (var entry in ordered.Where(e => (string)e.node["type"] == "point"))
+                {
+                    var node = entry.node;
+                    var point = new JObject { ["name"] = node["name"].DeepClone(), ["targetId"] = node["targetKey"] != null ? ids[(string)node["targetKey"]].DeepClone() : node["targetId"].DeepClone() };
+                    foreach (string field in new[] { "direction", "radius", "appearance" }) if (node[field] != null) point[field] = node[field].DeepClone();
+                    ids[Text(node, "key")] = BatchCall("create_point", point)["entityId"].DeepClone();
+                }
+                foreach (var entry in ordered.Where(e => (string)e.node["type"] == "line"))
+                {
+                    var node = entry.node; var line = (JObject)node["line"].DeepClone();
+                    foreach (var endpoint in ((JArray)line["points"]).Cast<JObject>())
+                        if (endpoint["key"] != null) { endpoint["entityId"] = ids[(string)endpoint["key"]].DeepClone(); endpoint.Remove("key"); }
+                    ids[Text(node, "key")] = BatchCall("create_line", new JObject { ["name"] = node["name"].DeepClone(), ["parentId"] = entry.parent == null ? new JValue(rootId) : ids[entry.parent].DeepClone(), ["line"] = line })["entityId"].DeepClone();
                 }
                 var result = new JObject { ["rootId"] = rootId, ["entityId"] = rootId, ["requestGroupId"] = requestId, ["nodes"] = ids };
                 if (placement != null)

@@ -216,6 +216,8 @@ namespace Seyra.SceneTools
                 else node["panel"]=panel.Content.ToJson();
                 node["panelIntact"]=panel.IsIntact();
             }
+            var line=go.GetComponent<ManagedLine>();
+            if(line!=null){line.Refresh();node["line"]=line.Content.ToJson();node["status"]=line.Status;node["missingTargets"]=line.MissingTargets;}
             var components=go.GetComponents<Component>();
             node["components"]=new JArray(components.Skip(offset).Take(limit).Select((c,i)=>c==null
                 ? new JObject{["index"]=offset+i,["componentId"]=null,["type"]=null,["missingScript"]=true}
@@ -285,6 +287,9 @@ namespace Seyra.SceneTools
             if(tool=="scene_build"||tool=="scene_edit")return ExecuteBatch(tool,args);
             if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
+            if(tool=="create_point")return CreatePoint(args);
+            if(tool=="create_line")return CreateLine(args);
+            if(tool=="update_line")return UpdateLine(args);
             if(tool=="create_panel")return CreatePanel(args);
             if(tool=="update_panel")return UpdatePanel(args);
             if(tool=="spatial_candidates"||tool=="spatial_place")return SpatialPlace(args,tool=="spatial_place");

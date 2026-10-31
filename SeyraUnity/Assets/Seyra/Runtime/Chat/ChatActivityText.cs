@@ -23,6 +23,7 @@ namespace Seyra.Chat
                     return "Looking at your room…";
                 case "layout_plan": return "Planning the placement…";
                 case "create_gameobject": case "create_primitive": case "create_panel": case "update_panel":
+                case "create_point": case "create_line": case "update_line":
                 case "scene_build": case "scene_edit":
                 case "ui_present": case "ui_update": case "layout_create": case "layout_apply":
                 case "set_transform": case "set_parent": case "set_appearance": case "place_relative":

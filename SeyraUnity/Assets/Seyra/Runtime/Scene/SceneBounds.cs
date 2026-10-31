@@ -26,7 +26,7 @@ namespace Seyra.SceneTools
             }
             foreach(var t in root.GetComponentsInChildren<Transform>(true))
             {
-                if(IsDeleted(t.gameObject))continue;
+                if(IsDeleted(t.gameObject) || t.GetComponent<ManagedLine>()!=null)continue;
                 var panel=t.GetComponentInParent<ManagedPanel>(true);
                 if(panel!=null)
                 {
