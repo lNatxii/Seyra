@@ -23,7 +23,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
-| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | Mantener el contenido dentro de la habitación (28). |
+| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | No rechazar la mesa por comodidad (34) y mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
@@ -38,6 +38,7 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
 | 2b | 18. Respuestas habladas | 75 | Completed · Cerrada. Voz `wit$Rebecca` probada en Quest 3; latencia sin medir. |
 | 2c | 18b. Botón único de voz | — | Completed · Cerrada. Probada por el usuario en Quest 3; SpatialChatChecks sin repetir. |
+| 2d | 34. Colocación en mesa sin rechazos por comodidad | 90 | Diseño listo. Corrige un fallo visible en la demo: Seyra deja en el aire objetos que caben en la mesa y dice que no hay sitio. Hacer antes que 28, que toca el mismo planificador. |
 | 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
 | 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
@@ -278,6 +279,18 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 **Aceptación:** una maqueta del sistema solar con etiquetas se crea con 3 llamadas como máximo (antes, 36 llamadas y 131 s el 29 de octubre de 2026); cambiar varias paredes es una llamada; un error no deja nada creado ni modificado; deshacer, guardado y carga conservan la composición.
 
 **Dependencias:** 03, 04, 05, 22 y 23.
+
+### 34. Colocación en mesa sin rechazos por comodidad
+
+**Estado:** Completed · Pendiente de revisión (31 de octubre de 2026). C# sin errores; SpatialPlannerChecks 23, LayoutPlannerChecks 1304, SpatialPlacementChecks 50 con Meta XR Simulator y SceneBatchChecks 45 aprobadas. Pendiente la prueba del plato en Quest 3 mirando a la mesa y de espaldas. [Implementación y validación](Progress/Completed/34-tabletop-placement-relaxed.md).
+
+**Orden:** antes de 28, que modifica el mismo planificador.
+
+**Entrega:** si el usuario pide una mesa y el objeto cabe físicamente, se coloca allí aunque quede fuera del ángulo cómodo; se elige el mejor punto posible y solo la geometría real lo impide. Rejilla de puntos ajustada al tamaño del objeto, resumen de rechazos por superficie, reservas sin hijos inactivos y guía del prompt para explicar el motivo real y medir la mesa con su polígono.
+
+**Aceptación:** un plato de 0,22 m en una mesa de 0,945 × 1,414 m queda en la mesa aunque el usuario mire a otro lado, y Seyra lo avisa; si hay un punto cómodo se usa ese; un objeto mayor que la mesa o una mesa ocupada no se fuerzan; paredes, layouts, acople y seguimiento no cambian. Pendiente la prueba del usuario en Quest 3.
+
+**Dependencias:** 22, 22f y 25.
 
 ### 24. Movimiento paramétrico de contenido generado
 
