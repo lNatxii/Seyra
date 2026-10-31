@@ -78,7 +78,7 @@ namespace Seyra.SceneTools
                 var currentView=service.View(activeRequest,currentYaw:activeRequest==null);
                 if(service.Snapshot.Revision!=room.Revision||Vector3.Distance(currentView.position,view.position)>.0001f||Quaternion.Angle(currentView.rotation,view.rotation)>.001f)
                     throw new RoomToolException("ROOM_REVISION_CONFLICT","Room or viewer changed before commit.");
-                var reason=SpatialPlacementPlanner.ValidatePose(service.Snapshot,request,plan.Best,currentView,service.Reservations(root));
+                var reason=plan.Best.Relaxed?SpatialPlacementPlanner.ValidateGeometry(service.Snapshot,plan.Best,service.Reservations(root)):SpatialPlacementPlanner.ValidatePose(service.Snapshot,request,plan.Best,currentView,service.Reservations(root));
                 if(reason!=null){plan.Reason=reason;plan.Best=null;}
                 else
                 {
