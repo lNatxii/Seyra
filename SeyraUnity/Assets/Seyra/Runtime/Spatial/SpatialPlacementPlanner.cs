@@ -99,7 +99,17 @@ namespace Seyra.Spatial
                     if(surface.Kind=="wall"&&Vector3.Dot(normal,view.position-surface.Pose.position)<0)normal=-normal;
                     var min=new Vector2(surface.Polygon.Min(p=>p.x),surface.Polygon.Min(p=>p.y));var max=new Vector2(surface.Polygon.Max(p=>p.x),surface.Polygon.Max(p=>p.y));
                     var desired=Quaternion.Inverse(surface.Pose.rotation)*(view.position+view.rotation*Vector3.forward*SpatialPlacementSettings.FirstDistance-Vector3.up*SpatialPlacementSettings.EyeDrop-surface.Pose.position);
-                    var points=new List<Vector2>{new Vector2(Mathf.Clamp(desired.x,min.x,max.x),Mathf.Clamp(desired.y,min.y,max.y))};
+                    var usefulMin=min;var usefulMax=max;
+                    if(surface.Kind=="tabletop")
+                    {
+                        float inset=SpatialPlacementSettings.EdgeMargin+.5f*new Vector2(request.Content.size.x,request.Content.size.z).magnitude;
+                        usefulMin+=Vector2.one*inset;usefulMax-=Vector2.one*inset;
+                        if(usefulMin.x>=usefulMax.x)usefulMin.x=usefulMax.x=(min.x+max.x)*.5f;
+                        if(usefulMin.y>=usefulMax.y)usefulMin.y=usefulMax.y=(min.y+max.y)*.5f;
+                    }
+                    var points=new List<Vector2>{new Vector2(Mathf.Clamp(desired.x,usefulMin.x,usefulMax.x),Mathf.Clamp(desired.y,usefulMin.y,usefulMax.y))};
+                    if(surface.Kind=="tabletop")
+                        foreach(float x in SpatialPlacementSettings.TabletopInsetFractions)foreach(float y in SpatialPlacementSettings.TabletopInsetFractions)points.Add(new Vector2(Mathf.Lerp(usefulMin.x,usefulMax.x,x),Mathf.Lerp(usefulMin.y,usefulMax.y,y)));
                     foreach(float x in SpatialPlacementSettings.GridFractions)foreach(float y in SpatialPlacementSettings.GridFractions)points.Add(new Vector2(Mathf.Lerp(min.x,max.x,x),Mathf.Lerp(min.y,max.y,y)));
                     foreach(var point in points)
                     {
