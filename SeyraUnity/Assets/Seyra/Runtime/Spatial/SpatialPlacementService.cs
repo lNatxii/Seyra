@@ -33,13 +33,18 @@ namespace Seyra.Spatial
             if(!taskInitialized||taskKey!=key){taskYaw=SpatialGeometry.Yaw(head.forward);taskKey=key;taskInitialized=true;}
             return new Pose(head.position,taskYaw);
         }
-        public static Bounds Measure(Transform root)
+        public static Bounds Measure(Transform root,bool activeOnly=false)
         {
             var points=new List<Vector3>();
             foreach(var t in root.GetComponentsInChildren<Transform>(true))
             {
+                if(activeOnly&&!t.gameObject.activeInHierarchy)continue;
                 var panel=t.GetComponentInParent<ManagedPanel>(true);
-                if(panel!=null){if(t==panel.transform)points.AddRange(panel.EnvelopeCorners());continue;}
+                if(panel!=null)
+                {
+                    if(activeOnly&&(panel.Window!=null&&!panel.Window.gameObject.activeInHierarchy||panel.IsPresentation&&(bool?)panel.InteractionState["visible"]==false))continue;
+                    if(t==panel.transform)points.AddRange(panel.EnvelopeCorners());continue;
+                }
                 var window=t.GetComponentInParent<UIXRWindow>(true);
                 if(window!=null)
                 {
@@ -60,6 +65,8 @@ namespace Seyra.Spatial
         }
         public static SpatialBox CurrentBox(Transform root)
         {var bounds=Measure(root);return new SpatialBox(root.position+root.rotation*bounds.center,bounds.size,root.rotation);}
+        public static SpatialBox OccupiedBox(Transform root)
+        {var bounds=Measure(root,true);return new SpatialBox(root.position+root.rotation*bounds.center,bounds.size,root.rotation);}
         public List<SpatialBox> Reservations(Transform exclude=null,Transform excludeOther=null)
         {
             var roots=new HashSet<Transform>(placements.Keys.Where(t=>t!=null));
@@ -74,7 +81,7 @@ namespace Seyra.Spatial
                 var panel=root.GetComponent<ManagedPanel>();
                 if(panel!=null&&panel.Window!=null&&!panel.Window.gameObject.activeInHierarchy)continue;
                 if(panel!=null&&panel.IsPresentation&&(bool?)panel.InteractionState["visible"]==false)continue;
-                try{result.Add(CurrentBox(root));}catch(ArgumentException){/* Geometry that cannot be measured never supplies an invented reservation. */}
+                try{result.Add(OccupiedBox(root));}catch(ArgumentException){/* Geometry that cannot be measured never supplies an invented reservation. */}
             }
             return result;
         }
