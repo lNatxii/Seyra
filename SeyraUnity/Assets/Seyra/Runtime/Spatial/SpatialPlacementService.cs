@@ -42,7 +42,7 @@ namespace Seyra.Spatial
                 var panel=t.GetComponentInParent<ManagedPanel>(true);
                 if(panel!=null)
                 {
-                    if(activeOnly&&(panel.Window!=null&&!panel.Window.gameObject.activeInHierarchy||panel.IsPresentation&&(bool?)panel.InteractionState["visible"]==false))continue;
+                    if(activeOnly&&(panel.Window!=null&&!panel.Window.gameObject.activeInHierarchy||panel.IsPresentation&&(bool?)panel.InteractionState?["visible"]==false))continue;
                     if(t==panel.transform)points.AddRange(panel.EnvelopeCorners());continue;
                 }
                 var window=t.GetComponentInParent<UIXRWindow>(true);
