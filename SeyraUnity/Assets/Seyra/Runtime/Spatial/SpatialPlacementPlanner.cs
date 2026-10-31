@@ -28,6 +28,12 @@ namespace Seyra.Spatial
         public SpatialBox Box;
         public float Scale=1,Score,Distance,Yaw,Elevation,AngularHeight;
     }
+    public sealed class SupportSummary
+    {
+        public string PhysicalId;
+        public int Tried;
+        public readonly Dictionary<string,int> Reasons=new Dictionary<string,int>();
+    }
     public sealed class SpatialPlan
     {
         public SpatialCandidate Best;
@@ -35,6 +41,7 @@ namespace Seyra.Spatial
         public long RoomRevision;
         public bool Simulated,PhysicalValidation;
         public readonly List<(string support,string reason)> Rejected=new List<(string,string)>();
+        public readonly List<SupportSummary> Supports=new List<SupportSummary>();
     }
     public static class SpatialPlacementPlanner
     {
@@ -65,6 +72,13 @@ namespace Seyra.Spatial
                     }
                     var candidate=new SpatialCandidate{Destination=destination,PhysicalId=id,Scale=scale,Box=box,Pose=new Pose(box.Center-rotation*(request.Content.center*scale),rotation)};
                     string reason=ValidatePose(room,request,candidate,view,reserved);
+                    if(support!=null)
+                    {
+                        var summary=result.Supports.FirstOrDefault(s=>s.PhysicalId==support.PhysicalId);
+                        if(summary==null){summary=new SupportSummary{PhysicalId=support.PhysicalId};result.Supports.Add(summary);}
+                        summary.Tried++;
+                        if(reason!=null){summary.Reasons.TryGetValue(reason,out int count);summary.Reasons[reason]=count+1;}
+                    }
                     if(reason!=null)
                     {
                         if(result.Rejected.Count<40)result.Rejected.Add((id,reason));
