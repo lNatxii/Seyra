@@ -21,8 +21,12 @@ Results also include `relaxed` (always boolean), `waivedReason` (string or null)
 and `supports`: an array of `{physicalId,tried,reasons}`. Each physical support
 has one summary; tried counts every evaluated candidate, including scale variants,
 and reasons maps each strict rejection reason to its count, including candidates
-accepted at the relaxed level. Air samples are excluded. These summaries have no
-40-entry cap; the existing `rejected` array retains its cap. `scene_build` copies
+accepted at the relaxed level. Air samples are excluded.
+With viewer relaxation enabled, `reasons` prioritizes a geometric rejection over
+the comfort rejection when both apply; geometry is evaluated once and reused for
+relaxed acceptance. Without relaxation, reason counts are unchanged. `rejected`
+always retains the original strict rejection reason.
+These summaries have no 40-entry cap; the existing `rejected` array retains its cap. `scene_build` copies
 the full result into `placement`.
 PLACEMENT_REJECTED with applied=false is a confirmed refusal, not an unknown
 mutation, and creates no history entry. A successful commit returns PLACED and

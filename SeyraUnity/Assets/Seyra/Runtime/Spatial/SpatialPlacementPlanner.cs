@@ -72,17 +72,20 @@ namespace Seyra.Spatial
                     }
                     var candidate=new SpatialCandidate{Destination=destination,PhysicalId=id,Scale=scale,Box=box,Pose=new Pose(box.Center-rotation*(request.Content.center*scale),rotation)};
                     string reason=ValidatePose(room,request,candidate,view,reserved);
+                    bool canRelax=support!=null&&request.RelaxViewerComfort&&IsComfortReason(reason);
+                    string geometryReason=canRelax?ValidateGeometry(room,candidate,reserved):null;
                     if(support!=null)
                     {
                         var summary=result.Supports.FirstOrDefault(s=>s.PhysicalId==support.PhysicalId);
                         if(summary==null){summary=new SupportSummary{PhysicalId=support.PhysicalId};result.Supports.Add(summary);}
                         summary.Tried++;
-                        if(reason!=null){summary.Reasons.TryGetValue(reason,out int count);summary.Reasons[reason]=count+1;}
+                        string summaryReason=geometryReason??reason;
+                        if(summaryReason!=null){summary.Reasons.TryGetValue(summaryReason,out int count);summary.Reasons[summaryReason]=count+1;}
                     }
                     if(reason!=null)
                     {
                         if(result.Rejected.Count<40)result.Rejected.Add((id,reason));
-                        if(support!=null&&request.RelaxViewerComfort&&IsComfortReason(reason)&&ValidateGeometry(room,candidate,reserved)==null)
+                        if(canRelax&&geometryReason==null)
                         {
                             candidate.Relaxed=true;
                             candidate.WaivedReason=reason;
