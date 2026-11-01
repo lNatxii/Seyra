@@ -112,12 +112,16 @@ old following layout; do not request a new following layout.
 ## Errors and validation
 
 `MOTION_DRIVEN` rejects writes to registered Position/Rotation channels with
-"Pause or remove the behavior first." `set_transform` checks only the supplied
+"This object is animated or follows a behavior. Remove its motion or behavior first, or move its parent."
+Pausing motion retains its registered channels. Owners can query
+`DrivenTransform.Channels(transform, exceptOwner)` to check for competing behaviors
+without counting their own registration. `set_transform` checks only the supplied
 position/rotation fields; scale is unaffected. `place_relative` checks position
 and, when orient is not keep, rotation. `spatial_place` checks both channels;
 the read-only `spatial_candidates` query remains available. Checks apply only
 to the target Transform, so moving a parent is permitted. `layout_apply` is
-exempt because it owns layout reconfiguration.
+exempt for its own layout reconfiguration, but rejects direct children with
+`SeyraMotion` using `MOTION_DRIVEN`, including paused motion.
 
 Layout-specific failures include LAYOUT_DOES_NOT_FIT (structured maxItems and
 perWall fields in the error object), LAYOUT_BEHAVIOR_INVALID, LAYOUT_SIZE_INVALID,

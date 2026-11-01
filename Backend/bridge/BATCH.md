@@ -32,6 +32,21 @@ these run in list order through `place_relative` with `frame=world`. Local key
 references must be disjoint (ancestry follows parentKey): no self, ancestor, descendant or reference chains.
 External entity references retain the existing place_relative protections.
 
+Empty, primitive and panel nodes accept optional `motions`, an array of 1..2
+motion specifications from [MOTION.md](MOTION.md). Points and lines reject it.
+`spin` can coexist with `orbit` or `bob`; `orbit` and `bob` on the same node are
+rejected during validation, before creating content. Setting the same kind twice
+uses the individual tool's replacement behavior.
+
+Orbit takes exactly one of `pivotId`, parent-local `pivotPoint` or batch-only
+`pivotKey`. A key uses the node key format and can refer to a later non-line node,
+including a point. Missing keys, lines, self and descendants are rejected;
+descendant checks include point ancestry through `targetKey`. The key is resolved
+to its confirmed entityId after all nodes exist. Axis, speed, amplitude and period
+reuse the standalone motion contract and ranges. Unity repeats the structural
+validation; live pivot validity, non-zero orbit radius, dependency cycles and the
+global motion limit are checked by `motion_set` and roll back the batch on failure.
+
 Optional `placement` reuses spatial placement: `destination` air/tabletop/wall,
 optional `physicalId`, `allowAirFallback` (default true), `minScale` (.1..1,
 default 1). Air rejects physicalId. Reading panels retain spatial_place's size
@@ -51,7 +66,10 @@ the history group even after the automatic request closes.
 
 Arguments: `operations`, an ordered array of 1..64 `{ tool, arguments }` objects.
 Allowed tools: `set_transform`, `set_appearance`, `rename_object`, `update_panel`, `update_line`,
-`set_parent`, `delete_object`, `place_relative`. Each arguments schema is the same
+`set_parent`, `delete_object`, `place_relative`, `motion_set`, `motion_remove`.
+`motion_control` is excluded because it does not record history. `pivotKey` is
+not accepted in scene_edit; use confirmed pivotId or pivotPoint.
+Each arguments schema is the same
 registered schema used by the individual tool; no creation or nested batches.
 Each entityId must resolve to a live descendant of Generated. External transform
 targets and Generated itself are rejected. Room and spatial application guards
@@ -68,8 +86,9 @@ Each successful batch creates exactly one history entry (maximum 128 entries).
 Suboperations never record individual entries. Any failure restores the prior
 snapshot and adds no history; restoration failure is `ROLLBACK_FAILED`.
 Operation/request undo reverses the complete batch; creations enter recoverable
-trash. Content uses persistence v6 (reads v1–v6), including managed lines and
+trash. Content uses persistence v7 (reads v1–v7), including managed lines and
 containers, primitive appearance, panels and spatial placement metadata.
+Motion changes are part of batch history and rollback. Persistence v7 saves motion configuration, base, phase and pause state.
 
 Validation: `npm run build --prefix Backend/bridge`,
 `npm test --prefix Backend/bridge`, C# compilation, then Play Mode
@@ -84,4 +103,4 @@ Point: {key,name,type:"point",targetKey? OR targetId?,direction?,radius?,appeara
 
 Line: {key,name,type:"line",parentKey?,line:{points:[{key} OR {entityId} OR {position}],color?,width?}}. 2..16 endpoints, exactly one endpoint field. Keys can identify any non-line node, including later points. No transform or relativeTo. Neither points nor lines can be parentKey or relativeTo targets.
 
-Creation order: validate nodes, create containers/primitives/panels with appearance, apply relativeTo, create points, create lines, apply placement. The whole call remains atomic and undoable once. Lines do not contribute bounds. See [LINES.md](LINES.md) for defaults, errors, lifecycle and persistence. scene_edit accepts update_line using its full replacement contract; creations remain excluded.
+Creation order: validate nodes, create containers/primitives/panels with appearance, apply relativeTo, create points, create lines, apply motions with resolved pivots, apply placement using the swept envelope. Motion phases start at zero; no Step runs during the call. The whole call remains atomic and undoable once. Lines do not contribute bounds. See [LINES.md](LINES.md) for defaults, errors, lifecycle and persistence. scene_edit accepts update_line using its full replacement contract; creations remain excluded.

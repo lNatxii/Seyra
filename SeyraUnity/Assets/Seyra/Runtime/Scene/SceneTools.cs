@@ -204,6 +204,7 @@ namespace Seyra.SceneTools
             int depth=0; for(var p=t.parent;p!=null;p=p.parent)depth++;
             node["depth"]=depth; node["runtimeId"]=RuntimeId;
             var layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification;if(layout!=null)node["layout"]=layout;
+            var motions=MotionsJson(go);if(motions!=null)node["motions"]=motions;
             var spatial=SpatialState(go);if(spatial!=null)node["spatial"]=spatial;
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
             var appearance=go.GetComponent<ManagedAppearance>();
@@ -284,6 +285,9 @@ namespace Seyra.SceneTools
         }
         JObject Execute(string tool,JObject args)
         {
+            if(tool=="motion_set")return MotionSet(args);
+            if(tool=="motion_remove")return MotionRemove(args);
+            if(tool=="motion_control")return MotionControl(args);
             if(tool=="scene_build"||tool=="scene_edit")return ExecuteBatch(tool,args);
             if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal))return ExecutePresentation(tool,args);
@@ -345,6 +349,7 @@ namespace Seyra.SceneTools
                 Keys(args,new[]{"entityId","parentId","worldPositionStays"});
                 var go=Find(args["entityId"]);var t=go.transform;var parent=Parent(args["parentId"]);
                 RequirePanelRoot(go);
+                if(go.GetComponent<SeyraMotion>()!=null)throw new RoomToolException("MOTION_DRIVEN",MotionDrivenMessage);
                 if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be reparented.");
                 if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("The hierarchy cannot contain cycles.");
                 if(parent.scene!=go.scene)throw new ArgumentException("Moving between scenes is not allowed.");

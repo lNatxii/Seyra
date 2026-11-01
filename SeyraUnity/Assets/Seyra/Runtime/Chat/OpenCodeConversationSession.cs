@@ -721,6 +721,9 @@ namespace Seyra.Chat
                 case "seyra_create_point": return "Create point";
                 case "seyra_create_line": return "Create line";
                 case "seyra_update_line": return "Update line";
+                case "seyra_motion_set": return "Animate object";
+                case "seyra_motion_remove": return "Stop animation";
+                case "seyra_motion_control": return "Control animation";
                 case "seyra_create_primitive": return "Create primitive";
                 case "seyra_rename_object": return "Rename object";
                 case "seyra_set_transform": return "Move, rotate or scale";

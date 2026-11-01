@@ -10,8 +10,8 @@ namespace Seyra.SceneTools
     {
         // Structural visual envelope: includes inactive/disabled geometry, excludes trash.
         // Transform all corners with the full matrix; lossyScale cannot encode hierarchy shear.
-        Bounds WorldBounds(GameObject root)=>SpatialGeometry.Project(GeometryPoints(root),Quaternion.identity);
-        List<Vector3> GeometryPoints(GameObject root)
+        Bounds WorldBounds(GameObject root)=>SpatialGeometry.Project(GeometryPoints(root,false),Quaternion.identity);
+        List<Vector3> GeometryPoints(GameObject root,bool swept=false)
         {
             var points=new List<Vector3>();
             bool found=false;
@@ -54,9 +54,69 @@ namespace Seyra.SceneTools
                         (i&4)==0?local.min.z:local.max.z)));
                 }
             }
+            if(swept)
+            {
+                foreach(var motion in root.GetComponentsInChildren<SeyraMotion>(true))
+                {
+                    // Each recursive call sweeps descendants, excluding its own root motion.
+                    // This processes each nested motion once and terminates at leaf geometry.
+                    if(motion.gameObject==root || !motion.HasMotion || IsDeleted(motion.gameObject))continue;
+                    bool nested=false;
+                    for(var parent=motion.transform.parent;parent!=null && parent!=root.transform;parent=parent.parent)
+                    {
+                        var ancestor=parent.GetComponent<SeyraMotion>();
+                        if(ancestor!=null && ancestor.HasMotion){nested=true;break;}
+                    }
+                    if(nested)continue;
+                    var inner=SpatialGeometry.Project(GeometryPoints(motion.gameObject,true),Quaternion.identity);
+                    var state=motion.Capture();var t=motion.transform;
+                    if(state.Spin!=null)
+                        inner=SweepRotation(inner,t.position,t.rotation*state.Spin.Axis);
+                    if(state.Position?.Kind=="orbit")
+                    {
+                        Vector3 pivot;
+                        if(state.Position.PivotId==null)
+                            pivot=t.parent!=null?t.parent.TransformPoint(state.Position.PivotPoint.Value):state.Position.PivotPoint.Value;
+                        else if(state.Pivot!=null) pivot=state.Pivot.position;
+                        else
+                        {
+                            // A destroyed pivot has no known location; retain the frozen geometry.
+                            foreach(var corner in BoundsCorners(inner))Include(corner);
+                            continue;
+                        }
+                        var axis=t.parent!=null?t.parent.rotation*state.Position.Axis:state.Position.Axis;
+                        inner=SweepRotation(inner,pivot,axis);
+                    }
+                    else if(state.Position?.Kind=="bob")
+                    {
+                        var offset=state.Position.Axis*state.Position.Amplitude;
+                        if(t.parent!=null)offset=t.parent.TransformVector(offset);
+                        var corners=BoundsCorners(inner);
+                        foreach(var corner in corners){inner.Encapsulate(corner+offset);inner.Encapsulate(corner-offset);}
+                    }
+                    foreach(var corner in BoundsCorners(inner))Include(corner);
+                }
+            }
             if(!found)throw new ArgumentException("The subtree has no supported visual geometry; bounds are unavailable.");
             if(!Finite(combined.size.x)||!Finite(combined.size.y)||!Finite(combined.size.z))throw new ArgumentException("Bounds size exceeds the float range.");
             return points;
+        }
+        static Vector3[] BoundsCorners(Bounds bounds)
+        {
+            var corners=new Vector3[8];
+            for(int i=0;i<8;i++)corners[i]=new Vector3((i&1)==0?bounds.min.x:bounds.max.x,
+                (i&2)==0?bounds.min.y:bounds.max.y,(i&4)==0?bounds.min.z:bounds.max.z);
+            return corners;
+        }
+        static Bounds SweepRotation(Bounds bounds,Vector3 pivot,Vector3 axis)
+        {
+            var corners=BoundsCorners(bounds);var result=bounds;
+            for(int sample=0;sample<12;sample++)
+            {
+                var rotation=Quaternion.AngleAxis(sample*30,axis);
+                foreach(var corner in corners)result.Encapsulate(pivot+rotation*(corner-pivot));
+            }
+            return result;
         }
         static JObject BoundsJson(Bounds bounds)=>new JObject{
             ["space"]="world",["kind"]="aabb",["center"]=Vector(bounds.center),
@@ -74,7 +134,7 @@ namespace Seyra.SceneTools
             var id=Text(args,"entityId");
             Vector3[] points;Vector3? facing;
             if(PhysicalId(id)){var physical=ResolvePhysical(id);points=physical.points;facing=physical.facing;}
-            else {var go=Find(args["entityId"]);id=Id(go);points=GeometryPoints(go).ToArray();facing=go.transform.forward;}
+            else {var go=Find(args["entityId"]);id=Id(go);points=GeometryPoints(go,false).ToArray();facing=go.transform.forward;}
             string frame=args["frame"]==null?"world":Text(args,"frame");var rotation=ResolveFrame(frame,facing);
             var result=new JObject{["entityId"]=id,["runtimeId"]=RuntimeId,["bounds"]=FrameBoundsJson(SpatialGeometry.Project(points,rotation),frame,rotation)};
             if(PhysicalId(id)){result["roomRevision"]=RoomData.Revision;result["simulated"]=RoomData.Simulated;result["geometryKnownOnly"]=true;}
@@ -108,7 +168,7 @@ namespace Seyra.SceneTools
             Invertible(t.parent);
             Vector3[] referencePoints;Vector3? referenceFacing;
             if(reference==null){var physical=ResolvePhysical(referenceId);referencePoints=physical.points;referenceFacing=physical.facing;}
-            else{referencePoints=GeometryPoints(reference).ToArray();referenceFacing=r.forward;referenceId=Id(reference);}
+            else{referencePoints=GeometryPoints(reference,false).ToArray();referenceFacing=r.forward;referenceId=Id(reference);}
             string frame=args["frame"]==null?"world":Text(args,"frame"),orient=args["orient"]==null?"keep":Text(args,"orient");
             if(orient!="keep"&&orient!="face_viewer"&&orient!="match_reference")throw new ArgumentException("Unknown orientation.");
             DrivenTransform.Require(t,DrivenChannels.Position|(orient!="keep"?DrivenChannels.Rotation:DrivenChannels.None));
@@ -136,10 +196,10 @@ namespace Seyra.SceneTools
                         t.rotation=SpatialGeometry.Yaw(moving.GetComponent<ManagedPanel>()!=null?-facing:facing);
                     }
                 }
-                var before=SpatialGeometry.Project(GeometryPoints(moving),frameRotation);
+                var before=SpatialGeometry.Project(GeometryPoints(moving,false),frameRotation);
                 var target=SpatialGeometry.Project(referencePoints,frameRotation);
                 t.position+=RelativeOffset(before,target,axis,positive,(float)gapValue,frameRotation);Check(t);
-                var after=SpatialGeometry.Project(GeometryPoints(moving),frameRotation);
+                var after=SpatialGeometry.Project(GeometryPoints(moving,false),frameRotation);
                 // Reject precision loss or driven UI that cannot represent the requested placement.
                 var actualGap=positive?after.min[axis]-target.max[axis]:target.min[axis]-after.max[axis];
                 if(Math.Abs(actualGap-gapValue)>0.0001 ||

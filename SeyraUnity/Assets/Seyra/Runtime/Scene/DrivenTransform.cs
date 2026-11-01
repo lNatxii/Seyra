@@ -16,11 +16,15 @@ namespace Seyra.SceneTools
         public static void Require(Transform t,DrivenChannels changed)
         {
             if((Channels(t)&changed)!=DrivenChannels.None)
-                throw new RoomToolException("MOTION_DRIVEN","Pause or remove the behavior first.");
+                throw new RoomToolException("MOTION_DRIVEN","This object is animated or follows a behavior. Remove its motion or behavior first, or move its parent.");
         }
-        public static DrivenChannels Channels(Transform t)
+        public static DrivenChannels Channels(Transform t) => Channels(t, null);
+        public static DrivenChannels Channels(Transform t, object exceptOwner)
         {
-            var channels=DrivenChannels.None;foreach(var value in entries.Values)if(value.transform!=null&&value.transform==t)channels|=value.channels;return channels;
+            var channels=DrivenChannels.None;
+            foreach(var entry in entries)
+                if(!ReferenceEquals(entry.Key,exceptOwner)&&entry.Value.transform!=null&&entry.Value.transform==t)channels|=entry.Value.channels;
+            return channels;
         }
     }
 }

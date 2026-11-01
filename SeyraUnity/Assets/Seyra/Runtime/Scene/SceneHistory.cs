@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"create_point","create_line","update_line","create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"motion_set","motion_remove","create_point","create_line","update_line","create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
 
         void InitializeLifecycle(string directory)
         {
@@ -83,6 +83,8 @@ namespace Seyra.SceneTools
             public AppearanceStyle? Style;
             public Color Color;
             public string AppearanceSignature;
+            public MotionState Motion;
+            public string MotionSignature;
             public LineContent Line;
             public Transform[] LineTargets;
             public string LineSignature;
@@ -99,21 +101,41 @@ namespace Seyra.SceneTools
                     Placement=UnityEngine.Object.FindObjectsByType<Seyra.Spatial.SpatialPlacementService>(FindObjectsSortMode.None).FirstOrDefault(s=>s.gameObject.scene==go.scene)?.Placement(t),
                     Layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification,Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
                     Line=go.GetComponent<ManagedLine>()?.Content,LineTargets=go.GetComponent<ManagedLine>()?.Targets,LineSignature=go.GetComponent<ManagedLine>()?.Signature,
+                    Motion=go.GetComponent<SeyraMotion>()?.Capture(),MotionSignature=go.GetComponent<SeyraMotion>()?.Signature,
                     Panel=go.GetComponent<ManagedPanel>()?.Content,PanelSignature=go.GetComponent<ManagedPanel>()?.StateSignature,
                     Presentation=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().Presentation.ToJson():null,
                     Interaction=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().InteractionState:null};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && LineSignature==other.LineSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
+                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && MotionSignature==other.MotionSignature && LineSignature==other.LineSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
             }
-            public void Apply(bool restoreInteraction=false)
+            public void Apply(bool restoreInteraction=false,bool restoreMotion=false)
             {
                 var t=Object.transform;
+                var motion=Object.GetComponent<SeyraMotion>();
+                // Undo preserves live behavior when only unrelated declared state changed.
+                // Rollback must also recover bases/phases after a same-signature reconfiguration.
+                bool preserveMotion=!restoreMotion && motion!=null && motion.Signature==MotionSignature;
+                var preservedChannels=preserveMotion?motion.Channels:DrivenChannels.None;
                 if(t.parent!=Parent)t.SetParent(Parent,false);
-                t.localPosition=Position;t.localRotation=Rotation;t.localScale=Scale;
+                if((preservedChannels&DrivenChannels.Position)==0)t.localPosition=Position;
+                if((preservedChannels&DrivenChannels.Rotation)==0)t.localRotation=Rotation;
+                t.localScale=Scale;
+                if(!preserveMotion)
+                {
+                    if(Motion==null)
+                    {
+                        if(motion!=null)UnityEngine.Object.DestroyImmediate(motion);
+                    }
+                    else
+                    {
+                        if(motion==null)motion=Object.AddComponent<SeyraMotion>();
+                        motion.Restore(Motion);
+                    }
+                }
                 var placementService=UnityEngine.Object.FindObjectsByType<Seyra.Spatial.SpatialPlacementService>(FindObjectsSortMode.None).FirstOrDefault(s=>s.gameObject.scene==Object.scene);
                 if(placementService!=null)placementService.Register(t,Placement);
                 Object.name=Name;Object.layer=Layer;Object.tag=Tag;
@@ -178,7 +200,7 @@ namespace Seyra.SceneTools
             deletedOrigins[go]=ObjectState.Capture(go);
             go.SetActive(false);go.transform.SetParent(trash,false);
         }
-        void ApplySnapshot(Snapshot target,HashSet<GameObject> restoreInteractions=null)
+        void ApplySnapshot(Snapshot target,HashSet<GameObject> restoreInteractions=null,bool restoreMotion=false)
         {
             foreach(var state in target.States.Values)state.Validate();
             var extras=LiveContent().Select(t=>t.gameObject).Where(g=>!target.Content.Contains(g)).ToHashSet();
@@ -189,7 +211,7 @@ namespace Seyra.SceneTools
             {
                 var ready=pending.Where(s=>s.Parent==null || !target.States.ContainsKey(s.Parent.gameObject) || applied.Contains(s.Parent.gameObject)).ToArray();
                 if(ready.Length==0)throw new InvalidOperationException("History contains a cyclic hierarchy.");
-                foreach(var state in ready){state.Apply(restoreInteractions?.Contains(state.Object)==true);applied.Add(state.Object);pending.Remove(state);}
+                foreach(var state in ready){state.Apply(restoreInteractions?.Contains(state.Object)==true,restoreMotion);applied.Add(state.Object);pending.Remove(state);}
             }
             foreach(var group in target.States.Values.GroupBy(s=>s.Parent))foreach(var state in group.OrderBy(s=>s.Sibling))state.Object.transform.SetSiblingIndex(state.Sibling);
             foreach(var state in target.States.Values)state.Object.SetActive(state.Active);
@@ -218,7 +240,14 @@ namespace Seyra.SceneTools
                 if(tool=="scene_build"||tool=="layout_create"||tool=="layout_apply")result["operationIds"]=new JArray(operationId);
                 return result;
             }
-            catch {try{ApplySnapshot(before);}catch{throw new SceneRollbackException();}throw;}
+            catch {try{ApplySnapshot(before,restoreMotion:true);}catch{throw new SceneRollbackException();}throw;}
+            finally { MarkMotionDirty(); }
+        }
+        void MarkMotionDirty()
+        {
+            // Never create a motion service just to invalidate an otherwise static scene.
+            foreach(var system in UnityEngine.Object.FindObjectsByType<SeyraMotionSystem>(FindObjectsInactive.Include,FindObjectsSortMode.None))
+                if(system.gameObject.scene==generated.gameObject.scene)system.MarkDirty();
         }
         JObject ExecuteLifecycle(string tool,JObject args)
         {
@@ -266,6 +295,11 @@ namespace Seyra.SceneTools
         }
         JObject Undo(JObject args)
         {
+            try { return UndoCore(args); }
+            finally { MarkMotionDirty(); }
+        }
+        JObject UndoCore(JObject args)
+        {
             Keys(args,new[]{"scope"},new[]{"expectedOperationId"});
             if(history.Count==0)throw new InvalidOperationException("There are no operations to undo.");
             var latest=history[history.Count-1];
@@ -292,7 +326,7 @@ namespace Seyra.SceneTools
             var current=Capture(expected.States.Keys.Where(g=>!expected.Content.Contains(g)));
             var replacements=history.Skip(start).Where(h=>h.Tool=="ui_update" || h.Tool=="update_panel").Select(h=>h.EntityId).ToHashSet();
             var restoreInteractions=target.States.Values.Where(s=>s.Panel!=null && replacements.Contains(s.EntityId)).Select(s=>s.Object).ToHashSet();
-            try{ApplySnapshot(target,restoreInteractions);}catch{try{ApplySnapshot(current,restoreInteractions);}catch{throw new SceneRollbackException();}throw;}
+            try{ApplySnapshot(target,restoreInteractions);}catch{try{ApplySnapshot(current,restoreInteractions,true);}catch{throw new SceneRollbackException();}throw;}
             var undone=history.Skip(start).Select(h=>h.Id).ToArray();history.RemoveRange(start,history.Count-start);
             return new JObject{["undoneOperationIds"]=new JArray(undone),["requestGroupId"]=latest.GroupId,["remainingOperations"]=history.Count};
         }

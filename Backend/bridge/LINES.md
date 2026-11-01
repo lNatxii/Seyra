@@ -12,6 +12,6 @@ ManagedLine follows active endpoint transforms in LateUpdate (order 150), termin
 
 Errors: `POINT_TARGET_INVALID`, `POINT_SURFACE_NOT_FOUND`, `LINE_ENDPOINT_INVALID`, `LINE_LIMIT`; malformed arguments use `INVALID_ARGUMENT`. All three tools use the existing history, requests, deduplication and trash circuit. Calculated renderer positions and material state are excluded from component comparison; semantic content and live target references are restored by undo.
 
-Persistence v6 writes node `kind:"line"` and `line` (null on other kinds). Points persist as normal primitives. Loading accepts v1–v6 and resolves persistent endpoint IDs only against saved nodes after hierarchy reconstruction. Missing endpoints are legitimate and load hidden with target_missing; references to saved lines or the root are rejected. Allowed line components: Transform, GeneratedObject, ManagedLine, LineRenderer. Trash/history are not saved.
+Persistence v7 writes node `kind:"line"` and `line` (null on other kinds). Points persist as normal primitives. Loading accepts v1–v7 and resolves persistent endpoint IDs only against saved nodes after hierarchy reconstruction. Missing endpoints are legitimate and load hidden with target_missing; references to saved lines or the root are rejected. Allowed line components: Transform, GeneratedObject, ManagedLine, LineRenderer. Trash/history are not saved.
 
 Batch nodes and order are documented in [BATCH.md](BATCH.md). Lines and points can be created by scene_build; scene_edit only adds update_line, without creations.

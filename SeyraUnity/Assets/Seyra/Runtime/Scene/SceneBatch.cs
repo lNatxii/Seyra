@@ -8,7 +8,19 @@ namespace Seyra.SceneTools
 {
     public sealed partial class SceneToolService
     {
-        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "update_line", "set_parent", "delete_object", "place_relative" };
+        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "update_line", "set_parent", "delete_object", "place_relative", "motion_set", "motion_remove" };
+
+        static MotionSpec ParseBatchMotion(JToken token)
+        {
+            var motion = token as JObject ?? throw new ArgumentException("A motion must be an object.");
+            if (motion["pivotKey"] == null) return MotionSpec.Parse(motion);
+            if ((string)motion["kind"] != "orbit" || motion["pivotId"] != null || motion["pivotPoint"] != null
+                || motion["pivotKey"].Type != JTokenType.String || !Regex.IsMatch((string)motion["pivotKey"], "^[a-z][a-z0-9_]{0,47}$"))
+                throw new ArgumentException("Orbit requires exactly one valid pivotKey, pivotId or pivotPoint.");
+            var preview = (JObject)motion.DeepClone();
+            preview.Remove("pivotKey"); preview["pivotId"] = "batch_pivot";
+            return MotionSpec.Parse(preview);
+        }
 
         JObject BatchCall(string tool, JObject args)
         {
@@ -80,9 +92,21 @@ namespace Seyra.SceneTools
                     if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
                     else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
                     else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
-                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance" } : new[] { "relativeTo", "parentKey" });
+                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance", "motions" } : new[] { "relativeTo", "parentKey", "motions" });
                     var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
                     Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
+                    if (node["motions"] != null)
+                    {
+                        var motions = node["motions"] as JArray ?? throw new ArgumentException("motions must be an array.");
+                        if (motions.Count < 1 || motions.Count > 2) throw new ArgumentException("Expected 1..2 motions.");
+                        bool orbit = false, bob = false;
+                        foreach (var motion in motions)
+                        {
+                            string motionKind = ParseBatchMotion(motion).Kind;
+                            orbit |= motionKind == "orbit"; bob |= motionKind == "bob";
+                        }
+                        if (orbit && bob) throw new RoomToolException("MOTION_CHANNEL_BUSY", "Orbit and bob cannot control the same position channel.");
+                    }
                 }
                 string parent = null;
                 var ancestors = Array.Empty<string>();
@@ -106,6 +130,15 @@ namespace Seyra.SceneTools
             }
             foreach (var entry in ordered)
             {
+                if (entry.node["motions"] is JArray motions)
+                    foreach (var motion in motions)
+                        if (motion["pivotKey"] != null)
+                        {
+                            string pivotKey = (string)motion["pivotKey"];
+                            string key = Text(entry.node, "key");
+                            if (!byKey.TryGetValue(pivotKey, out var pivot) || (string)pivot.node["type"] == "line" || pivotKey == key || pivot.ancestors.Contains(key))
+                                throw new RoomToolException("MOTION_PIVOT_INVALID", "pivotKey must reference a non-line node other than self or descendants.");
+                        }
                 if ((string)entry.node["type"] == "line")
                     foreach (var endpoint in (JArray)entry.node["line"]["points"])
                         if (endpoint["key"] != null && (!byKey.TryGetValue((string)endpoint["key"], out var target) || (string)target.node["type"] == "line")) throw new ArgumentException("Line keys must reference a non-line node.");
@@ -182,6 +215,20 @@ namespace Seyra.SceneTools
                         if (endpoint["key"] != null) { endpoint["entityId"] = ids[(string)endpoint["key"]].DeepClone(); endpoint.Remove("key"); }
                     ids[Text(node, "key")] = BatchCall("create_line", new JObject { ["name"] = node["name"].DeepClone(), ["parentId"] = entry.parent == null ? new JValue(rootId) : ids[entry.parent].DeepClone(), ["line"] = line })["entityId"].DeepClone();
                 }
+                // Resolve pivots only after all node types exist, including forward point references.
+                // Motion must be configured before placement so the planner reserves its sweep.
+                foreach (var entry in ordered)
+                    if (entry.node["motions"] is JArray motions)
+                        foreach (var token in motions)
+                        {
+                            var motion = (JObject)token.DeepClone();
+                            if (motion["pivotKey"] != null)
+                            {
+                                motion["pivotId"] = ids[(string)motion["pivotKey"]].DeepClone();
+                                motion.Remove("pivotKey");
+                            }
+                            BatchCall("motion_set", new JObject { ["entityId"] = ids[Text(entry.node, "key")].DeepClone(), ["motion"] = motion });
+                        }
                 var result = new JObject { ["rootId"] = rootId, ["entityId"] = rootId, ["requestGroupId"] = requestId, ["nodes"] = ids };
                 if (placement != null)
                 {

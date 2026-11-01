@@ -6,7 +6,93 @@ import { tools } from '../dist/tools.js';
 const schema = name => tools.find(t => t.name === name).schema;
 const transform = { position: { x: 0, y: 0, z: 0 } };
 const empty = key => ({ key, name: key, type: 'empty', transform });
+test('scene_build motion contracts validate pivots, ranges and position channels', () => {
+  const build = schema('scene_build');
+  const args = motions => ({ name: 'Animated model', nodes: [
+    { ...empty('carrier'), motions },
+    { ...empty('child'), parentKey: 'carrier' },
+    { ...empty('sun'), type: 'primitive', primitiveType: 'sphere' },
+    { key: 'point', name: 'Point', type: 'point', targetKey: 'sun' },
+    { key: 'line', name: 'Line', type: 'line', line: { points: [{ key: 'sun' }, { key: 'point' }] } },
+  ] });
+  for (const motions of [
+    [{ kind: 'orbit', pivotKey: 'sun', speed: 360 }],
+    [{ kind: 'orbit', pivotKey: 'point', speed: -360 }],
+    [{ kind: 'spin', speed: -720 }, { kind: 'orbit', pivotPoint: { x: 0, y: 0, z: 0 }, speed: 20 }],
+    [{ kind: 'spin', speed: 720 }, { kind: 'bob', amplitude: .005, period: .2 }],
+    [{ kind: 'bob', amplitude: .5, period: 60 }],
+    [{ kind: 'orbit', pivotId: 'go_existing', speed: 20 }],
+  ]) assert.equal(build.safeParse(args(motions)).success, true, JSON.stringify(motions));
+  for (const motions of [
+    [], Array.from({ length: 3 }, () => ({ kind: 'spin', speed: 20 })),
+    ...['missing', 'line', 'carrier', 'child', 'Invalid key'].map(pivotKey => [{ kind: 'orbit', pivotKey, speed: 20 }]),
+    [{ kind: 'orbit', speed: 20 }],
+    [{ kind: 'orbit', speed: 20, pivotKey: 'sun', pivotId: 'go_existing' }],
+    [{ kind: 'orbit', speed: 20, pivotKey: 'sun', pivotPoint: { x: 0, y: 0, z: 0 } }],
+    [{ kind: 'orbit', speed: 20, pivotId: 'go_existing', pivotPoint: { x: 0, y: 0, z: 0 } }],
+    [{ kind: 'orbit', speed: 0, pivotKey: 'sun' }],
+    [{ kind: 'orbit', speed: 361, pivotKey: 'sun' }],
+    [{ kind: 'orbit', speed: -361, pivotKey: 'sun' }],
+    [{ kind: 'orbit', speed: 20, pivotKey: 'sun', axis: { x: 0, y: 0, z: 0 } }],
+    [{ kind: 'spin', speed: 721 }], [{ kind: 'spin', speed: -721 }],
+    [{ kind: 'spin', speed: 20, pivotKey: 'sun' }],
+    [{ kind: 'bob', amplitude: .004, period: 1 }], [{ kind: 'bob', amplitude: .501, period: 1 }],
+    [{ kind: 'bob', amplitude: .1, period: .199 }], [{ kind: 'bob', amplitude: .1, period: 61 }],
+    [{ kind: 'orbit', pivotKey: 'sun', speed: 20 }, { kind: 'bob', amplitude: .1, period: 1 }],
+    [{ kind: 'bob', amplitude: .1, period: 1 }, { kind: 'orbit', pivotKey: 'sun', speed: 20 }],
+  ]) assert.equal(build.safeParse(args(motions)).success, false, JSON.stringify(motions));
+  for (const index of [3, 4]) {
+    const invalid = args([{ kind: 'spin', speed: 20 }]);
+    invalid.nodes[index].motions = [{ kind: 'spin', speed: 20 }];
+    assert.equal(build.safeParse(invalid).success, false);
+  }
+  const descendantPoint = args([{ kind: 'orbit', pivotKey: 'point', speed: 20 }]);
+  descendantPoint.nodes[3].targetKey = 'sun'; descendantPoint.nodes[2].parentKey = 'carrier';
+  assert.equal(build.safeParse(descendantPoint).success, false);
+});
+
+test('scene_edit accepts motion mutations and excludes control and batch pivot keys', () => {
+  const edit = operations => schema('scene_edit').safeParse({ operations }).success;
+  assert.equal(edit([
+    { tool: 'motion_set', arguments: { entityId: 'go_target', motion: { kind: 'orbit', pivotId: 'go_sun', speed: 20 } } },
+    { tool: 'motion_remove', arguments: { entityId: 'go_target', kind: 'orbit' } },
+  ]), true);
+  assert.equal(edit([{ tool: 'motion_control', arguments: { action: 'pause' } }]), false);
+  assert.equal(edit([{ tool: 'motion_set', arguments: { entityId: 'go_target', motion: { kind: 'orbit', pivotKey: 'sun', speed: 20 } } }]), false);
+});
 const appearance = { style: 'unlit', color: { r: 1, g: 0, b: 0, a: 1 } };
+test('motion tool schemas enforce kinds, pivot exclusivity and ranges', () => {
+  const set = motion => schema('motion_set').safeParse({ entityId: 'go_target', motion }).success;
+  for (const motion of [
+    { kind: 'spin', speed: 720 }, { kind: 'spin', speed: -720, axis: { x: 0, y: 2, z: 0 } },
+    { kind: 'orbit', speed: -360, pivotId: 'go_pivot' },
+    { kind: 'orbit', speed: 360, pivotPoint: { x: 0, y: 0, z: 0 } },
+    { kind: 'bob', amplitude: .005, period: .2 }, { kind: 'bob', amplitude: .5, period: 60 },
+  ]) assert.equal(set(motion), true, JSON.stringify(motion));
+  for (const motion of [
+    { kind: 'orbit', speed: 20 },
+    { kind: 'orbit', speed: 20, pivotId: 'go_pivot', pivotPoint: { x: 0, y: 0, z: 0 } },
+    { kind: 'orbit', speed: 20, pivotKey: 'sun' },
+    { kind: 'orbit', speed: 361, pivotId: 'go_pivot' },
+    { kind: 'orbit', speed: -361, pivotId: 'go_pivot' },
+    { kind: 'orbit', speed: 0, pivotId: 'go_pivot' },
+    { kind: 'orbit', speed: 20, pivotId: null },
+    { kind: 'spin', speed: 721 }, { kind: 'spin', speed: -721 }, { kind: 'spin', speed: 0 },
+    { kind: 'spin', speed: Infinity }, { kind: 'spin', speed: 20, axis: { x: 0, y: 0, z: 0 } },
+    { kind: 'spin', speed: 20, axis: { x: NaN, y: 1, z: 0 } },
+    { kind: 'spin', speed: 20, period: 1 },
+    { kind: 'bob', amplitude: .004, period: 1 }, { kind: 'bob', amplitude: .501, period: 1 },
+    { kind: 'bob', amplitude: .1, period: .199 }, { kind: 'bob', amplitude: .1, period: 61 },
+  ]) assert.equal(set(motion), false, JSON.stringify(motion));
+  assert.equal(schema('motion_set').safeParse({ entityId: 'go_target', motion: { kind: 'spin', speed: 30 }, paused: true }).success, true);
+  assert.equal(schema('motion_remove').safeParse({ entityId: 'go_target', kind: 'orbit' }).success, true);
+  assert.equal(schema('motion_remove').safeParse({ entityId: 'go_target', kind: 'all' }).success, false);
+  for (const action of ['pause', 'resume', 'reset']) {
+    assert.equal(schema('motion_control').safeParse({ action }).success, true);
+    assert.equal(schema('motion_control').safeParse({ entityId: 'go_root', action }).success, true);
+  }
+  assert.equal(schema('motion_control').safeParse({ action: 'stop' }).success, false);
+});
 const composition = () => ({ name: 'Composition', nodes: [
   empty('group'),
   { ...empty('sun'), parentKey: 'group', type: 'primitive', primitiveType: 'sphere', appearance },

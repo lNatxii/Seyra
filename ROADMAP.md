@@ -22,7 +22,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas con botón único de voz (18, 18b), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Medir la latencia de voz. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Probar en Quest 3 líneas y puntos (29) y tarjetas marcables (27); movimiento (24). |
+| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27) y movimiento (24). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 en Quest 3 y mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
@@ -41,8 +41,8 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 2d | 34. Colocación en mesa sin rechazos por comodidad | 90 | Completed · Revisada; prueba en Quest 3 pendiente. Corrige un fallo visible en la demo: Seyra dejaba en el aire objetos que caben en la mesa y decía que no había sitio. |
 | 3 | 29. Líneas guía y puntos de interés | 74 | Completed · Revisada; prueba en Quest 3 pendiente. Maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Convierte las tarjetas en listas de seguimiento. |
-| 5 | 24. Movimiento paramétrico | 70 | **Siguiente.** Diseño listo; maquetas vivas muy vistosas. |
-| 6 | 19. Imágenes generadas con Muse Image | 68 | Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
+| 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
+| 6 | 19. Imágenes generadas con Muse Image | 68 | **Siguiente.** Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) tras 28. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
@@ -294,15 +294,15 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 24. Movimiento paramétrico de contenido generado
 
-**Estado:** In progress · diseño listo. [Diseño](Progress/InProgress/24-parametric-motion.md).
+**Estado:** Completed · Revisada (1 de noviembre de 2026), en `main`. Persistencia v7. MotionChecks 95, SpatialPlacementChecks 50, bridge 33 y C# aprobados. Pendientes Muse y Quest 3. [Implementación y revisión](Progress/Completed/24-parametric-motion.md).
 
-**Orden:** después de 23a (comparten el mecanismo de Transforms controlados, el historial y la persistencia) y antes de 10a.
+**Orden:** después de 25 y 29 (comparten historial, `scene_build` y persistencia) y antes de 10a.
 
-**Entrega:** `motion_set`, `motion_remove` y `motion_control` para girar sobre sí mismo (spin), orbitar alrededor de un objeto o punto (orbit) y oscilar (bob), con pausa, reinicio, deshacer y persistencia. Pensado para maquetas vivas como un sistema solar.
+**Entrega:** `motion_set`, `motion_remove` y `motion_control` para girar sobre sí mismo (spin), orbitar alrededor de un objeto o punto (orbit) y oscilar (bob), con pausa, reinicio, deshacer y persistencia v7. `scene_build` crea la maqueta animada en una llamada, y la colocación reserva todo el recorrido. Las etiquetas acompañan al objeto mediante un contenedor portador. Pensado para maquetas vivas como un sistema solar.
 
-**Aceptación:** planetas que orbitan y giran configurados en pocas llamadas; una luna orbita un planeta en órbita; deshacer sin conflictos de historial; guardado y carga conservan las animaciones; las mutaciones sobre un canal animado se rechazan con un mensaje claro.
+**Aceptación:** planetas que orbitan y giran creados en una llamada a `scene_build`, con etiqueta y línea que los acompañan; una luna orbita un planeta en órbita sin temblar; mover o escalar la raíz conserva las órbitas; deshacer sin conflictos ni saltos; guardado y carga conservan las animaciones; las mutaciones sobre un canal animado se rechazan con un mensaje claro.
 
-**Dependencias:** 05, 23a y 25. Lo usa 10a.
+**Dependencias:** 05, 23a, 25 y 29. Lo usa 10a.
 
 ### 26. Tarjetas con imagen de internet
 

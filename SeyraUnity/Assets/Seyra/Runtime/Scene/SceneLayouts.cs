@@ -145,6 +145,7 @@ namespace Seyra.SceneTools
                 Keys(args,new[]{"rootId"},new[]{"layout","behavior","gap","params","order"});root=Find(args["rootId"]);Parent(args["rootId"]);
                 if(root.transform==generated||root.GetComponent<GeneratedObject>()==null)throw new RoomToolException("LAYOUT_NOT_A_GROUP","A managed container is required.");
                 children=root.transform.Cast<Transform>().Select(t=>t.gameObject).ToArray();
+                if(children.Any(c=>c.GetComponent<SeyraMotion>()!=null))throw new RoomToolException("MOTION_DRIVEN",MotionDrivenMessage);
                 if(children.Length<1||children.Length>24||children.Any(c=>c.GetComponent<ManagedPanel>()==null))throw new RoomToolException("LAYOUT_NOT_A_GROUP","Expected 1..24 direct managed cards.");
                 foreach(var child in children){child.GetComponent<ManagedPanel>().RequireIntact();if(Vector3.Distance(child.transform.lossyScale,Vector3.one)>.00001f)throw new RoomToolException("LAYOUT_SIZE_INVALID","Apply requires cards at their declared world size.");}
                 if(args["order"]!=null)

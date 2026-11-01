@@ -40,7 +40,7 @@ namespace Seyra.SceneTools
             {var scale=parent.localScale;if(scale.x<=0||Mathf.Abs(scale.x-scale.y)>.00001f||Mathf.Abs(scale.x-scale.z)>.00001f)throw new ArgumentException("Spatial placement requires positive uniform ancestor scales.");}
             if(args["minScale"]!=null&&args["minScale"].Type!=JTokenType.Integer&&args["minScale"].Type!=JTokenType.Float)throw new ArgumentException("minScale must be numeric.");
             var min=args["minScale"]==null?1:(float)(double)args["minScale"];
-            var bounds=SpatialGeometry.Project(GeometryPoints(go).Select(p=>Quaternion.Inverse(root.rotation)*(p-root.position)),Quaternion.identity);
+            var bounds=SpatialGeometry.Project(GeometryPoints(go,true).Select(p=>Quaternion.Inverse(root.rotation)*(p-root.position)),Quaternion.identity);
             var request=new SpatialPlacementRequest{Content=bounds,Destination=Text(args,"destination"),PhysicalId=args["physicalId"]==null?null:String(args["physicalId"],128),
                 AllowAirFallback=Bool(args,"allowAirFallback",true),MinScale=min,Readable=go.GetComponentInChildren<ManagedPanel>(true)!=null,RelaxViewerComfort=Text(args,"destination")=="tabletop"};
             var readingTargets=new List<ReadingTarget>();
@@ -87,7 +87,7 @@ namespace Seyra.SceneTools
                     // A rotated group's root envelope can be wider than its actual world AABB.
                     // Verify containment of real geometry, rather than requiring those two boxes to match.
                     if(Vector3.Distance(root.position,plan.Best.Pose.position)>.0001f||Quaternion.Angle(root.rotation,plan.Best.Pose.rotation)>.001f||
-                        GeometryPoints(go).Any(p=>{var point=inverse*(p-plan.Best.Box.Center);return Mathf.Abs(point.x)>half.x+.0001f||Mathf.Abs(point.y)>half.y+.0001f||Mathf.Abs(point.z)>half.z+.0001f;}))
+                        GeometryPoints(go,false).Any(p=>{var point=inverse*(p-plan.Best.Box.Center);return Mathf.Abs(point.x)>half.x+.0001f||Mathf.Abs(point.y)>half.y+.0001f||Mathf.Abs(point.z)>half.z+.0001f;}))
                         throw new ArgumentException("Placement cannot be represented by the current hierarchy.");
                     service.Register(root,plan.Best);applied=true;
                 }

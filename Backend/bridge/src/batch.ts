@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { lineSchema, pointRadius, pointDirection } from './lines.js';
 import { panelSchema } from './panels.js';
 import { placement } from './spatial.js';
+import { motionSchema } from './motion.js';
 
 type Tool = { name: string; schema: z.ZodType };
 type Shared = { id: z.ZodType<string>; vector: z.ZodType; creation: { name: z.ZodString }; appearanceWithoutEntityId: z.ZodType };
@@ -9,9 +10,15 @@ export function batchTools(existing: readonly Tool[], shared: Shared) {
   const { id, vector, creation, appearanceWithoutEntityId } = shared;
   const schemaOf = (name: string) => existing.find(tool => tool.name === name)!.schema;
   const key = z.string().regex(/^[a-z][a-z0-9_]{0,47}$/);
+  const motion = motionSchema(id, vector);
+  const batchMotion = z.union([motion, z.object({ kind: z.literal('orbit'), pivotKey: key,
+    axis: motion.options[1].shape.axis, speed: motion.options[1].shape.speed }).strict()]);
+  const motions = z.array(batchMotion).min(1).max(2).refine(items =>
+    !(items.some(item => item.kind === 'orbit') && items.some(item => item.kind === 'bob')),
+    'Orbit and bob cannot control the same position channel.');
   const transform = z.object({ position: vector, rotation: vector.default({ x: 0, y: 0, z: 0 }), scale: vector.default({ x: 1, y: 1, z: 1 }) }).strict();
   const relativeTo = z.object({ key: key.optional(), entityId: id.optional(), direction: z.enum(['above', 'below', 'right', 'left', 'front', 'behind']), gap: z.number().finite().min(0).max(10) }).strict().refine(r => (r.key === undefined) !== (r.entityId === undefined), 'Use key or entityId.');
-  const base = { key, parentKey: key.optional(), name: creation.name, transform, relativeTo: relativeTo.optional() };
+  const base = { key, parentKey: key.optional(), name: creation.name, transform, relativeTo: relativeTo.optional(), motions: motions.optional() };
   const node = z.discriminatedUnion('type', [
     z.object({ ...base, type: z.literal('empty') }).strict(),
     z.object({ ...base, type: z.literal('primitive'), primitiveType: (schemaOf('create_primitive') as z.ZodObject).shape.primitiveType, appearance: appearanceWithoutEntityId.optional() }).strict(),
@@ -46,6 +53,15 @@ export function batchTools(existing: readonly Tool[], shared: Shared) {
       nodes.set(item.key, { node: item, ancestors });
     }
     for (const [key, { node, ancestors }] of nodes) {
+      if ('motions' in node && node.motions) {
+        for (const motion of node.motions) {
+          if ('pivotKey' in motion) {
+            const pivot = nodes.get(motion.pivotKey);
+            if (!pivot || pivot.node.type === 'line' || motion.pivotKey === key || pivot.ancestors.includes(key))
+              invalid('pivotKey must reference a non-line node other than self or descendants.');
+          }
+        }
+      }
       if (node.type === 'line') {
         for (const endpoint of node.line.points as { key?: string }[]) {
           if (endpoint.key !== undefined && (!nodes.has(endpoint.key) || nodes.get(endpoint.key)!.node.type === 'line')) invalid('Line keys must reference non-line nodes.');
@@ -59,10 +75,10 @@ export function batchTools(existing: readonly Tool[], shared: Shared) {
       if (target && 'relativeTo' in target.node && target.node.relativeTo) invalid('relativeTo chains are not supported.');
     }
   });
-  const operationSchemas = ['set_transform', 'set_appearance', 'rename_object', 'update_panel', 'update_line', 'set_parent', 'delete_object', 'place_relative'].map(name => z.object({ tool: z.literal(name), arguments: schemaOf(name) }).strict());
+  const operationSchemas = ['set_transform', 'set_appearance', 'rename_object', 'update_panel', 'update_line', 'set_parent', 'delete_object', 'place_relative', 'motion_set', 'motion_remove'].map(name => z.object({ tool: z.literal(name), arguments: schemaOf(name) }).strict());
   const operation = z.discriminatedUnion('tool', [operationSchemas[0]!, ...operationSchemas.slice(1)]);
   return [
-    { name: 'scene_build', readOnly: false, schema: build, description: 'Creates a complete 3D composition in one atomic call: containers, primitives with appearance, text labels, points and lines, as a flat node list with unique local keys. Optional parentKey must identify an earlier container or primitive node; omit it to parent under the composition root. Maximum 64 nodes and depth 6. Positions are local to the parent node. relativeTo places disjoint non-point/non-line nodes by bounds. Points are created next on earlier targetKey primitives (or targetId); lines last, with endpoints key, entityId or position. Point nodes omit parentKey/transform/relativeTo; line nodes omit transform/relativeTo. Lines cannot be endpoints or parents. Points count towards depth. All support persistence v6. placement puts the whole group in the air in front of the user, on a table or on a wall, scaling it down to minScale if needed. Returns key to entityId. One undoable operation; on any error nothing is created. Prefer this over repeated create_primitive/set_appearance/create_panel calls. Never retry ambiguous mutations.' },
-    { name: 'scene_edit', readOnly: false, schema: z.object({ operations: z.array(operation).min(1).max(64) }).strict(), description: 'Atomically edits 1..64 live Generated descendants in order using the existing tool argument contracts. Allowed: set_transform, set_appearance, rename_object, update_panel, update_line, set_parent, delete_object, place_relative. Returns indexed results. One undoable operation; any failure rolls back all changes and includes the failing index. Never retry ambiguous mutations.' },
+    { name: 'scene_build', readOnly: false, schema: build, description: 'Creates a complete 3D composition in one atomic call: containers, primitives with appearance, text labels, points and lines, as a flat node list with unique local keys. Optional parentKey must identify an earlier container or primitive node; omit it to parent under the composition root. Maximum 64 nodes and depth 6. Positions are local to the parent node. relativeTo places disjoint non-point/non-line nodes by bounds. Points are created next on earlier targetKey primitives (or targetId); lines next, with endpoints key, entityId or position. Then apply optional motions (1..2) on empty/primitive/panel nodes before placement: spin plus orbit or bob; orbit and bob conflict. Orbit uses exactly one pivotId, parent-local pivotPoint or pivotKey; pivotKey can target later non-line nodes but not self/descendants. Point nodes omit parentKey/transform/relativeTo; line nodes omit transform/relativeTo. Lines cannot be endpoints or parents. Points count towards depth. Persistence v7 saves motion configuration, base, phase and pause state. placement puts the whole group in the air in front of the user, on a table or on a wall, scaling it down to minScale if needed. Returns key to entityId. One undoable operation; on any error nothing is created. Prefer this over repeated create_primitive/set_appearance/create_panel calls. Never retry ambiguous mutations.' },
+    { name: 'scene_edit', readOnly: false, schema: z.object({ operations: z.array(operation).min(1).max(64) }).strict(), description: 'Atomically edits 1..64 live Generated descendants in order using the existing tool argument contracts. Allowed: set_transform, set_appearance, rename_object, update_panel, update_line, set_parent, delete_object, place_relative, motion_set, motion_remove. motion_control is excluded. Returns indexed results. One undoable operation; any failure rolls back all changes and includes the failing index. Never retry ambiguous mutations.' },
   ];
 }
