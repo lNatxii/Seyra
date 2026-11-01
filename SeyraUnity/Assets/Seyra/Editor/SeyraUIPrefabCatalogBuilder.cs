@@ -49,6 +49,7 @@ namespace Seyra.Editor
             catalog.ConfigureMeta(AssetDatabase.LoadAssetAtPath<UIXRWindow>(SeyraMetaUIAuthoring.WindowPath),
                 new[] { SeyraMetaUIAuthoring.Theme("Dark"), SeyraMetaUIAuthoring.Theme("Light") });
             EditorUtility.SetDirty(catalog);
+            catalog.ConfigureCloseIcon(AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Icons/cancel_200dp_FFFFFF_FILL0_wght400_GRAD0_opsz48.png"));
             var gallery = PrefabUtility.LoadPrefabContents(SeyraUILibraryBuilder.GalleryPath);
             try
             {

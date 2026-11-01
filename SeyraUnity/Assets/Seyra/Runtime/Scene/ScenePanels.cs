@@ -10,6 +10,12 @@ namespace Seyra.SceneTools
     public sealed partial class SceneToolService
     {
         readonly UIPrefabCatalog uiCatalog;
+        internal void DiscardPanel(GameObject go)
+        {
+            if (disposed) return;
+            try { ExecuteRecorded("delete_object", new JObject { ["entityId"] = Id(go) }); }
+            catch (Exception error) { Debug.LogWarning("Seyra: could not discard the panel: " + error.Message); }
+        }
         static void RequirePanelRoot(GameObject go)
         {
             var owner = go.GetComponentInParent<ManagedPanel>(true);
@@ -38,7 +44,9 @@ namespace Seyra.SceneTools
             try
             {
                 go.transform.localPosition = position; go.transform.localRotation = rotation; go.transform.localScale = scale; Check(go.transform);
-                go.AddComponent<ManagedPanel>().Initialize(content, uiCatalog);
+                var panel = go.AddComponent<ManagedPanel>();
+                panel.DiscardHandler = DiscardPanel;
+                panel.Initialize(content, uiCatalog);
                 AttachRecord(go, "panel", null, group, persistentId);
                 RequireCapacity(0);
                 go.SetActive(true);

@@ -18,10 +18,13 @@ namespace Seyra.SceneTools
         [SerializeField] TMP_Text heading, body;
         [SerializeField] ScrollRect scroll;
         [SerializeField] UIField cardCheck;
+        [SerializeField] UIActionButton closeButton;
         [SerializeField] string structure;
         [SerializeField] TMP_FontAsset font;
         [SerializeField] Vector3 surfacePosition;
         [SerializeField] Quaternion surfaceRotation;
+        internal Action<GameObject> DiscardHandler { get; set; }
+        void RequestDiscard() => DiscardHandler?.Invoke(gameObject);
         public PanelContent Content => content.Copy();
         public RectTransform Surface => surface;
         public UIXRWindow Window => window;
@@ -47,6 +50,7 @@ namespace Seyra.SceneTools
                 var size = scroll.GetComponent<LayoutElement>(); size.minHeight = size.preferredHeight = 0; size.flexibleHeight = 1;
                 body = factory.InstantiateText(data.text, scroll.content);
                 body.overflowMode = TextOverflowModes.Overflow;
+                closeButton = factory.InstantiateCancelButton(null, new UIButtonOptions { Label = "Close", Icon = catalog.CloseIcon }, RequestDiscard);
             }
             else
             {
@@ -85,6 +89,7 @@ namespace Seyra.SceneTools
                     cardCheck.Label = data.checkLabel;
                     ((Toggle)cardCheck.Control).SetIsOnWithoutNotify(data.checkCompleted);
                 }
+                window.Factory.InstanceOf(closeButton).transform.SetAsLastSibling();
                 heading.text = data.title;
                 window.Factory.InstanceOf(heading).gameObject.SetActive(data.title.Length != 0);
             }

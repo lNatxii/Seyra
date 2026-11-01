@@ -612,6 +612,8 @@ namespace Seyra.Editor
                 var button = grid.GetComponentsInChildren<Button>(true).First(b => b.name == name);
                 var view = button.GetComponent<UIActionButton>();
                 view.SetIcon(sprite);
+                var gap = view.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "Gap");
+                if (gap != null) gap.gameObject.SetActive(false);
                 foreach (var text in view.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
                 foreach (var size in view.GetComponentsInChildren<LayoutElement>(true))
                 { size.minWidth = size.minHeight = 0; size.preferredWidth = size.preferredHeight = cellSize; }

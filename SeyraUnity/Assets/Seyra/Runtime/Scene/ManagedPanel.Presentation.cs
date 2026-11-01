@@ -64,7 +64,7 @@ namespace Seyra.SceneTools
                 var generatedRoot = transform;
                 while (generatedRoot != null && generatedRoot.GetComponent<GeneratedObject>()?.Kind != "root") generatedRoot = generatedRoot.parent;
                 var resolver = new PresentationMediaResolver(RemoteMediaStore.For(generatedRoot), templates);
-                next.FillValidated(spec.Data, templates.Components, resolver, () => SetPresentationVisible(false));
+                next.FillValidated(spec.Data, templates.Components, resolver, RequestDiscard);
                 if (state != null) next.RestoreState(state);
                 next.ExportState(state != null ? (bool)state["visible"] : presentationVisible);
                 // Include old + prepared trees in the physical retained-object budget.

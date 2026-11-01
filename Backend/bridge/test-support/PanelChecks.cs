@@ -81,7 +81,7 @@ public static class PanelChecks
             }
             Ok("request_end", new JObject { ["requestGroupId"] = group["entityId"] });
             var saved = Ok("content_save", new JObject { ["slot"] = "mixed" });
-            Require((int)saved["version"] == 6, "Expected persistence v6.");
+            Require((int)saved["version"] == 7, "Expected persistence v7.");
             var document = JObject.Parse(File.ReadAllText(Path.Combine(storage, "mixed.json")));
             Require((int)saved["nodeCount"] == 4 && ((JArray)document["nodes"]).Count == 4, "Internal UI objects leaked into the saved graph.");
             Require(document["nodes"].OfType<JObject>().Count(n => (string)n["kind"] == "panel") == 2, "Mixed content lost its panels.");
@@ -127,7 +127,7 @@ public static class PanelChecks
             foreach (var invalid in new[] { "future", "badPanel", "panelParent" })
             {
                 var bad = (JObject)document.DeepClone();
-                if (invalid == "future") bad["version"] = 7;
+                if (invalid == "future") bad["version"] = 8;
                 if (invalid == "badPanel") bad["nodes"].OfType<JObject>().First(n => (string)n["kind"] == "panel")["panel"]["version"] = 99;
                 if (invalid == "panelParent") bad["nodes"].OfType<JObject>().First(n => (string)n["kind"] == "primitive")["parentId"] = id;
                 File.WriteAllText(Path.Combine(storage, invalid + ".json"), bad.ToString());
@@ -140,7 +140,7 @@ public static class PanelChecks
                 var legacy = (JObject)document.DeepClone(); legacy["version"] = version;
                 var nodes = (JArray)legacy["nodes"];
                 foreach (var node in nodes.OfType<JObject>().Where(n => (string)n["kind"] == "panel").ToArray()) node.Remove();
-                foreach (var node in nodes.OfType<JObject>().Concat(new[] { (JObject)legacy["root"] })) { node.Remove("line"); node.Remove("layout"); node.Remove("presentation"); if (version < 3) node.Remove("panel"); if (version == 1) node.Remove("appearance"); }
+                foreach (var node in nodes.OfType<JObject>().Concat(new[] { (JObject)legacy["root"] })) { node.Remove("motion"); node.Remove("line"); node.Remove("layout"); node.Remove("presentation"); if (version < 3) node.Remove("panel"); if (version == 1) node.Remove("appearance"); }
                 File.WriteAllText(Path.Combine(storage, "legacy.json"), legacy.ToString());
                 var migration = Ok("content_load", new JObject { ["slot"] = "legacy" });
                 Require((bool)Get((string)primitive["entityId"])["managed"], "Legacy object did not load.");
@@ -174,6 +174,25 @@ public static class PanelChecks
                 Require(corner[axis]>=(float)envelope["min"][key]-.0001f&&corner[axis]<=(float)envelope["max"][key]+.0001f,"Transformed panel corner escaped its envelope.");
             }
             Undo(transformed);
+            var close = panel.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Close");
+            Require(catalog.CloseIcon != null && close.IconTransform.GetComponent<UnityEngine.UI.Image>().sprite == catalog.CloseIcon,
+                "Close must display the catalog cancel icon.");
+            var historyBeforeClose = (int)Ok("history_list")["total"];
+            close.OnClick.Invoke();
+            var closeHistory = Ok("history_list");
+            Require((bool)Get(id)["deleted"] && (int)closeHistory["total"] == historyBeforeClose + 1 &&
+                (string)closeHistory["operations"][0]["tool"] == "delete_object", "Close must record a scene deletion.");
+            Undo((JObject)closeHistory["operations"][0]);
+            Require(!(bool)Get(id)["deleted"] && panel.gameObject.activeInHierarchy && panel.IsIntact(),
+                "Undo Close must restore an active, intact panel.");
+            var corpus = JArray.Parse(File.ReadAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend/bridge/test/presentation-corpus.json"))));
+            var presentationData = (JObject)corpus.OfType<JObject>().First(c => (string)c["name"] == "infoPanel")["content"].DeepClone();
+            var presented = Ok("ui_present", new JObject { ["name"] = "Close presentation", ["parentId"] = "Generated",
+                ["position"] = V(0, 1, 2), ["rotation"] = V(), ["scale"] = V(1, 1, 1),
+                ["width"] = .8, ["height"] = .7, ["presentation"] = presentationData });
+            var presentationId = (string)presented["entityId"];
+            Owned(presentationId).GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Close").OnClick.Invoke();
+            Require((bool)Get(presentationId)["deleted"], "Presentation Close must discard rather than only hide.");
             return new JObject { ["passed"] = true, ["assertions"] = checks, ["persistenceVersion"] = (int)saved["version"] }.ToString();
         }
         finally

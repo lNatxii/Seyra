@@ -114,3 +114,8 @@ The toggle stays below the scroll and changes locally without a chat turn or his
 Moving, hiding, layout reapplication and trash restoration preserve marks. Undo of update_panel/ui_update restores content and the previous mark; undo of a move preserves the latest local mark. Undo of scene_edit changing only panel completed does not revert that mark. Slots use version 7, store current marks and accept older content without check.
 
 `card_checks({ rootId? })` is read-only and returns `{ cards, completedCount, total }`. Each card contains entityId, name, title, label, completed (boolean) and kind (panel/presentation). Results follow hierarchy order and include hidden cards, excluding trash. Optional rootId scopes to a live managed subtree, including its root; unknown IDs use the usual lookup error. Omission searches all live content. Use this single query when the user asks what is done or left.
+
+## User window discard
+
+The Close button displays the catalog cancel icon and records a delete_object operation through the scene history service. It moves the window to runtime trash. undo or restore_object restores the same entity, pose and interaction state; discarded windows are excluded from content_save. Persistence formats and tool schemas are unchanged. Existing panels are rebound when the runtime service restarts.
+The button records the close interaction before deletion. ui_close and ui_open continue to hide and show live presentations; legacy visible=false slots still load hidden.

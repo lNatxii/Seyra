@@ -32,6 +32,7 @@ namespace Seyra.SceneTools
             presentations = presentationCatalog ?? Resources.Load<Seyra.UI.Presentations.UIPresentationCatalog>("SeyraUIPresentations");
             InitializeLifecycle(persistenceDirectory);
             remoteMedia = RemoteMediaStore.Acquire(generated, storageDirectory);
+            foreach (var panel in generated.GetComponentsInChildren<ManagedPanel>(true)) panel.DiscardHandler = DiscardPanel;
         }
 
         bool disposed;

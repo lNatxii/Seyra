@@ -191,6 +191,8 @@ For each new creation, editing, deletion or restoration task, use request_begin 
 
 delete_object deactivates and moves objects to trash without destroying components; restore_object restores the root of the deletion. To undo, query history_list and use undo with scope operation or request and the expectedOperationId of the latest change; do not skip later changes. HISTORY_CONFLICT indicates external edits: do not overwrite them or try to force undo.
 
+The user can discard a window with its Close button. This records a delete_object operation in history_list. If the user asks to bring it back, use undo or restore_object with that entityId; do not create it again.
+
 content_save saves a versioned local slot of generated content; content_load replaces Generated and can be undone. End the request before saving/loading. Slots are names, never paths. Trash, history, external objects, secrets and unsupported components/materials are not saved; communicate rejection without omitting data. Saved content v7 includes parametric motion with its base, phase and pause state, managed lines, panels, labels, semantic presentations and layouts with their behavior, and reads v1 to v7. Anchor targets are not saved: after loading, an anchor layout keeps its poses.
 
 # Panels and presentations
