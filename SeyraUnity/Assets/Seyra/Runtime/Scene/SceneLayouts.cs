@@ -120,7 +120,7 @@ namespace Seyra.SceneTools
                     if(item["panel"]!=null)
                     {
                         var panel=item["panel"] as JObject??throw new ArgumentException("panel must be an object.");
-                        Keys(panel,new[]{"version","kind","title","text","fontSize"});panel=(JObject)panel.DeepClone();panel["width"]=size["width"];panel["height"]=size["height"];
+                        Keys(panel,new[]{"version","kind","title","text","fontSize"},new[]{"check"});panel=(JObject)panel.DeepClone();panel["width"]=size["width"];panel["height"]=size["height"];
                         if((string)panel["kind"]=="panel"&&(float)size["height"]<.24f)throw new LayoutToolException("LAYOUT_SIZE_INVALID","Panel height must be at least .24 meters.");
                         panels.Add(PanelContent.Parse(panel));specs.Add(null);
                     }

@@ -17,7 +17,7 @@ namespace Seyra.Chat
             {
                 case "scene_hierarchy": case "scene_find": case "scene_get": case "scene_bounds":
                 case "request_list": case "history_list": case "content_list": case "ui_catalog":
-                case "ui_media_list": case "ui_list": case "ui_get":
+                case "ui_media_list": case "ui_list": case "ui_get": case "card_checks":
                     return "Checking your surroundings…";
                 case "room_get": case "room_objects": case "spatial_candidates":
                     return "Looking at your room…";

@@ -746,6 +746,7 @@ namespace Seyra.Chat
                 case "seyra_ui_update": return "Update presentation";
                 case "seyra_ui_list": return "List presentations";
                 case "seyra_ui_get": return "Inspect presentation";
+                case "seyra_card_checks": return "Inspect card checks";
                 case "seyra_ui_close": return "Hide presentation";
                 case "seyra_ui_open": return "Show presentation";
                 case "seyra_ui_remove": return "Remove presentation";

@@ -148,3 +148,13 @@ schema and transport tests run with `npm test`. See
 ## Phase 3 compatibility
 
 Current saves write v4 and read v1/v2/v3. Text panel contracts remain version 1. Rich presentations add a separate node field and local interaction state; see [presentations](PRESENTATIONS.md).
+
+## Checkable cards
+
+Text panels of kind `panel`, and presentations of type `infoPanel`, `technicalSheet` or `mediaCard`, accept optional `check: { label, completed? }`. Labels reject it with `Labels cannot have a check.`; other presentation types reject it as an unknown field. Unknown check fields are rejected. The required label is trimmed and must contain 1–24 characters. Creation defaults completed to false.
+
+The toggle stays below the scroll and changes locally without a chat turn or history entry. Omit check.completed to keep the user's mark; set it only to change the mark. Omit check to remove the toggle. A supplied completed value overrides the current mark. Full updates still require all ordinary content fields. Panels expose the current mark in `scene_get.panel.check`; presentations expose it in `interaction.values.checked` as the string `true` or `false` (presentation.check.completed is the initial value).
+
+Moving, hiding, layout reapplication and trash restoration preserve marks. Undo of update_panel/ui_update restores content and the previous mark; undo of a move preserves the latest local mark. Undo of scene_edit changing only panel completed does not revert that mark. Slots remain version 6, store current marks and accept older content without check.
+
+`card_checks({ rootId? })` is read-only and returns `{ cards, completedCount, total }`. Each card contains entityId, name, title, label, completed (boolean) and kind (panel/presentation). Results follow hierarchy order and include hidden cards, excluding trash. Optional rootId scopes to a live managed subtree, including its root; unknown IDs use the usual lookup error. Omission searches all live content. Use this single query when the user asks what is done or left.

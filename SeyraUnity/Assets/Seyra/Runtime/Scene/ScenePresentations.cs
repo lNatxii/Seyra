@@ -80,7 +80,12 @@ namespace Seyra.SceneTools
             {
                 Keys(args, new[] { "entityId", "width", "height", "presentation" }, new[] { "media" });
                 RegisterMediaArguments(args);
-                var target = PresentationTarget(args); var spec = PresentationArguments(args);
+                var target = PresentationTarget(args);
+                var updated = (JObject)args.DeepClone();
+                if (updated["presentation"]?["check"] is JObject check && check.Property("completed") == null &&
+                    UIPresentationCodec.CardCheck(target.Presentation.Data) != null)
+                    check["completed"] = (string)target.InteractionState?["values"]?["checked"] == "true";
+                var spec = PresentationArguments(updated);
                 if (spec.Data.id != target.Presentation.Data.id) throw new ArgumentException("An update must preserve the presentation content ID.");
                 target.RequireIntact(); target.ApplyPresentation(spec); return Inspect(target.gameObject);
             }

@@ -40,7 +40,7 @@ public static class LayoutChecks
             Ok("undo",new JObject{["scope"]="operation"});
             Check((string)group.GetComponent<SeyraLayoutGroup>().Specification["layout"]=="arc","Undo did not restore the layout specification.");
             await Task.Delay(50);
-            var saved=Ok("content_save",new JObject{["slot"]="books"});Check((int)saved["version"]==5,"Expected persistence version 5.");
+            var saved=Ok("content_save",new JObject{["slot"]="books"});Check((int)saved["version"]==6,"Expected persistence version 6.");
             Ok("content_load",new JObject{["slot"]="books"});
             var loaded=Owned(id);Check((string)loaded.GetComponent<SeyraLayoutGroup>().Specification["behavior"]=="billboard","Behavior was not reconstructed.");
             Check(loaded.transform.GetChild(0).GetComponent<SeyraBillboard>().enabled,"Billboard missing after load.");

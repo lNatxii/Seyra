@@ -17,6 +17,7 @@ namespace Seyra.SceneTools
         [SerializeField] RectTransform surface;
         [SerializeField] TMP_Text heading, body;
         [SerializeField] ScrollRect scroll;
+        [SerializeField] UIField cardCheck;
         [SerializeField] string structure;
         [SerializeField] TMP_FontAsset font;
         [SerializeField] Vector3 surfacePosition;
@@ -75,6 +76,15 @@ namespace Seyra.SceneTools
             if (window != null)
             {
                 window.Resize(data.CanvasSize);
+                if (data.HasCheck && cardCheck == null)
+                    cardCheck = window.Factory.InstantiateToggle(options: new UIToggleOptions { Label = data.checkLabel },
+                        onChanged: on => content.checkCompleted = on);
+                if (cardCheck != null)
+                {
+                    window.Factory.InstanceOf(cardCheck).gameObject.SetActive(data.HasCheck);
+                    cardCheck.Label = data.checkLabel;
+                    ((Toggle)cardCheck.Control).SetIsOnWithoutNotify(data.checkCompleted);
+                }
                 heading.text = data.title;
                 window.Factory.InstanceOf(heading).gameObject.SetActive(data.title.Length != 0);
             }
@@ -107,7 +117,7 @@ namespace Seyra.SceneTools
             surface.localPosition == surfacePosition && surface.localRotation == surfaceRotation &&
             Vector2.Distance(surface.rect.size, content.CanvasSize) < .01f && structure == Structure();
 
-        public string StateSignature => IsPresentation ? PresentationSignature() : new JObject { ["content"] = content?.ToJson(), ["intact"] = IsIntact(),
+        public string StateSignature => IsPresentation ? PresentationSignature() : new JObject { ["content"] = content?.DeclaredJson(), ["intact"] = IsIntact(),
             ["structure"] = Structure(), ["actualText"] = body != null ? body.text : null,
             ["actualFontSize"] = body != null ? body.fontSize : 0, ["richText"] = body != null && body.richText,
             ["actualTitle"] = heading != null ? heading.text : null,

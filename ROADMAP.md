@@ -1,6 +1,6 @@
 # Seyra — Roadmap de desarrollo
 
-Propuesta de referencia · 27 de octubre de 2026 · Revisada el 30 de octubre de 2026.
+Propuesta de referencia · 27 de octubre de 2026 · Revisada el 31 de octubre de 2026.
 
 ## Objetivo y criterio de prioridad
 
@@ -12,7 +12,7 @@ Se desarrolla en `Seyra/`.
 
 Este documento fija prioridad, orden, dependencias y criterios de aceptación. El diseño detallado de cada feature, su estado de implementación, limitaciones y validación están en [Progress/](Progress/README.md): un archivo por feature que se mueve entre `Future/`, `InProgress/` y `Completed/`. La línea **Estado** de cada sección enlaza a ese archivo.
 
-## Estado actual (30 de octubre de 2026)
+## Estado actual (31 de octubre de 2026)
 
 Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, herramientas, habitación, `scene_build` y layouts) está probado en Quest 3 con el APK independiente (07).
 
@@ -22,15 +22,15 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas con botón único de voz (18, 18b), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Medir la latencia de voz. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Líneas y puntos de interés (29), marcar tarjetas (27), movimiento (24). |
-| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), acople y seguimiento del chat. | No rechazar la mesa por comodidad (34) y mantener el contenido dentro de la habitación (28). |
+| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build` y `scene_edit`. | Probar en Quest 3 líneas y puntos (29) y tarjetas marcables (27); movimiento (24). |
+| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 en Quest 3 y mantener el contenido dentro de la habitación (28). |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
 
 ## Orden recomendado
 
-Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
+Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
@@ -38,10 +38,10 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
 | 2b | 18. Respuestas habladas | 75 | Completed · Cerrada. Voz `wit$Rebecca` probada en Quest 3; latencia sin medir. |
 | 2c | 18b. Botón único de voz | — | Completed · Cerrada. Probada por el usuario en Quest 3; SpatialChatChecks sin repetir. |
-| 2d | 34. Colocación en mesa sin rechazos por comodidad | 90 | Completed · Revisada; prueba en Quest 3 pendiente. Corrige un fallo visible en la demo: Seyra deja en el aire objetos que caben en la mesa y dice que no hay sitio. Hacer antes que 28, que toca el mismo planificador. |
-| 3 | 29. Líneas guía y puntos de interés | 74 | Esfuerzo bajo; maquetas con etiquetas señaladas (planetas, piezas). |
-| 4 | 27. Tarjetas que se pueden marcar | 72 | Esfuerzo bajo; convierte las tarjetas en listas de seguimiento. |
-| 5 | 24. Movimiento paramétrico | 70 | Diseño listo; maquetas vivas muy vistosas. |
+| 2d | 34. Colocación en mesa sin rechazos por comodidad | 90 | Completed · Revisada; prueba en Quest 3 pendiente. Corrige un fallo visible en la demo: Seyra dejaba en el aire objetos que caben en la mesa y decía que no había sitio. |
+| 3 | 29. Líneas guía y puntos de interés | 74 | Completed · Revisada; prueba en Quest 3 pendiente. Maquetas con etiquetas señaladas (planetas, piezas). |
+| 4 | 27. Tarjetas que se pueden marcar | 72 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Convierte las tarjetas en listas de seguimiento. |
+| 5 | 24. Movimiento paramétrico | 70 | **Siguiente.** Diseño listo; maquetas vivas muy vistosas. |
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) tras 28. |
@@ -322,11 +322,11 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 27. Tarjetas que se pueden marcar
 
-**Estado:** sin diseñar. Prioridad media-alta (puntuación 72).
+**Estado:** Completed · Revisada (1 de noviembre de 2026). Tarjetas marcables y card_checks implementados; compilación C#, bridge 30/30, CardCheckChecks 35, PanelChecks 229, PresentationChecks 242 y LayoutChecks 44 aprobadas. Pruebas con Muse Spark y en Quest 3 pendientes para el usuario. [Implementación](Progress/Completed/27-checkable-cards.md).
 
-**Entrega:** un interruptor opcional en las tarjetas de texto y de presentación (por ejemplo, «Vista», «Hecho», «Comprado»), con estado local persistente como el progreso de `checklist`. El modelo puede leer el estado (`scene_get`/`ui_get`) cuando el usuario pregunta («¿qué pelis me quedan?») y fijarlo al crear las tarjetas.
+**Entrega:** un interruptor opcional (`check`) en los paneles de texto y en `infoPanel`, `technicalSheet` y `mediaCard`, con un texto que elige el modelo según el contenido («Got it» en ingredientes, «Watched» en películas, «Done» en pasos), con estado local persistente. La guía del prompt decide cuándo no hay interruptor (fases de Marvel, normas de un deporte). El modelo lee todas las marcas en una llamada con `card_checks` cuando el usuario pregunta («¿qué pelis me quedan?») y puede fijarlas al crear las tarjetas.
 
-**Aceptación:** pulsar el interruptor cambia su estado al momento sin abrir un turno de chat; el estado se conserva al ocultar, mover, guardar y cargar; el modelo lo consulta en lugar de preguntar al usuario; recrear una tarjeta con el mismo contenido no pierde la marca si se usa `update_panel`/`ui_update` con conservación explícita.
+**Aceptación:** pulsar el interruptor cambia su estado al momento sin abrir un turno de chat; el estado se conserva al ocultar, mover, guardar y cargar; las tarjetas sin `check` y los slots anteriores no cambian; el modelo consulta las marcas en lugar de preguntar al usuario; `update_panel`/`ui_update` conservan la marca si omiten `completed`.
 
 **Dependencias:** 05 y 23. Comparte la mecánica de interacción local de las presentaciones.
 
@@ -342,7 +342,7 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 29. Líneas guía y puntos de interés
 
-**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Aplicadas las dos correcciones de revisión: límite de grosor y asignaciones en Refresh. Compilación C#, LineChecks y SceneBatchChecks aprobadas; prueba en Quest 3 pendiente. [Implementación y revisión](Progress/Completed/29-guide-lines-points.md).
+**Estado:** Completed · Revisada (1 de noviembre de 2026). Líneas y puntos con persistencia v6, en `main`. Compilación C#, LineChecks 34 y SceneBatchChecks 45 aprobadas. Pendiente la prueba en Quest 3. 24 pasa a persistencia v7. [Implementación y revisión](Progress/Completed/29-guide-lines-points.md).
 
 **Entrega:** dos elementos generados nuevos. (1) Línea: `LineRenderer` entre dos o más puntos, con material sencillo sin iluminación, color de la paleta de 03 y grosor por defecto de 0,01 m. Cada extremo puede ser un punto fijo o una referencia a un objeto generado (`targetId`, o `key`/`parentKey` dentro de `scene_build`), de modo que la línea sigue al objeto si este se mueve. (2) Punto de interés: esfera pequeña con radio elegible por el modelo (1 cm por defecto) colocada sobre la superficie de otro objeto. Caso de uso principal: al generar planetas, un punto de interés sobre cada planeta y una línea desde el punto hasta su etiqueta de texto. Disponible como herramienta individual y como tipo de nodo en `scene_build`/`scene_edit` (`Backend/bridge/BATCH.md`).
 
@@ -453,7 +453,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 17. Entrada por voz con transcripción
 
-**Estado:** Completed · Revisada (29 de octubre de 2026). Dictado Muse mediante pasarela implementado en Unity, con captura PCM, certificado fijado, parciales y final como borrador. Relé validado por el usuario; compilación C#, 3 grupos Muse y 18 tests Node aprobados. La regresión de SpatialChatChecks se corrigió en 06f (12 grupos aprobados), incluido el fin de dictado vacío sin sondeo. Prueba en Quest pendiente. [Implementación y validación](Progress/Completed/17-muse-voice-transcribe.md).
+**Estado:** Completed · Revisada (29 de octubre de 2026). Dictado Muse mediante pasarela implementado en Unity, con captura PCM, certificado fijado, parciales y final como borrador. Relé validado por el usuario; compilación C#, 3 grupos Muse y 18 tests Node aprobados. La regresión de SpatialChatChecks se corrigió en 06f (12 grupos aprobados), incluido el fin de dictado vacío sin sondeo. Funcionamiento en Quest confirmado por el usuario el 31 de octubre de 2026; latencia sin medir. [Implementación y validación](Progress/Completed/17-muse-voice-transcribe.md).
 
 **Entrega:** pulsar para hablar, detener/cancelar y convertir audio a texto mediante Muse Voice Transcribe si el acceso está disponible. Mostrar el texto editable antes de enviarlo.
 

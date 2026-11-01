@@ -26,15 +26,19 @@ namespace Seyra.UI.Presentations
     { [UIRequired] public string label, value; public string unit = ""; }
     public sealed class UISectionData
     { [UIRequired] public string title, description; }
+    public sealed class UICardCheckData
+    { [UIRequired] public string label; public bool completed; }
     public sealed class InfoPanelData : UIPresentationData
     {
         public override string Type => "infoPanel";
+        public UICardCheckData check;
         public UIPhotoData image;
         [UICount(0, 20)] public string[] highlights = Array.Empty<string>();
     }
     public sealed class MediaCardData : UIPresentationData
     {
         public override string Type => "mediaCard";
+        public UICardCheckData check;
         [UIRequired] public UIPhotoData image;
         [UIRequired] public string body;
         [UICount(0, 8)] public UIPropertyData[] facts = Array.Empty<UIPropertyData>();
@@ -43,6 +47,7 @@ namespace Seyra.UI.Presentations
     public sealed class TechnicalSheetData : UIPresentationData
     {
         public override string Type => "technicalSheet";
+        public UICardCheckData check;
         [UIRequired, UICount(1, 50)] public UIPropertyData[] properties;
         [UICount(0, 20)] public UISectionData[] sections = Array.Empty<UISectionData>();
         [UICount(0, 20)] public UIPhotoData[] images = Array.Empty<UIPhotoData>();

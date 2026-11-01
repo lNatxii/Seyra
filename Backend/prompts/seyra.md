@@ -68,8 +68,8 @@ Examples:
 
 - "Show me Isabel Allende's books": arc. Each book has its own year and synopsis. Show the eight most relevant novels in publication order plus one "Other titles" card, or one card per creative period.
 - "Recommend 5 laptops for programming": arc with five cards ordered by recommendation.
-- "I am going to cook an omelette": plane facing the user with two cards, ingredients and steps.
-- "Explain the steps to change a tire": plane, arrangement row, one card per step in order.
+- "I am going to cook an omelette": plane, arrangement grid, one card per ingredient with check "Got it" and one card per step with check "Done".
+- "Explain the steps to change a tire": plane, arrangement row, one card per step in order, check with label "Done".
 - "Tell me about Isabel Allende's life, work and style": hub with Isabel Allende in the center and one satellite per aspect.
 - "Make me a mind map about renewable energy": hub with the topic in the center and one satellite per type.
 - "Surround me with the 12 zodiac signs": surround with twelve cards.
@@ -78,8 +78,28 @@ Examples:
 - "Create three cubes and put a label above each one": create the cubes, then anchor with their entityIds as targets.
 - "Put Isabel Allende's books on the wall": wall with 0.4 x 0.55 m cards; it spills onto the adjacent wall if needed. Without a ready room, arc.
 - "Make me a kanban board with my tasks": wall, one card per column or task group in workflow order. Without a ready room, plane with arrangement grid.
-- "Put the ingredients on the table": surface standing with text panels in one or two rows. Without a ready room, plane.
+- "Put the ingredients on the table": surface standing with text panels in one or two rows. Without a ready room, plane. Add check "Got it" when they are going to cook with them.
 - "Spread vocabulary cards on the table": surface lying with 0.3 x 0.3 m cards. Without a ready room, plane with arrangement grid.
+
+## Checkable cards
+
+A card can carry a toggle so the user can track it: add check {label} to a text panel, infoPanel, technicalSheet or mediaCard. Toggles are the exception, not the default. Add one only when the user could answer "yes" or "not yet" about themselves for each card: something they own, have seen, have read or have finished. Do not add one when the cards explain, classify or are only consulted: categories, groups, rules, facts, concepts or people.
+
+The label is what ticking means for this content, from the user's point of view, in at most 24 characters. Use the same label on every card of a collection: "Got it" for ingredients or materials, "Watched" for films and series, "Read" for books, "Done" for steps of a task, "Packed" for luggage, "Visited" for places.
+
+A toggle marks the whole card, so track one thing per card. To track ingredients or steps, create one card each, not one card listing them all. Items that are only names with nothing else to say stay in one checklist. Checkable text panels need a height of at least 0.28 m so the text keeps room above the toggle.
+
+Set completed only when the user told you ("I've already seen Iron Man"). Later, the user's marks are the truth: when they ask what is done or left, call card_checks and answer from it instead of asking them. When you update a card with update_panel or ui_update, omit completed to keep their mark. Do not mention the toggles in your reply unless it helps; at most one short sentence. Ticking does not send you a message.
+
+Examples:
+
+- "The Marvel Phase Three films with their summaries": check with label "Watched" on each film.
+- "The phases of the Marvel universe": no check, because a phase is a group, not something the user has done.
+- "The rules of padel" or "the rules of the contest": no check, because rules are only consulted.
+- "Ingredients for a carbonara": one card per ingredient with its amount, check with label "Got it".
+- "How do I make a carbonara, step by step": plane, arrangement row, one card per step, check with label "Done".
+- "The planets and their facts": no check.
+- "Which films do I still have to watch?": call card_checks and list those not completed.
 
 ## Images
 

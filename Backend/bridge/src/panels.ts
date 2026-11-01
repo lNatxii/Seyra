@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
+export const cardCheckSchema = z.object({ label: z.string().trim().min(1).max(24), completed: z.boolean().optional() }).strict();
+
 // Full semantic replacement; no hierarchy paths, markup, asset paths or executable callbacks.
 export const panelSchema = z.object({
+  check: cardCheckSchema.optional(),
   version: z.literal(1),
   kind: z.enum(['panel', 'label']),
   title: z.string().max(256),
@@ -12,6 +15,7 @@ export const panelSchema = z.object({
 }).strict().superRefine((panel, context) => {
   const invalid = (message: string) => context.addIssue({ code: 'custom', message });
   if (panel.kind === 'panel' && panel.height < 0.24) invalid('Panel height must be at least 0.24 meters.');
+  if (panel.kind === 'label' && panel.check !== undefined) invalid('Labels cannot have a check.');
   if (panel.kind === 'label' && panel.title.length !== 0) invalid('Labels require an empty title.');
   if (panel.kind === 'label' && panel.height * 1000 < panel.fontSize) invalid('Label height must fit at least one text line.');
 });

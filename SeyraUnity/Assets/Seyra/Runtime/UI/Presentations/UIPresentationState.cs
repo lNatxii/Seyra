@@ -24,6 +24,7 @@ namespace Seyra.UI.Presentations
                 throw new ArgumentException("Invalid presentation flags/action.");
             var values = state["values"] as JObject ?? throw new ArgumentException("Interaction values must be an object.");
             var expected = new HashSet<string>(StringComparer.Ordinal);
+            if (UIPresentationCodec.CardCheck(data) != null) expected.Add("checked");
             int pages = 1;
             if (data is GalleryData gallery) pages = gallery.images.Length;
             if (data is DocumentViewerData documents) pages = documents.documents.Length;
@@ -49,7 +50,7 @@ namespace Seyra.UI.Presentations
             foreach (var property in values.Properties())
             {
                 if (property.Value.Type != JTokenType.String || ((string)property.Value).Length > 4000) throw new ArgumentException("Invalid restored control value.");
-                if (data is StepGuideData || data is ChecklistData || data is ChoiceSelectorData)
+                if (data is StepGuideData || data is ChecklistData || data is ChoiceSelectorData || UIPresentationCodec.CardCheck(data) != null)
                     if ((string)property.Value != "true" && (string)property.Value != "false") throw new ArgumentException("Restored toggle must be true or false.");
             }
             if (data is ChoiceSelectorData selector && !selector.multiple && values.Properties().Count(p => (string)p.Value == "true") > 1) throw new ArgumentException("Multiple selections in a single-choice selector.");

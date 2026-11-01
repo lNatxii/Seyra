@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Seyra.UI.Presentations;
 using Newtonsoft.Json.Linq;
 using Seyra.UI.Library;
 using UnityEngine;
@@ -44,13 +46,48 @@ namespace Seyra.SceneTools
             }
             catch { UnityEngine.Object.DestroyImmediate(go); throw; }
         }
+        JObject CardChecks(JObject args)
+        {
+            Keys(args, Array.Empty<string>(), new[] { "rootId" });
+            var root = args["rootId"] != null ? Find(args["rootId"]) : generated.gameObject;
+            if (root.transform != generated && (!root.transform.IsChildOf(generated) || root.GetComponent<GeneratedObject>() == null))
+                throw new ArgumentException("rootId requires a live managed object inside Generated.");
+            var cards = new JArray();
+            foreach (var transform in LiveContent().Where(t => t == root.transform || t.IsChildOf(root.transform)))
+            {
+                var panel = transform.GetComponent<ManagedPanel>();
+                if (panel == null) continue;
+                string title, label; bool completed;
+                if (panel.IsPresentation)
+                {
+                    var data = panel.Presentation.Data;
+                    var check = UIPresentationCodec.CardCheck(data);
+                    if (check == null) continue;
+                    title = data.title; label = check.label;
+                    completed = (string)panel.InteractionState?["values"]?["checked"] == "true";
+                }
+                else
+                {
+                    var content = panel.Content;
+                    if (!content.HasCheck) continue;
+                    title = content.title; label = content.checkLabel; completed = content.checkCompleted;
+                }
+                cards.Add(new JObject { ["entityId"] = Id(transform.gameObject), ["name"] = transform.name,
+                    ["title"] = title, ["label"] = label, ["completed"] = completed, ["kind"] = panel.IsPresentation ? "presentation" : "panel" });
+            }
+            return new JObject { ["cards"] = cards, ["completedCount"] = cards.Count(c => (bool)c["completed"]), ["total"] = cards.Count };
+        }
         JObject UpdatePanel(JObject args)
         {
             Keys(args, new[] { "entityId", "panel" });
-            var content = PanelContent.Parse(args["panel"]); var go = Find(args["entityId"]);
+            var go = Find(args["entityId"]);
             var panel = go.GetComponent<ManagedPanel>(); var record = go.GetComponent<GeneratedObject>();
             if (panel == null || record == null || record.Kind != "panel" || !go.transform.IsChildOf(generated))
                 throw new ArgumentException("update_panel requires a live managed panel inside Generated.");
+            var json = args["panel"]?.DeepClone();
+            if (json?["check"] is JObject check && check.Property("completed") == null && panel.Content.HasCheck)
+                check["completed"] = panel.Content.checkCompleted;
+            var content = PanelContent.Parse(json);
             panel.RequireIntact(); panel.Apply(content); return Inspect(go);
         }
     }

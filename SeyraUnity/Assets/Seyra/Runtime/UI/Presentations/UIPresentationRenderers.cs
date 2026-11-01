@@ -31,6 +31,15 @@ namespace Seyra.UI.Presentations
                 case WorkPlanData d: Plan(view, d); break;
                 default: throw new ArgumentException("Unregistered UI renderer.");
             }
+            CardCheck(view, UIPresentationCodec.CardCheck(data));
+        }
+        static void CardCheck(UIPresentationView v, UICardCheckData check)
+        {
+            if (check == null) return;
+            v.Values["checked"] = check.completed ? "true" : "false";
+            var control = v.Factory.InstantiateToggle(v.Content, new UIToggleOptions { Label = check.label, IsOn = check.completed }, on =>
+            { v.Values["checked"] = on ? "true" : "false"; v.Record("card.checked"); });
+            v.BindValue("checked", value => ((UnityEngine.UI.Toggle)control.Control).SetIsOnWithoutNotify(value == "true"));
         }
         static TMP_Text Text(UIPresentationView v, string text, RectTransform parent, UITextRole role = UITextRole.Body, UIInkRole ink = UIInkRole.Text)
             => string.IsNullOrEmpty(text) ? null : v.Factory.InstantiateText(text, parent, new UITextOptions { Role = role, Ink = ink });

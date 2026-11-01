@@ -211,7 +211,7 @@ public static class PresentationChecks
             Require(!(bool)Get(ids["gallery"])["interaction"]["visible"], "Close did not hide the window.");
             var snapshots = ids.ToDictionary(p => p.Key, p => Panel(p.Value).InteractionState);
             var saved = Ok("content_save", new JObject { ["slot"] = "all" });
-            Require((int)saved["version"] == 5 && (int)saved["nodeCount"] == 12, "Presentations were not saved as atomic v5 nodes.");
+            Require((int)saved["version"] == 6 && (int)saved["nodeCount"] == 12, "Presentations were not saved as atomic v6 nodes.");
             var loaded = Ok("content_load", new JObject { ["slot"] = "all" }); await Task.Delay(200);
             foreach (var pair in ids)
             {

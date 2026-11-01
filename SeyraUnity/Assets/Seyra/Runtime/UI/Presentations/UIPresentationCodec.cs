@@ -84,8 +84,16 @@ namespace Seyra.UI.Presentations
             var set = new HashSet<string>(StringComparer.Ordinal);
             foreach (var id in ids) if (id.Length > 128 || !set.Add(id)) throw new ArgumentException("Item IDs are duplicated or too long.");
         }
+        public static UICardCheckData CardCheck(UIPresentationData data) => data is InfoPanelData info ? info.check :
+            data is TechnicalSheetData technical ? technical.check : data is MediaCardData media ? media.check : null;
         static void ValidateRelations(UIPresentationData data)
         {
+            var check = CardCheck(data);
+            if (check != null)
+            {
+                check.label = check.label.Trim();
+                if (check.label.Length < 1 || check.label.Length > 24) throw new ArgumentException("check.label must contain 1 to 24 characters.");
+            }
             switch (data)
             {
                 case StepGuideData d: Unique(d.steps.Select(x => x.id)); break;

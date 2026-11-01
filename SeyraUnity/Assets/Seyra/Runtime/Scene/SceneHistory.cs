@@ -133,7 +133,7 @@ namespace Seyra.SceneTools
                     {
                         if(restoreInteraction || !JToken.DeepEquals(panel.Presentation.ToJson(),Presentation))panel.ApplyPresentation(PresentationContent.Parse(Presentation),Interaction);
                     }
-                    else if(!JToken.DeepEquals(panel.Content.ToJson(),Panel.ToJson()))panel.Apply(Panel);
+                    else if(restoreInteraction || !panel.Content.SameDeclared(Panel))panel.Apply(Panel);
                 }
             }
         }
@@ -159,7 +159,7 @@ namespace Seyra.SceneTools
             foreach(var go in snapshot.Content.Concat(externals??externalTargets).Where(g=>g!=null).Distinct())
             {
                 var state=ObjectState.Capture(go);
-                if(DrivenTransform.Channels(go.transform)==DrivenChannels.None && state.Presentation==null && lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state))state=previous;
+                if(DrivenTransform.Channels(go.transform)==DrivenChannels.None && state.Presentation==null && lastCapture!=null && lastCapture.States.TryGetValue(go,out var previous) && previous.Same(state) && (state.Panel==null || JToken.DeepEquals(previous.Panel.ToJson(),state.Panel.ToJson())))state=previous;
                 snapshot.States[go]=state;
             }
             lastCapture=snapshot;return snapshot;
@@ -290,8 +290,8 @@ namespace Seyra.SceneTools
             }
             RequireCurrent(expected);
             var current=Capture(expected.States.Keys.Where(g=>!expected.Content.Contains(g)));
-            var replacements=history.Skip(start).Where(h=>h.Tool=="ui_update").Select(h=>h.EntityId).ToHashSet();
-            var restoreInteractions=target.States.Values.Where(s=>s.Presentation!=null && replacements.Contains(s.EntityId)).Select(s=>s.Object).ToHashSet();
+            var replacements=history.Skip(start).Where(h=>h.Tool=="ui_update" || h.Tool=="update_panel").Select(h=>h.EntityId).ToHashSet();
+            var restoreInteractions=target.States.Values.Where(s=>s.Panel!=null && replacements.Contains(s.EntityId)).Select(s=>s.Object).ToHashSet();
             try{ApplySnapshot(target,restoreInteractions);}catch{try{ApplySnapshot(current,restoreInteractions);}catch{throw new SceneRollbackException();}throw;}
             var undone=history.Skip(start).Select(h=>h.Id).ToArray();history.RemoveRange(start,history.Count-start);
             return new JObject{["undoneOperationIds"]=new JArray(undone),["requestGroupId"]=latest.GroupId,["remainingOperations"]=history.Count};
