@@ -22,15 +22,15 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Chat | Chat espacial en inglés (31) con voz Muse a borrador, respuestas habladas con botón único de voz (18, 18b), menú de mano, actividad transitoria y sin detalle técnico (06f); usado en Quest 3. | Medir la latencia de voz. |
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
-| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27) y movimiento (24). |
+| Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27), movimiento (24) y botón «Close» (32a). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 y 28 en Quest 3. |
-| Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
+| Persistencia | Slots v7 con primitivas, apariencia, paneles, presentaciones, layouts, líneas y movimiento. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
 
 ## Orden recomendado
 
-Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
+Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
@@ -45,10 +45,10 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) ya se puede diseñar. |
-| 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
+| 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Ya se puede diseñar: 32a está cerrada. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
-| 11 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
+| 11 | 10a. Objetos interactivos | 50 | Diseño listo; ya se puede implementar, 24 está cerrada. |
 | 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
 | 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
@@ -364,7 +364,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 **Estado 32a:** Completed · Revisada (1 de noviembre de 2026). Close descarta paneles y presentaciones mediante delete_object, con icono cancel; PanelChecks 240, PresentationChecks 251, CardCheckChecks 35 y backend 42/42 aprobados. Validación visual y con Muse en Quest pendiente. [Implementación y revisión](Progress/Completed/32a-panel-close-button.md).
 
-**Estado 32b:** Future · esbozo. Diseñar al cerrar 28 y 32a. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
+**Estado 32b:** Future · esbozo. Ya se puede diseñar: 28 y 32a están cerradas. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
 
 **Entrega:** el usuario retira paneles y presentaciones directamente, sin pedirlo al chat, en dos pasos:
 
