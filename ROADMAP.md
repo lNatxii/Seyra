@@ -46,7 +46,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) ya puede diseñarse tras 32a. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
-| 9 | 11–12. Captura y preguntas visuales | 64 | Diseño listo y viabilidad con Muse Spark comprobada. Gran valor de IA; queda riesgo en la cámara en Quest 3. |
+| 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Diseño listo; después de 24. |
 | 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
@@ -401,7 +401,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 11. Captura puntual de cámara del entorno
 
-**Estado:** In progress · en implementación (pasos 2–3b hechos), junto con 12. Rediseñada el 1 de noviembre de 2026: por voz, sin botones, con `seyra_camera_look`. Llamada directa a Muse Spark con foto comprobada. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
+**Estado:** Completed (Editor; Quest pendiente) · Revisada (1 de noviembre de 2026), junto con 12. Por voz, sin botones, con `seyra_camera_look`. Captura, orientación, sonido y panel confirmados en Quest 3; recorrido completo pendiente. [Diseño e implementación](Progress/Completed/11-12-camera-visual-questions.md).
 
 **Entrega:** obtener una imagen RGB con la Passthrough Camera API, con permiso, cuando el usuario lo pida por voz, con sonido de obturador y panel que muestra la foto. Asociar `captureId`, cámara de origen, resolución, timestamp y metadatos de pose/calibración disponibles en el instante de captura.
 
@@ -411,7 +411,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 12. Preguntas visuales con Muse Spark
 
-**Estado:** In progress · en implementación, junto con 11. Rediseñada el 1 de noviembre de 2026. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
+**Estado:** Completed (Editor; Quest pendiente) · Revisada (1 de noviembre de 2026), junto con 11. El bridge pregunta a Muse Spark con la foto y devuelve solo texto: 42/42 en el bridge y 7/7 en CameraCaptureChecks. Recorrido con Muse en Quest 3 pendiente. [Diseño e implementación](Progress/Completed/11-12-camera-visual-questions.md).
 
 **Entrega:** responder a preguntas sobre lo que el usuario tiene delante mediante una llamada de visión aparte desde el bridge, que devuelve texto al agente, controlando resolución y tamaño del envío.
 
