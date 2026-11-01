@@ -342,7 +342,7 @@ Revisado el 30 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 29. Líneas guía y puntos de interés
 
-**Estado:** Completed · Pendiente de revisión (31 de octubre de 2026). Líneas y puntos implementados con persistencia v6 y validación en Editor; prueba en Quest 3 pendiente. [Implementación y validación](Progress/Completed/29-guide-lines-points.md).
+**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Aplicadas las dos correcciones de revisión: límite de grosor y asignaciones en Refresh. Compilación C#, LineChecks y SceneBatchChecks aprobadas; prueba en Quest 3 pendiente. [Implementación y revisión](Progress/Completed/29-guide-lines-points.md).
 
 **Entrega:** dos elementos generados nuevos. (1) Línea: `LineRenderer` entre dos o más puntos, con material sencillo sin iluminación, color de la paleta de 03 y grosor por defecto de 0,01 m. Cada extremo puede ser un punto fijo o una referencia a un objeto generado (`targetId`, o `key`/`parentKey` dentro de `scene_build`), de modo que la línea sigue al objeto si este se mueve. (2) Punto de interés: esfera pequeña con radio elegible por el modelo (1 cm por defecto) colocada sobre la superficie de otro objeto. Caso de uso principal: al generar planetas, un punto de interés sobre cada planeta y una línea desde el punto hasta su etiqueta de texto. Disponible como herramienta individual y como tipo de nodo en `scene_build`/`scene_edit` (`Backend/bridge/BATCH.md`).
 

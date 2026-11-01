@@ -46,6 +46,8 @@ public static class LineChecks
             string labelId = (string)Ok("create_panel", new JObject { ["name"] = "Label", ["parentId"] = "Generated", ["position"] = V(0, .2f), ["rotation"] = V(), ["scale"] = V(1, 1, 1), ["panel"] = panel })["entityId"];
             var lineContent = new JObject { ["points"] = new JArray(new JObject { ["entityId"] = pointId }, new JObject { ["entityId"] = labelId }), ["width"] = .003 };
             string lineId = (string)Ok("create_line", new JObject { ["name"] = "Line", ["parentId"] = "Generated", ["line"] = lineContent })["entityId"];
+            var maximumWidthLine = (JObject)lineContent.DeepClone(); maximumWidthLine["width"] = .05;
+            Ok("create_line", new JObject { ["name"] = "Maximum width line", ["parentId"] = "Generated", ["line"] = maximumWidthLine });
             var line = Find(lineId).GetComponent<ManagedLine>(); var renderer = line.GetComponent<LineRenderer>(); var before = renderer.GetPosition(0);
             Ok("set_transform", new JObject { ["entityId"] = sphereId, ["space"] = "local", ["position"] = V(.03f) });
             await Task.Delay(80); line.Refresh();

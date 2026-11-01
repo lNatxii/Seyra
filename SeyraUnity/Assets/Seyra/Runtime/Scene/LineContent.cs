@@ -26,7 +26,7 @@ namespace Seyra.SceneTools
         {
             if (token == null || token.Type != JTokenType.Float && token.Type != JTokenType.Integer) throw new ArgumentException("Expected a finite number.");
             double value = (double)token;
-            if (double.IsNaN(value) || double.IsInfinity(value) || value < minimum || value > maximum) throw new ArgumentException("Number is outside the allowed range.");
+            if (double.IsNaN(value) || double.IsInfinity(value) || (float)value < (float)minimum || (float)value > (float)maximum) throw new ArgumentException("Number is outside the allowed range.");
             return (float)value;
         }
         internal static Vector3 ReadVector(JToken token)
