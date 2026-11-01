@@ -48,7 +48,9 @@ namespace Seyra.SceneTools
             try
             {
                 go.transform.localPosition = position; go.transform.localRotation = rotation; go.transform.localScale = scale; Check(go.transform);
-                go.AddComponent<ManagedPanel>().InitializePresentation(spec, uiCatalog, presentations, state);
+                var panel = go.AddComponent<ManagedPanel>();
+                panel.DiscardHandler = DiscardPanel;
+                panel.InitializePresentation(spec, uiCatalog, presentations, state);
                 AttachRecord(go, "presentation", null, group, persistentId); RequireCapacity(0); go.SetActive(true); return go;
             }
             catch { UnityEngine.Object.DestroyImmediate(go); throw; }

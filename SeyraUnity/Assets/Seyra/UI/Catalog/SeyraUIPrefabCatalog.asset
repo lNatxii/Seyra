@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SeyraUIPrefabCatalog
   m_EditorClassIdentifier: Seyra.Runtime::Seyra.UI.Library.UIPrefabCatalog
   defaultTheme: {fileID: 11400000, guid: 2ad3e4e700fa26048b7ee9fdf9822c9a, type: 2}
+  closeIcon: {fileID: 21300000, guid: 8a07a17edf3289347bbfa785043089c0, type: 3}
   windowPrefab: {fileID: 2472376815922572917, guid: 45c0ee7e7a8ded840ac7c58855967b7a, type: 3}
   metaThemes:
   - {fileID: 11400000, guid: 4b2fdc959511e154cb98df0433028c9b, type: 2}

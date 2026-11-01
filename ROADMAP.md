@@ -362,7 +362,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 32. Descarte de paneles y contenido agarrable
 
-**Estado 32a:** In progress · diseño listo (30 de octubre de 2026). Ya se puede implementar: 31, que modificaba los mismos archivos, está cerrada. [Diseño](Progress/InProgress/32a-panel-close-button.md).
+**Estado 32a:** Completed · Pendiente de revisión (1 de noviembre de 2026). Close descarta paneles y presentaciones mediante delete_object; tres compilaciones sin errores ni advertencias, PanelChecks 240 y suite backend 42/42 aprobados. Validación visual y con Muse en Quest pendiente. [Implementación](Progress/Completed/32a-panel-close-button.md).
 
 **Estado 32b:** Future · esbozo. Diseñar al cerrar 28 y 32a. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
 
