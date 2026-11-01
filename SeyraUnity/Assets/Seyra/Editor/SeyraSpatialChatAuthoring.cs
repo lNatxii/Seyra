@@ -18,6 +18,8 @@ namespace Seyra.Editor
     {
         public const string ChatWindowPrefabPath = "Assets/Seyra/UI/Panels/SeyraSpatialChatWindow.prefab";
         public const string MenuPrefabPath = "Assets/Seyra/UI/Panels/SeyraSpatialMenu.prefab";
+        public const string PhotoPopupPrefabPath = "Assets/Seyra/UI/Panels/SeyraPhotoPopup.prefab";
+        public const string CameraShutterPath = "Assets/Seyra/Audio/camera_shutter.wav";
         public const string CatalogPath = "Assets/Seyra/UI/Catalog/SeyraUIPrefabCatalog.asset";
         public const string SeyraAssistantScenePath = "Assets/Scenes/SeyraAssistant.unity";
 
@@ -376,6 +378,97 @@ namespace Seyra.Editor
             settings.FindProperty("voiceOnSprite").objectReferenceValue = VoiceSprite(false);
             settings.FindProperty("voiceOffSprite").objectReferenceValue = VoiceSprite(true);
             settings.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        [MenuItem("Seyra/UI/Build Photo Popup")]
+        public static void BuildPhotoPopup()
+        {
+            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before building the photo popup.");
+            var catalog = AssetDatabase.LoadAssetAtPath<UIPrefabCatalog>(CatalogPath);
+            if (catalog == null || catalog.WindowPrefab == null || catalog.DefaultTheme == null)
+                throw new InvalidOperationException("A window prefab and default theme are required in the UI catalog.");
+            AssetDatabase.ImportAsset(CameraShutterPath);
+            var importer = AssetImporter.GetAtPath(CameraShutterPath) as AudioImporter;
+            if (importer == null) throw new InvalidOperationException("Camera shutter WAV is required at " + CameraShutterPath);
+            var settings = importer.defaultSampleSettings;
+            settings.loadType = AudioClipLoadType.DecompressOnLoad;
+            settings.preloadAudioData = true;
+            importer.defaultSampleSettings = settings;
+            importer.forceToMono = true;
+            importer.SaveAndReimport();
+
+            var previous = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            SceneManager.SetActiveScene(scene);
+            try
+            {
+                var window = (UIXRWindow)PrefabUtility.InstantiatePrefab(catalog.WindowPrefab);
+                var root = window.gameObject;
+                root.name = "SeyraPhotoPopup";
+                root.transform.localPosition = Vector3.zero;
+                root.transform.localRotation = Quaternion.identity;
+                root.transform.localScale = Vector3.one * .5f;
+                window.Resize(new Vector2(480, 420));
+                if (window.GrabFrame != null)
+                {
+                    if (window.GrabFrame.Grabbable != null) window.GrabFrame.Grabbable.enabled = false;
+                    window.GrabFrame.gameObject.SetActive(false);
+                    window.ConfigureGrab(null);
+                }
+                foreach (var collider in root.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                foreach (var raycaster in root.GetComponentsInChildren<UnityEngine.UI.GraphicRaycaster>(true)) raycaster.enabled = false;
+
+                var content = window.Content;
+                for (int i = content.childCount - 1; i >= 0; i--)
+                    UnityEngine.Object.DestroyImmediate(content.GetChild(i).gameObject);
+                var layout = content.GetComponent<UnityEngine.UI.VerticalLayoutGroup>() ??
+                    content.gameObject.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+                layout.padding = new RectOffset(16, 16, 16, 16);
+                layout.spacing = 8;
+                layout.childAlignment = TextAnchor.UpperCenter;
+                layout.childControlWidth = layout.childControlHeight = true;
+                layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+
+                var imageSlot = new GameObject("PhotoImageSlot", typeof(RectTransform), typeof(UnityEngine.UI.LayoutElement));
+                imageSlot.transform.SetParent(content, false);
+                var imageSize = imageSlot.GetComponent<UnityEngine.UI.LayoutElement>();
+                imageSize.minWidth = imageSize.preferredWidth = 448;
+                imageSize.minHeight = imageSize.preferredHeight = 336;
+                var imageObject = new GameObject("PhotoImage", typeof(RectTransform), typeof(UnityEngine.UI.RawImage),
+                    typeof(UnityEngine.UI.AspectRatioFitter));
+                imageObject.transform.SetParent(imageSlot.transform, false);
+                imageObject.GetComponent<UnityEngine.UI.RawImage>().raycastTarget = false;
+                var aspect = imageObject.GetComponent<UnityEngine.UI.AspectRatioFitter>();
+                aspect.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
+                aspect.aspectRatio = 4f / 3f;
+                var label = CreateText(content, "PhotoLabel", "Seyra will see this when you send it.", 16,
+                    FontStyles.Normal, Color.white, catalog.DefaultTheme.font);
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 12;
+                label.fontSizeMax = 16;
+                var labelSize = label.GetComponent<UnityEngine.UI.LayoutElement>();
+                labelSize.minWidth = labelSize.preferredWidth = 448;
+                labelSize.minHeight = labelSize.preferredHeight = 44;
+
+                var follow = root.AddComponent<SeyraLazyFollow>();
+                var followSettings = new SerializedObject(follow);
+                followSettings.FindProperty("restOffset").vector3Value = new Vector3(.18f, -.12f, .60f);
+                followSettings.ApplyModifiedPropertiesWithoutUndo();
+                foreach (var graphic in root.GetComponentsInChildren<UnityEngine.UI.Graphic>(true)) graphic.raycastTarget = false;
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)window.Canvas.transform);
+                root.SetActive(false);
+                PrefabUtility.SaveAsPrefabAsset(root, PhotoPopupPrefabPath);
+                AssetDatabase.SaveAssets();
+                Debug.Log("Seyra: Photo popup prefab built successfully.");
+            }
+            finally
+            {
+                if (previous.IsValid() && previous.isLoaded) SceneManager.SetActiveScene(previous);
+                EditorSceneManager.CloseScene(scene, true);
+            }
         }
 
         [MenuItem("Seyra/UI/Build Hand Menu Prefab")]

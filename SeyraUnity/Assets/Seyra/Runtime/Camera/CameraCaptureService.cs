@@ -12,6 +12,7 @@ namespace Seyra.Cameras
         public CameraCapture Current { get; private set; }
         public string Status { get; private set; } = "";
         public event Action Changed;
+        public event Action PhotoTaken;
         readonly Queue<CameraCapture> recent = new Queue<CameraCapture>();
         public IReadOnlyCollection<CameraCapture> Recent => recent.ToArray();
         ICameraFrameSource source;
@@ -85,6 +86,7 @@ namespace Seyra.Cameras
                 if (State != CameraCaptureState.Starting || !source.FrameReady) return;
                 int ticket = generation;
                 SetState(CameraCaptureState.Capturing, "Taking photo… Keep looking at it.");
+                PhotoTaken?.Invoke();
                 source.Read(frame => {
                     if (!IsCurrent(ticket)) return;
                     if (frame == null) { Fail("Could not read the camera image. Try again."); return; }
@@ -147,7 +149,7 @@ namespace Seyra.Cameras
             ++generation;
             if (Current != null) Current.Jpeg = null;
             Current = null;
-            if (paused) { cancelOnResume = true; return; }
+            if (paused) { cancelOnResume = true; Changed?.Invoke(); return; }
             source?.End();
             SetState(CameraCaptureState.Idle);
         }

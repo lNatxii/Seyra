@@ -53,7 +53,25 @@ public static class CameraCaptureChecks
             await Finish();
             Check(service.State == CameraCaptureState.Failed && failed.Ends > 0 &&
                 service.Status == "Camera is not available on this device.", "SDK failure must report unavailable and End.");
-            return "CameraCaptureChecks: 5 cases passed.";
+            int photoTaken = 0;
+            void CountPhoto() { photoTaken++; }
+            service.PhotoTaken += CountPhoto;
+            try
+            {
+                service.SetFrameSource(new FakeSource());
+                service.Capture();
+                await Finish();
+                Check(service.State == CameraCaptureState.Ready && photoTaken == 1,
+                    "PhotoTaken must fire exactly once for a successful capture.");
+                photoTaken = 0;
+                service.SetFrameSource(new FakeSource { Permission = false });
+                service.Capture();
+                await Finish();
+                Check(service.State == CameraCaptureState.Failed && photoTaken == 0,
+                    "PhotoTaken must not fire when permission is denied.");
+            }
+            finally { service.PhotoTaken -= CountPhoto; }
+            return "CameraCaptureChecks: 6 cases passed.";
         }
         finally { UnityEngine.Object.Destroy(root); }
     }
