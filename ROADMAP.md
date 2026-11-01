@@ -45,7 +45,7 @@ Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) ya se puede diseñar. |
-| 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Ya se puede diseñar: 32a está cerrada. |
+| 8b | 33. Escuchar paneles y presentaciones | 63 | Completed · Revisada; audio real y Quest pendientes de prueba. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Diseño listo; ya se puede implementar, 24 está cerrada. |
@@ -379,13 +379,13 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 33. Escuchar paneles y presentaciones
 
-**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Implementada en `codex/33-listen-panels`; PanelChecks (252), voz, presentaciones (264), tarjetas (35) y bridge (42) aprobados. PanelChecks pasó en el primer intento de la reejecución autorizada, sin cambios adicionales de código; validación manual pendiente. [Implementación](Progress/Completed/33-listen-panels.md).
+**Estado:** Completed (Editor con voz simulada; audio y Quest pendientes) · Revisada (1 de noviembre de 2026). Rama `codex/33-listen-panels`; PanelChecks (252), voz, presentaciones (264), tarjetas (35) y bridge (42) aprobados. [Implementación y revisión](Progress/Completed/33-listen-panels.md).
 
 **Entrega:** cada panel de texto y cada presentación muestran un botón «Listen» junto a «Close» (32a). Al pulsarlo se lee su contenido con la misma voz de 18 (`wit$Rebecca`), y pasa a «Stop» mientras suena. Nunca se lee un panel sin que el usuario lo pida.
 
 **Aceptación:** pulsar «Listen» lee el panel sin abrir un turno de chat; solo hay una voz a la vez, de modo que una lectura sustituye a la anterior, también a la del chat, y una respuesta nueva del chat detiene la del panel; «Stop», dictar o retirar el panel la cortan; «Listen» funciona aunque la lectura automática del chat esté silenciada con el botón de voz (18b); un fallo de voz deja el panel intacto con un aviso breve; el botón no se guarda como contenido ni afecta a deshacer, papelera o slots.
 
-**Al diseñar, decidir:** qué texto se lee en cada una de las trece presentaciones; cómo se recorta un panel largo, porque el aviso actual de `SpeechText` («The rest is in the chat.») no vale aquí; y cómo acceden los paneles a `SpokenReplies`, que desde 18b no depende de que el chat esté abierto.
+**Decidido en el diseño:** se lee la página visible y solo el texto, sin pies de foto; los paneles largos se recortan a 1500 caracteres con el aviso «The rest is on the panel.»; los paneles acceden a la voz con `SpokenReplies.Active`.
 
 **Dependencias:** 05, 18 y 32a (misma zona de botones; implementar después).
 
