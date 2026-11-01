@@ -163,3 +163,9 @@ Moving, hiding, layout reapplication and trash restoration preserve marks. Undo 
 
 The Close button displays the catalog cancel icon and records a delete_object operation through the scene history service. It moves the window to runtime trash. undo or restore_object restores the same entity, pose and interaction state; discarded windows are excluded from content_save. Persistence formats and tool schemas are unchanged. Existing panels are rebound when the runtime service restarts.
 Text panels place Close after the optional card toggle. Labels and the chat window do not receive this button.
+
+### Explicit content playback
+
+Text panels and all thirteen presentation types show Listen and Close together in a WindowActions row. Listen reads only the current content or visible page, changes to Stop during playback, and shows Voice failed if playback fails. Labels and chat do not receive this control. Playback uses the shared voice, replaces any previous reading and works with automatic chat speech muted. Dictation blocks playback; Stop, dictation, content or page changes, and retiring the window stop it. Media refreshes and checkbox changes preserve playback.
+
+Content speech is prepared locally, bounded to 1500 characters with "The rest is on the panel." when shortened. Listen does not record an interaction, revision, history operation or chat turn, and is not persisted. The presentation integrity snapshot excludes the changing Listen label. No tool schemas or slot formats change. The prompt change requires restarting OpenCode.

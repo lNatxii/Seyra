@@ -23,7 +23,16 @@ public static class SpokenReplyChecks
             Check(voice.LastSpokenText == "Second reply.", "Only a new reply may start output.");
             voice.SimulateFailure();
             Check(voice.State == SpokenReplyState.Idle && voice.Status == "Could not read the reply aloud. The text is still in the chat.", "Failure must leave a safe status and no active output.");
-            return "PASS: toggle, muting stops output, unmuting does not replay and simulated failure.";
+            var owner = new object();
+            voice.SetMuted(true);
+            voice.SpeakContent(owner, "Panel content.");
+            Check(voice.IsReading(owner) && voice.LastSpokenText == "Panel content.", "Explicit content must play while muted and retain its owner.");
+            voice.SpeakReply("Muted replacement.");
+            Check(!voice.IsReading(owner) && voice.State == SpokenReplyState.Idle, "Even a muted chat reply must stop content playback.");
+            voice.SpeakContent(owner, "Panel content.");
+            voice.SimulateFailure();
+            Check(voice.FailedOwner == owner && voice.Status == "Could not read this aloud.", "Content failure must retain the owner and a panel-safe status.");
+            return "PASS: content ownership, muted content, replacement, failure; toggle, muting stops output, unmuting does not replay and simulated failure.";
         }
         finally { UnityEngine.Object.DestroyImmediate(host); UnityEngine.PlayerPrefs.SetInt("Seyra.Voice.Muted", previous); UnityEngine.PlayerPrefs.Save(); }
     }
@@ -36,6 +45,8 @@ public static class SpokenReplyChecks
         var longText = SpeechText.Prepare(string.Join(" ", System.Linq.Enumerable.Repeat("This is a sentence.", 60)));
         Check(longText.Length <= SpeechText.MaxSpokenCharacters && longText.EndsWith("The rest is in the chat."), "Long text must end at a sentence with a bounded notice.");
         Check(SpeechText.Prepare(new string('a', 700)).Length <= SpeechText.MaxSpokenCharacters, "Unpunctuated text must remain bounded.");
-        return "PASS: speech text filter.";
+        var content = SpeechText.PrepareContent(string.Join(" ", System.Linq.Enumerable.Repeat("This is a sentence.", 150)));
+        Check(content.Length <= SpeechText.MaxContentSpokenCharacters && content.EndsWith("The rest is on the panel."), "Long content must remain within 1500 characters with its panel notice.");
+        return "PASS: speech text filter and content limit.";
     }
 }

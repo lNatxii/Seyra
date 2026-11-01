@@ -9,9 +9,14 @@ namespace Seyra.Voice
     public static class SpeechText
     {
         public const int MaxSpokenCharacters = 600;
+        public const int MaxContentSpokenCharacters = 1500;
+        const string ContentRemainder = "The rest is on the panel.";
         const string Remainder = "The rest is in the chat.";
 
-        public static string Prepare(string reply)
+        public static string Prepare(string reply) => Prepare(reply, MaxSpokenCharacters, Remainder);
+        public static string PrepareContent(string text) => Prepare(text, MaxContentSpokenCharacters, ContentRemainder);
+
+        static string Prepare(string reply, int limit, string remainder)
         {
             var text = (reply ?? "").Trim();
             if (text.StartsWith("{") || text.StartsWith("["))
@@ -26,13 +31,13 @@ namespace Seyra.Voice
             text = Regex.Replace(text, @"[*_`|]", "");
             var lines = text.Replace("\r", "").Split('\n').Select(line => Regex.Replace(line, @"\s+", " ").Trim()).Where(line => line.Length > 0);
             text = string.Join(" ", lines.Select(line => ".,;:!?".Contains(line[line.Length - 1]) ? line : line + ".")).Trim();
-            if (text.Length <= MaxSpokenCharacters) return text;
+            if (text.Length <= limit) return text;
             // Reserve room for the notice so the total stays within the spoken limit.
-            var prefix = text.Substring(0, MaxSpokenCharacters - Remainder.Length - 1);
+            var prefix = text.Substring(0, limit - remainder.Length - 1);
             var end = prefix.LastIndexOfAny(new[] { '.', '?', '!' });
             if (end >= 0) prefix = prefix.Substring(0, end + 1);
             else { end = prefix.LastIndexOf(' '); if (end >= 0) prefix = prefix.Substring(0, end); }
-            return prefix.TrimEnd() + " " + Remainder;
+            return prefix.TrimEnd() + " " + remainder;
         }
     }
 }

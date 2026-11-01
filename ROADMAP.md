@@ -379,7 +379,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 33. Escuchar paneles y presentaciones
 
-**Estado:** sin diseñar (30 de octubre de 2026). Prioridad media (puntuación 63).
+**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Implementada en `codex/33-listen-panels`; voz, presentaciones (264), tarjetas (35) y bridge (42) aprobados. PanelChecks falló en una expectativa corregida sin reejecución; validación manual pendiente. [Implementación](Progress/Completed/33-listen-panels.md).
 
 **Entrega:** cada panel de texto y cada presentación muestran un botón «Listen» junto a «Close» (32a). Al pulsarlo se lee su contenido con la misma voz de 18 (`wit$Rebecca`), y pasa a «Stop» mientras suena. Nunca se lee un panel sin que el usuario lo pida.
 

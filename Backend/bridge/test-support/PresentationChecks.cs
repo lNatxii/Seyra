@@ -7,6 +7,7 @@ using Newtonsoft.Json.Linq;
 using Seyra.SceneTools;
 using Seyra.UI.Library;
 using Seyra.UI.Presentations;
+using Seyra.Voice;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -163,6 +164,10 @@ public static class PresentationChecks
                 if ((string)data["type"] == "gallery") data["images"][0]["imageRef"] = "test.image";
                 var args = Args(data); var requestId = Guid.NewGuid().ToString();
                 var result = Ok("ui_present", args, requestId);
+                var spoken = UIPresentationSpeech.Compose(Panel((string)result["entityId"]).PresentationView);
+                Require(!string.IsNullOrWhiteSpace(spoken) && !string.IsNullOrWhiteSpace(SpeechText.PrepareContent(spoken)) &&
+                    !data.Descendants().OfType<JProperty>().Where(property => property.Name == "imageRef").Any(property => spoken.Contains((string)property.Value)),
+                    "Speech must contain content without image references: " + entry["name"]);
                 ids[(string)data["type"]] = (string)result["entityId"];
                 Require((bool)result["panelIntact"], "Initial presentation is not intact: " + data["type"]);
                 Require(JToken.DeepEquals(result, Ok("ui_present", args, requestId)), "Presentation creation was not deduplicated.");
@@ -191,6 +196,7 @@ public static class PresentationChecks
             Require((int)gallery.InteractionState["zoom"]["0"] == 2, "Image zoom was not captured.");
             galleryView.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Next").OnClick.Invoke();
             Require((int)Get(ids["gallery"])["interaction"]["index"] == 1, "Gallery pager did not advance.");
+            Require(UIPresentationSpeech.Compose(galleryView).Contains("Image 2 of 2"), "Gallery speech must follow the visible page.");
             var checklist = Panel(ids["checklist"]);
             var check = checklist.PresentationView.GetComponentsInChildren<UIField>(true).First(f => f.Control is Toggle);
             ((Toggle)check.Control).isOn = true;

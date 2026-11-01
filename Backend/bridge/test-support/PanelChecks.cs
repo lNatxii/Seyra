@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Seyra.SceneTools;
 using Seyra.UI.Library;
+using Seyra.Voice;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -19,6 +20,9 @@ public static class PanelChecks
         var root = new GameObject("__PanelChecks");
         var storage = Path.GetFullPath(Path.Combine(Application.dataPath, "../../.utmp/panels-" + Guid.NewGuid().ToString("N")));
         var service = new SceneToolService(root.transform, storage, catalog);
+        var voiceHost = new GameObject("__PanelChecksVoice");
+        var voice = voiceHost.AddComponent<SpokenReplies>();
+        voice.SimulateOutput = true;
         int checks = 0;
         void Require(bool value, string message) { checks++; if (!value) throw new Exception(message); }
         JObject Call(string tool, JObject args = null, string requestId = null) => JObject.Parse(service.Dispatch(new JObject {
@@ -177,8 +181,19 @@ public static class PanelChecks
             var close = panel.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Close");
             Require(catalog.CloseIcon != null && close.IconTransform.GetComponent<UnityEngine.UI.Image>().sprite == catalog.CloseIcon,
                 "Close must display the catalog cancel icon.");
+            var listen = panel.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Listen");
+            var historyBeforeListen = Ok("history_list");
+            listen.OnClick.Invoke();
+            Require(listen.Label == "Stop" && voice.LastSpokenText == SpeechText.PrepareContent(panel.Content.title + "\n" + panel.Content.text) && panel.IsIntact() &&
+                JToken.DeepEquals(historyBeforeListen, Ok("history_list")), "Listening must read the panel without changing history or integrity.");
+            listen.OnClick.Invoke();
+            Require(listen.Label == "Listen" && voice.State == SpokenReplyState.Idle, "Stop must end panel playback.");
+            listen.OnClick.Invoke(); voice.SimulateFailure();
+            Require(listen.Label == "Voice failed" && panel.IsIntact(), "Content failure must leave an intact panel with a local notice.");
+            listen.OnClick.Invoke();
             var historyBeforeClose = (int)Ok("history_list")["total"];
             close.OnClick.Invoke();
+            Require(voice.State == SpokenReplyState.Idle, "Close must stop panel playback.");
             var closeHistory = Ok("history_list");
             Require((bool)Get(id)["deleted"] && (int)closeHistory["total"] == historyBeforeClose + 1 &&
                 (string)closeHistory["operations"][0]["tool"] == "delete_object", "Close must record a scene deletion.");
@@ -191,12 +206,26 @@ public static class PanelChecks
                 ["position"] = V(0, 1, 2), ["rotation"] = V(), ["scale"] = V(1, 1, 1),
                 ["width"] = .8, ["height"] = .7, ["presentation"] = presentationData });
             var presentationId = (string)presented["entityId"];
+            var presentation = Owned(presentationId).GetComponent<ManagedPanel>();
+            var presentationListen = presentation.GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Listen");
+            var revision = presentation.PresentationView.Revision;
+            listen.OnClick.Invoke();
+            presentationListen.OnClick.Invoke();
+            Require(presentationListen.Label == "Stop" && presentation.IsIntact() && presentation.PresentationView.Revision == revision,
+                "Presentation Listen must preserve integrity and revision.");
+            Require(listen.Label == "Listen", "A second reading must release the first window.");
+            Ok("ui_close", new JObject { ["entityId"] = presentationId });
+            Require(voice.State == SpokenReplyState.Idle, "ui_close must stop playback.");
+            Ok("ui_open", new JObject { ["entityId"] = presentationId });
+            presentationListen.OnClick.Invoke();
             Owned(presentationId).GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Close").OnClick.Invoke();
+            Require(voice.State == SpokenReplyState.Idle, "Presentation Close must stop playback.");
             Require((bool)Get(presentationId)["deleted"], "Presentation Close must discard rather than only hide.");
             return new JObject { ["passed"] = true, ["assertions"] = checks, ["persistenceVersion"] = (int)saved["version"] }.ToString();
         }
         finally
         {
+            Object.DestroyImmediate(voiceHost);
             Object.DestroyImmediate(root);
             if (Directory.Exists(storage)) { foreach (var file in Directory.EnumerateFiles(storage)) File.Delete(file); Directory.Delete(storage); }
         }
