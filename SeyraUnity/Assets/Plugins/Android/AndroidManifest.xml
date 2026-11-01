@@ -22,4 +22,5 @@
   <uses-permission android:name="com.oculus.permission.HAND_TRACKING" />
   <uses-permission android:name="com.oculus.permission.USE_SCENE" />
   <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="horizonos.permission.HEADSET_CAMERA" />
 </manifest>
