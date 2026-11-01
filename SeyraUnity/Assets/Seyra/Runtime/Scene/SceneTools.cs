@@ -22,7 +22,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "layout_plan", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get", "card_checks", "media_status", "media_deliver" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "layout_plan", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get", "card_checks", "media_status", "media_deliver", "camera_capture_start", "camera_capture_result", "camera_capture_cancel" };
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
@@ -288,6 +288,7 @@ namespace Seyra.SceneTools
             if(tool=="motion_set")return MotionSet(args);
             if(tool=="motion_remove")return MotionRemove(args);
             if(tool=="motion_control")return MotionControl(args);
+            if(tool=="camera_capture_start"||tool=="camera_capture_result"||tool=="camera_capture_cancel")return ExecuteCamera(tool,args);
             if(tool=="scene_build"||tool=="scene_edit")return ExecuteBatch(tool,args);
             if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal)||tool=="media_status"||tool=="media_deliver")return ExecutePresentation(tool,args);

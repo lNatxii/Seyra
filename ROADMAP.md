@@ -401,9 +401,9 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 11. Captura puntual de cámara del entorno
 
-**Estado:** In progress · diseño listo (1 de noviembre de 2026), junto con 12. Prueba de viabilidad aprobada: Muse Spark recibe la foto por OpenCode sin cambiar la configuración. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
+**Estado:** In progress · en implementación (pasos 2–3b hechos), junto con 12. Rediseñada el 1 de noviembre de 2026: por voz, sin botones, con `seyra_camera_look`. Llamada directa a Muse Spark con foto comprobada. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
 
-**Entrega:** obtener una imagen RGB con la Passthrough Camera API, con permiso, previsualización y envío explícito. Asociar `captureId`, cámara de origen, resolución, timestamp y metadatos de pose/calibración disponibles en el instante de captura.
+**Entrega:** obtener una imagen RGB con la Passthrough Camera API, con permiso, cuando el usuario lo pida por voz, con sonido de obturador y panel que muestra la foto. Asociar `captureId`, cámara de origen, resolución, timestamp y metadatos de pose/calibración disponibles en el instante de captura.
 
 **Aceptación:** captura y orientación correctas en el visor; permiso denegado o cámara no disponible no bloquean el chat; pausar/reanudar libera y recupera recursos. No iniciar streaming continuo ni presentar una captura de la escena virtual como foto real.
 
@@ -411,9 +411,9 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 12. Preguntas visuales con Muse Spark
 
-**Estado:** In progress · diseño listo (1 de noviembre de 2026), junto con 11. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
+**Estado:** In progress · en implementación, junto con 11. Rediseñada el 1 de noviembre de 2026. [Diseño](Progress/InProgress/11-12-camera-visual-questions.md).
 
-**Entrega:** adjuntar una captura identificada al turno y permitir preguntas sobre ella, conservando la relación imagen–respuesta y controlando resolución y tamaño del envío.
+**Entrega:** responder a preguntas sobre lo que el usuario tiene delante mediante una llamada de visión aparte desde el bridge, que devuelve texto al agente, controlando resolución y tamaño del envío.
 
 **Aceptación:** el modelo responde sobre la captura correcta, distingue observación de inferencia y solicita otra imagen cuando no hay información suficiente. La imagen no se reenvía en cada turno sin necesidad; las referencias a capturas caducadas se identifican.
 

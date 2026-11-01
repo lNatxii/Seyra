@@ -71,7 +71,7 @@ test('MCP transport confirms, rejects invalid arguments, times out without retry
   let socket;
   try {
     await client.connect(transport);
-    const list=await client.listTools();assert.deepEqual(list.tools.map(t=>t.name).sort(),tools.map(t=>t.name).sort());
+    const list=await client.listTools();assert.deepEqual(list.tools.map(t=>t.name).sort(),[...tools.map(t=>t.name),'camera_look'].sort());
     assert.equal(outcome(await client.callTool({name:'scene_hierarchy',arguments:{}})).error.code,'UNITY_NOT_CONNECTED');
     socket=new WebSocket(`ws://127.0.0.1:${port}`);await once(socket,'open');
     let requests=0;let mode='confirm';

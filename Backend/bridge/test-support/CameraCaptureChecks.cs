@@ -71,7 +71,14 @@ public static class CameraCaptureChecks
                     "PhotoTaken must not fire when permission is denied.");
             }
             finally { service.PhotoTaken -= CountPhoto; }
-            return "CameraCaptureChecks: 6 cases passed.";
+            service.SetFrameSource(new FakeSource());
+            service.Capture();
+            await Finish();
+            var taken = service.Take();
+            Check(taken != null && service.LastTakenId == taken.Id, "LastTakenId must identify the transferred photo.");
+            service.Clear();
+            Check(service.LastTakenId == null, "Clear must reset LastTakenId.");
+            return "CameraCaptureChecks: 7 cases passed.";
         }
         finally { UnityEngine.Object.Destroy(root); }
     }

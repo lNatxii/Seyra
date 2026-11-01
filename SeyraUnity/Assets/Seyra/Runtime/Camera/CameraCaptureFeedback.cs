@@ -72,6 +72,10 @@ namespace Seyra.Cameras
         {
             var photo = service.State == CameraCaptureState.Ready ? service.Current : null;
             if (photo != null && ReferenceEquals(photo, displayedCapture)) return;
+            if (displayedCapture != null && displayedCapture.Id == service.LastTakenId)
+            {
+                return;
+            }
             ClosePopup();
             ReleasePreview();
             if (photo != null)
@@ -92,7 +96,7 @@ namespace Seyra.Cameras
                     var aspect = popupImage.GetComponent<UnityEngine.UI.AspectRatioFitter>();
                     if (aspect != null) aspect.aspectRatio = (float)photo.Width / photo.Height;
                 }
-                ShowPopup("Seyra will see this when you send it.");
+                ShowPopup("");
                 PreviewChanged?.Invoke();
             }
             else if (service.State == CameraCaptureState.Failed) ShowPopup(service.Status);
@@ -101,6 +105,7 @@ namespace Seyra.Cameras
         {
             if (popup == null || popupLabel == null) return;
             popupLabel.text = message;
+            popupLabel.gameObject.SetActive(!string.IsNullOrEmpty(message));
             popupLabel.textWrappingMode = PreviewTexture != null ? TextWrappingModes.NoWrap : TextWrappingModes.Normal;
             popup.Open();
             popup.GetComponent<SeyraLazyFollow>()?.SnapToTarget();
@@ -112,7 +117,9 @@ namespace Seyra.Cameras
         }
         void Update()
         {
-            if (popup != null && popup.gameObject.activeSelf && Time.unscaledTime >= closeAt) ClosePopup();
+            if (Time.unscaledTime < closeAt) return;
+            ClosePopup();
+            if (displayedCapture != null && displayedCapture.Id == service.LastTakenId) ReleasePreview();
         }
         void ReleasePreview()
         {

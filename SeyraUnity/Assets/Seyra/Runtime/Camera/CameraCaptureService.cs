@@ -10,6 +10,7 @@ namespace Seyra.Cameras
     {
         public CameraCaptureState State { get; private set; }
         public CameraCapture Current { get; private set; }
+        public string LastTakenId { get; private set; }
         public string Status { get; private set; } = "";
         public event Action Changed;
         public event Action PhotoTaken;
@@ -117,7 +118,7 @@ namespace Seyra.Cameras
                 };
                 ++generation;
                 source.End();
-                SetState(CameraCaptureState.Ready, "Hold Talk to ask about this photo.");
+                SetState(CameraCaptureState.Ready);
             }
             catch (Exception) { Fail("Could not read the camera image. Try again."); }
         }
@@ -132,6 +133,7 @@ namespace Seyra.Cameras
             if (State != CameraCaptureState.Ready) return null;
             var photo = Current;
             Current = null;
+            LastTakenId = photo?.Id;
             if (photo != null)
             {
                 recent.Enqueue(new CameraCapture {
@@ -147,6 +149,7 @@ namespace Seyra.Cameras
         public void Clear()
         {
             ++generation;
+            LastTakenId = null;
             if (Current != null) Current.Jpeg = null;
             Current = null;
             if (paused) { cancelOnResume = true; Changed?.Invoke(); return; }
