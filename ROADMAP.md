@@ -23,7 +23,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Modelo | Muse Spark como perfil principal (`seyra`); GLM como alternativa. | Visión con capturas (11–12). |
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27) y movimiento (24). |
-| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 en Quest 3 y mantener el contenido dentro de la habitación (28). |
+| Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 y 28 en Quest 3. |
 | Persistencia | Slots v5 con primitivas, apariencia, paneles, presentaciones y layouts. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
@@ -42,9 +42,9 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 3 | 29. Líneas guía y puntos de interés | 74 | Completed · Revisada; prueba en Quest 3 pendiente. Maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Convierte las tarjetas en listas de seguimiento. |
 | 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
-| 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada · Pendiente de revisión. Paso 8 (system prompt) aplicado; prueba con Muse pendiente. |
-| 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
-| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) tras 28. |
+| 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
+| 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
+| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) ya puede diseñarse tras 32a. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Gran valor de IA, pero esfuerzo y riesgo altos. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
@@ -332,7 +332,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 28. Contenido dentro de la habitación
 
-**Estado:** sin diseñar. Prioridad media (puntuación 66).
+**Estado:** Completed · Revisada (1 de noviembre de 2026). Layouts en el aire buscan distancia, filas y giro dentro del suelo y las paredes capturados, con 5 cm de margen. SpatialPlannerChecks 25, LayoutPlannerChecks 1309, SpatialPlacementChecks 50, LayoutChecks 44, SceneBatchChecks 45 y bridge 37/37 aprobadas. Pendientes Muse y Quest 3. [Implementación y revisión](Progress/Completed/28-content-inside-room.md).
 
 **Entrega:** ninguna colocación automática (layouts en el aire, `spatial_place` en aire, `scene_build` con `placement`, seguimiento del chat) deja contenido detrás de una pared o fuera del suelo capturado. MRUK 207 cierra la habitación aunque las paredes tengan aberturas: `MRUKRoom.GetRoomOutline()` devuelve el contorno del suelo e `IsPositionInRoom()` comprueba un punto. El planificador acerca el contenido, reduce el radio de los layouts o lo coloca en otra dirección; si no cabe, lo informa.
 
@@ -483,7 +483,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 19. Imágenes generadas con Muse Image
 
-**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Pasos 1–7 implementados; C# compilado y bridge 37/37 tests aprobados. LayoutChecks aprobado con 44 comprobaciones, ejecutado por Claude mediante Unity CLI en Play Mode. PresentationChecks aprobado con 251 aserciones, tras corregir una aserción obsoleta de versión 6 a 7. Paso 8 (system prompt) aplicado. Sin llamadas reales a Muse Image; latencia y validación Quest 3 pendientes. [Implementación y validación](Progress/Completed/19-muse-image-cards.md).
+**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Pasos 1–7 implementados; C# compilado y bridge 37/37 tests aprobados. LayoutChecks aprobado con 44 comprobaciones, ejecutado por Claude mediante Unity CLI en Play Mode. PresentationChecks aprobado con 251 aserciones, tras corregir una aserción obsoleta de versión 6 a 7. Paso 8 (system prompt) aplicado. Primera prueba real correcta del usuario con la carbonara (1 de noviembre de 2026). Solo falta probar: casos «No», otros casos «Sí», calidad, latencia, reutilización, guardado y fallos, y Quest 3. [Implementación y validación](Progress/Completed/19-muse-image-cards.md).
 
 **Entrega:** herramienta para que el agente genere imágenes con Muse Image y las muestre en tarjetas (`mediaCard`, sola o en `layout_create`) o en paneles, con estado de carga. La llave y la llamada viven en el backend; el bridge entrega los bytes a Unity por la pasarela autenticada, ya que 26d retiró el resolver anterior. El agente decide si genera, con una guía en el prompt:
 

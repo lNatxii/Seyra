@@ -62,6 +62,13 @@ public static class SpatialPlannerChecks
         tableRequest.Content=new Bounds(Vector3.zero,new Vector3(.22f,.05f,.22f));
         var reservedTable=SpatialPlacementPlanner.Plan(tableRoom,tableRequest,view,new[]{new SpatialBox(new Vector3(1.5f,.9f,0),new Vector3(3,1,3),Quaternion.identity)});
         Check(reservedTable.Best==null&&reservedTable.Supports.Any(s=>s.PhysicalId=="table"&&s.Reasons.ContainsKey("RESERVED")),"An occupied table must reject relaxed placement and report RESERVED in its support summary.");
+        var nearWallView=new Pose(new Vector3(0,1.6f,.5f),Quaternion.identity);
+        var airRequest=new SpatialPlacementRequest{Destination="air",Readable=false,Content=new Bounds(Vector3.zero,new Vector3(.6f,.5f,.4f))};
+        var airPlan=SpatialPlacementPlanner.Plan(room,airRequest,nearWallView,Array.Empty<SpatialBox>());
+        Check(airPlan.Best!=null&&RoomContainment.Reason(room,airPlan.Best.Box,.05f)==null,"Air planning must keep a 5 cm room margin at 1.5 m from a wall.");
+        var closePose=new Pose(new Vector3(0,1.5f,1.77f),Quaternion.identity);
+        var closeCandidate=new SpatialCandidate{Destination="air",Pose=closePose,Box=new SpatialBox(closePose.position,airRequest.Content.size,closePose.rotation)};
+        Check(SpatialPlacementPlanner.ValidateGeometry(room,closeCandidate,Array.Empty<SpatialBox>())==null&&RoomContainment.Reason(room,closeCandidate.Box,.05f)=="CAPTURED_PLANE","Persistent geometry must accept a box 3 cm from the wall without the planning margin.");
         return "Spatial planner basic checks passed: "+checks;
     }
 }

@@ -62,6 +62,28 @@ public static class LayoutPlannerChecks
             Check(planned.Candidates.All(c=>SpatialCollision.Fits(c.Box,table,.1f)),"Tilted footprint must remain supported.");
         }
         Check(twenty.Items.Select(p=>p.position).SequenceEqual(Plan(wallSpec,20).Items.Select(p=>p.position)),"Room layout must be deterministic.");
+        RoomSnapshot ContainmentRoom(float width)=>new RoomSnapshot(3,"containment",true,RoomState.Ready,new[]{
+            new PhysicalSurface("floor","floor",Array.Empty<string>(),new Pose(Vector3.zero,Quaternion.Euler(90,0,0)),Rectangle(width,width)),
+            new PhysicalSurface("ceiling","ceiling",Array.Empty<string>(),new Pose(new Vector3(0,2.5f,0),Quaternion.Euler(90,0,0)),Rectangle(width,width)),
+            new PhysicalSurface("front","wall",Array.Empty<string>(),new Pose(new Vector3(0,1.25f,width/2),Quaternion.Euler(0,180,0)),Rectangle(width,2.5f)),
+            new PhysicalSurface("back","wall",Array.Empty<string>(),new Pose(new Vector3(0,1.25f,-width/2),Quaternion.identity),Rectangle(width,2.5f)),
+            new PhysicalSurface("left","wall",Array.Empty<string>(),new Pose(new Vector3(-width/2,1.25f,0),Quaternion.Euler(0,90,0)),Rectangle(width,2.5f)),
+            new PhysicalSurface("right","wall",Array.Empty<string>(),new Pose(new Vector3(width/2,1.25f,0),Quaternion.Euler(0,-90,0)),Rectangle(width,2.5f))});
+        var arcSpec=new JObject{["layout"]="arc",["itemSize"]=new JObject{["width"]=.45,["height"]=.32}};
+        var captured=ContainmentRoom(3);
+        bool Inside(LayoutPlanner.PlanResult p,RoomSnapshot r)=>p.Items.All(pose=>RoomContainment.Reason(r,new SpatialBox(pose.position,new Vector3(.45f,.32f,.05f),pose.rotation),.05f)==null);
+        var centered=LayoutPlanner.Plan(arcSpec,6,roomView,null,captured,Array.Empty<SpatialBox>());
+        Check(centered.Fits&&centered.Items.Count==6&&Inside(centered,captured),"Centered arc must stay inside the captured room with margin.");
+        var nearWall=new Pose(new Vector3(0,1.6f,.9f),Quaternion.identity);
+        var adjusted=LayoutPlanner.Plan(arcSpec,6,nearWall,null,captured,Array.Empty<SpatialBox>());
+        Check(adjusted.Fits&&Inside(adjusted,captured)&&adjusted.Warnings.Any(w=>w.StartsWith("room_adjusted:",StringComparison.Ordinal)),"Near-wall arc must be adjusted inside the room.");
+        var repeated=LayoutPlanner.Plan(arcSpec,6,nearWall,null,captured,Array.Empty<SpatialBox>());
+        Check(adjusted.Items.SequenceEqual(repeated.Items),"Room search poses must be deterministic.");
+        var cramped=LayoutPlanner.Plan(arcSpec,6,roomView,null,ContainmentRoom(1.6f),Array.Empty<SpatialBox>());
+        Check(!cramped.Fits&&cramped.Items.Count==0&&cramped.MaxItems<6,"Cramped room must reject with bounded capacity and no poses.");
+        var airOnly=LayoutPlanner.Plan(arcSpec,6,roomView,null,new RoomSnapshot(0,null,false,RoomState.AirOnly),Array.Empty<SpatialBox>());
+        var legacy=LayoutPlanner.Plan(arcSpec,6,roomView);
+        Check(airOnly.Items.SequenceEqual(legacy.Items)&&airOnly.Warnings.Contains("room_not_validated"),"Air-only must preserve legacy poses and disclose missing room validation.");
         return "Layout planner basic checks passed: "+checks;
     }
 }

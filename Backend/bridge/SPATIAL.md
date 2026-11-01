@@ -2,6 +2,18 @@
 
 ## Planned placement (22b)
 
+Air planning uses a 5 cm captured-room margin for floor containment and captured
+wall/floor/ceiling planes. Air distances are sampled at 1.3, 1.6, 2, 1.1 and
+0.9 metres; the closer options score below preferred distances at the same yaw.
+This applies to spatial_place, spatial_candidates, scene_build placement
+(including motion envelopes), and chat air planning. Reasons remain OUTSIDE_FLOOR
+or CAPTURED_PLANE, with existing refusal/rollback behavior. RoomContainment
+shares these pure predicates with layout planning (see LAYOUTS.md).
+ValidateGeometry and needsPlacement retain zero room margin: existing content
+3 cm from a wall remains valid. Wall/tabletop planning retains zero room margin
+and its existing support gaps and footprint rules. Layout lazy_follow checks
+containment only at planning time; its runtime motion is not room constrained.
+
 `spatial_candidates({entityId,destination,physicalId?,allowAirFallback?,minScale?})`
 plans without moving or reserving content. Destination is wall/tabletop/air;
 fallback defaults true, relative scale .1..1 defaults 1 and must be 1 for any
