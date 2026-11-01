@@ -44,7 +44,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
-| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) Completed · Pendiente de revisión, con ambos cambios solicitados aplicados; 32b (papelera 3D) se diseña al cerrar 32a. |
+| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) ya se puede diseñar. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
@@ -362,7 +362,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 
 ### 32. Descarte de paneles y contenido agarrable
 
-**Estado 32a:** Completed · Pendiente de revisión (1 de noviembre de 2026). Aplicados ambos cambios de revisión: Gap desactivado en botones de solo icono sin regenerar autoría; compilación con 0 errores y 0 advertencias, PresentationChecks 251 y CardCheckChecks 35 aprobados. Validación visual y con Muse en Quest pendiente. [Implementación y revisión](Progress/Completed/32a-panel-close-button.md).
+**Estado 32a:** Completed · Revisada (1 de noviembre de 2026). Close descarta paneles y presentaciones mediante delete_object, con icono cancel; PanelChecks 240, PresentationChecks 251, CardCheckChecks 35 y backend 42/42 aprobados. Validación visual y con Muse en Quest pendiente. [Implementación y revisión](Progress/Completed/32a-panel-close-button.md).
 
 **Estado 32b:** Future · esbozo. Diseñar al cerrar 28 y 32a. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
 
