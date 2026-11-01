@@ -188,6 +188,7 @@ namespace Seyra.UI
         void Awake()
         {
             if (spokenReplies != null) spokenReplies.transform.SetParent(transform.parent, false);
+            if (spokenReplies != null) spokenReplies.ContentPlaybackBlocked = () => IsDictating;
             if (voiceToggleButton != null) voiceToggleButton.onClick.AddListener(OnMuteVoiceClicked);
             if (spokenReplies != null) spokenReplies.Changed += RefreshSpokenReplyControls;
             UIScrollIndicator.Ensure(conversationScroll, presentationTheme);

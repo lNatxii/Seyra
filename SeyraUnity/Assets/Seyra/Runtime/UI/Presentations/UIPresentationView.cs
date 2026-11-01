@@ -41,7 +41,7 @@ namespace Seyra.UI.Presentations
         public event Action<UIPresentationView, string> ActionRequested;
         public void Configure(string type, UIPanelView frame, UnityEngine.UI.ScrollRect viewport, UIFactory composer)
         { kind = type; panel = frame; scroll = viewport; factory = composer; }
-        internal void FillValidated(UIPresentationData data, UIPrefabCatalog components, IUIMediaResolver resolver, Action close)
+        internal void FillValidated(UIPresentationData data, UIPrefabCatalog components, IUIMediaResolver resolver, Action close, Action<UIActionButton> listen = null)
         {
             if (Data != null || data.Type != kind) throw new InvalidOperationException("Incompatible or already populated presentation adapter.");
             Data = data; media = resolver; factory.Configure(components, (RectTransform)transform);
@@ -50,7 +50,9 @@ namespace Seyra.UI.Presentations
             panel.Actions.gameObject.SetActive(true);
             panel.Actions.GetComponent<UIAdaptiveRow>().Configure(components.DefaultTheme);
             UIPresentationRenderers.Render(this, data);
-            factory.InstantiateCancelButton(Actions, new UIButtonOptions { Label = "Close", Icon = components.CloseIcon }, () => { Record("close",Submitted); close(); });
+            var windowActions = factory.InstantiateRow(Actions, new UIElementOptions { Name = "WindowActions", Layout = UILayoutOptions.Weight() });
+            if (listen != null) listen(factory.InstantiateCancelButton(windowActions, new UIButtonOptions { Label = "Listen", Icon = components.ListenIcon }));
+            factory.InstantiateCancelButton(windowActions, new UIButtonOptions { Label = "Close", Icon = components.CloseIcon }, () => { Record("close",Submitted); close(); });
             UIAssetResources.EnsureTextMaterials(gameObject);
         }
         public void SetIndex(int index, IReadOnlyList<RectTransform> pages)

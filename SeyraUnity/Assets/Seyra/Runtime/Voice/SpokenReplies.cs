@@ -19,6 +19,7 @@ namespace Seyra.Voice
         const string MutedKey = "Seyra.Voice.Muted";
         const string MissingVoice = "Voice is not set up. Add WITAI_CLIENT_TOKEN on the PC.";
         const string FailedVoice = "Could not read the reply aloud. The text is still in the chat.";
+        const string FailedContentVoice = "Could not read this aloud.";
         const string UnavailableVoice = "Voice is not available.";
         GameObject host;
         TTSSpeaker speaker;
@@ -27,6 +28,13 @@ namespace Seyra.Voice
         int generation;
         bool muted, muteLoaded;
         bool submitted;
+        object owner;
+
+        public static SpokenReplies Active { get; private set; }
+        public object FailedOwner { get; private set; }
+        public Func<bool> ContentPlaybackBlocked { get; set; }
+        public bool IsReading(object candidate) => candidate != null && owner == candidate &&
+            (State == SpokenReplyState.Preparing || State == SpokenReplyState.Speaking);
 
         public bool SimulateOutput { get; set; }
         public string LastSpokenText { get; private set; } = "";
@@ -42,29 +50,44 @@ namespace Seyra.Voice
         public string Status { get; private set; } = "";
         public event Action Changed;
 
-        void OnEnable() => Changed?.Invoke();
-        void OnDisable() => Stop();
+        void OnEnable() { Active = this; Changed?.Invoke(); }
+        void OnDisable() { if (Active == this) Active = null; Stop(); }
         void OnApplicationPause(bool paused) { if (paused) Stop(); }
         void OnDestroy() { Stop(); ReleaseHost(); }
 
         public void SpeakReply(string reply)
         {
-            Stop();
+            StopPlayback(false);
+            FailedOwner = null;
             SetStatus("");
             if (Muted || !isActiveAndEnabled) return;
             var text = SpeechText.Prepare(reply);
             if (text.Length > 0) StartPlayback(text);
         }
 
-        public void Stop()
+        public void SpeakContent(object contentOwner, string text)
+        {
+            if (string.IsNullOrEmpty(text) || !isActiveAndEnabled) return;
+            if (ContentPlaybackBlocked != null && ContentPlaybackBlocked()) return;
+            StopPlayback(false);
+            FailedOwner = null;
+            owner = contentOwner;
+            StartPlayback(text);
+        }
+
+        public void Stop() => StopPlayback(true);
+
+        // Replacement and failure publish only their final state, keeping owner subscriptions alive.
+        void StopPlayback(bool notify)
         {
             generation++;
+            owner = null;
             preparation?.Cancel(); preparation?.Dispose(); preparation = null;
             submitted = false;
             try { if (speaker != null) speaker.Stop(); } catch { }
             LastSpokenText = "";
             State = SpokenReplyState.Idle;
-            Changed?.Invoke();
+            if (notify) Changed?.Invoke();
         }
 
         public void SetMuted(bool muted)
@@ -80,9 +103,8 @@ namespace Seyra.Voice
 
         void StartPlayback(string text)
         {
-            SetStatus("");
             State = SpokenReplyState.Preparing;
-            Changed?.Invoke();
+            SetStatus("");
             if (SimulateOutput)
             {
                 LastSpokenText = text;
@@ -108,9 +130,9 @@ namespace Seyra.Voice
                             clientToken = await client.GetClientTokenAsync(cancellation);
                     }
                     else if (Application.isEditor) clientToken = SeyraEnvironmentCredentials.WitClientToken;
-                    else { if (current == generation) { State = SpokenReplyState.Unavailable; SetStatus(UnavailableVoice); } return; }
+                    else { if (current == generation) { State = SpokenReplyState.Unavailable; FailedOwner = owner; SetStatus(UnavailableVoice); } return; }
                     if (current != generation || cancellation.IsCancellationRequested || !isActiveAndEnabled) return;
-                    if (string.IsNullOrWhiteSpace(clientToken)) { State = SpokenReplyState.Unavailable; SetStatus(MissingVoice); return; }
+                    if (string.IsNullOrWhiteSpace(clientToken)) { State = SpokenReplyState.Unavailable; FailedOwner = owner; SetStatus(MissingVoice); return; }
                     CreateHost(clientToken);
                 }
                 if (current != generation || !isActiveAndEnabled) return;
@@ -180,9 +202,11 @@ namespace Seyra.Voice
 
         void Fail()
         {
-            Stop();
+            var failed = owner;
+            StopPlayback(false);
             ReleaseHost();
-            SetStatus(FailedVoice);
+            FailedOwner = failed;
+            SetStatus(failed != null ? FailedContentVoice : FailedVoice);
         }
 
         public void SimulateFailure() { if (SimulateOutput) Fail(); }

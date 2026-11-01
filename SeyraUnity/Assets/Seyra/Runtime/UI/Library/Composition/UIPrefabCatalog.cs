@@ -81,6 +81,10 @@ namespace Seyra.UI.Library
         [SerializeField] SeyraUITheme defaultTheme;
         [SerializeField] UIXRWindow windowPrefab;
         [SerializeField] Sprite closeIcon;
+        [SerializeField] Sprite listenIcon, stopIcon;
+        public Sprite ListenIcon => listenIcon;
+        public Sprite StopIcon => stopIcon;
+        public void ConfigureListenIcons(Sprite listen, Sprite stop) { listenIcon = listen; stopIcon = stop; }
         public Sprite CloseIcon => closeIcon;
         public void ConfigureCloseIcon(Sprite icon) { closeIcon = icon; }
         [SerializeField] Oculus.Interaction.UITheme[] metaThemes;

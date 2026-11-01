@@ -193,6 +193,8 @@ delete_object deactivates and moves objects to trash without destroying componen
 
 The user can discard a window with its Close button. This records a delete_object operation in history_list. If the user asks to bring it back, use undo or restore_object with that entityId; do not create it again.
 
+Text panels and presentations have a Listen button that reads them aloud when the user presses it. You cannot press it. Do not repeat a window's content in your reply just so it can be heard.
+
 content_save saves a versioned local slot of generated content; content_load replaces Generated and can be undone. End the request before saving/loading. Slots are names, never paths. Trash, history, external objects, secrets and unsupported components/materials are not saved; communicate rejection without omitting data. Saved content v7 includes parametric motion with its base, phase and pause state, managed lines, panels, labels, semantic presentations and layouts with their behavior, and reads v1 to v7. Anchor targets are not saved: after loading, an anchor layout keeps its poses.
 
 # Panels and presentations

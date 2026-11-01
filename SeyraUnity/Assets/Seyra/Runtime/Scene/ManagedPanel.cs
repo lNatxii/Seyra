@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Seyra.UI.Library;
+using Seyra.UI.Presentations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,6 +20,8 @@ namespace Seyra.SceneTools
         [SerializeField] ScrollRect scroll;
         [SerializeField] UIField cardCheck;
         [SerializeField] UIActionButton closeButton;
+        [SerializeField] RectTransform windowActions;
+        [SerializeField] PanelListenControl listen;
         [SerializeField] string structure;
         [SerializeField] TMP_FontAsset font;
         [SerializeField] Vector3 surfacePosition;
@@ -28,6 +31,10 @@ namespace Seyra.SceneTools
         public PanelContent Content => content.Copy();
         public RectTransform Surface => surface;
         public UIXRWindow Window => window;
+        internal string SpokenText() => IsPresentation ? UIPresentationSpeech.Compose(presentationView) : content.title + "\n" + content.text;
+        internal string SpeechKey => IsPresentation
+            ? presentationJson + "#" + presentationView.Index + "#" + presentationView.NodeId
+            : content.title + "\n" + content.text;
 
         public void Initialize(PanelContent data, UIPrefabCatalog catalog)
         {
@@ -50,7 +57,12 @@ namespace Seyra.SceneTools
                 var size = scroll.GetComponent<LayoutElement>(); size.minHeight = size.preferredHeight = 0; size.flexibleHeight = 1;
                 body = factory.InstantiateText(data.text, scroll.content);
                 body.overflowMode = TextOverflowModes.Overflow;
-                closeButton = factory.InstantiateCancelButton(null, new UIButtonOptions { Label = "Close", Icon = catalog.CloseIcon }, RequestDiscard);
+                windowActions = factory.InstantiateRow(null, new UIElementOptions { Name = "WindowActions",
+                    Layout = new UILayoutOptions { MinHeight = 0, FlexibleHeight = 0 } });
+                listen = window.gameObject.AddComponent<PanelListenControl>();
+                listen.Configure(this, catalog);
+                listen.Bind(factory.InstantiateCancelButton(windowActions, new UIButtonOptions { Label = "Listen", Icon = catalog.ListenIcon }));
+                closeButton = factory.InstantiateCancelButton(windowActions, new UIButtonOptions { Label = "Close", Icon = catalog.CloseIcon }, RequestDiscard);
             }
             else
             {
@@ -89,12 +101,13 @@ namespace Seyra.SceneTools
                     cardCheck.Label = data.checkLabel;
                     ((Toggle)cardCheck.Control).SetIsOnWithoutNotify(data.checkCompleted);
                 }
-                window.Factory.InstanceOf(closeButton).transform.SetAsLastSibling();
+                window.Factory.InstanceOf(windowActions).transform.SetAsLastSibling();
                 heading.text = data.title;
                 window.Factory.InstanceOf(heading).gameObject.SetActive(data.title.Length != 0);
             }
             else surface.sizeDelta = data.CanvasSize;
             body.text = data.text; body.fontSize = (float)data.fontSize;
+            if (listen != null) listen.ContentMayHaveChanged();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(surface);
             body.ForceMeshUpdate(true);

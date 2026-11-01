@@ -45,6 +45,8 @@ namespace Seyra.SceneTools
             window.name = "PresentationWindow";
             window.GrabFrame.Grabbable.InjectOptionalTargetTransform(transform);
             surface = (RectTransform)window.Canvas.transform;
+            listen = window.gameObject.AddComponent<PanelListenControl>();
+            listen.Configure(this, library);
             ApplyPresentation(spec, state);
         }
         public void ApplyPresentation(PresentationContent spec, JObject state = null)
@@ -57,6 +59,7 @@ namespace Seyra.SceneTools
             layout.childControlWidth = layout.childControlHeight = layout.childForceExpandWidth = layout.childForceExpandHeight = true;
             var size = stage.GetComponent<LayoutElement>(); size.minHeight = 0; size.preferredHeight = 0; size.flexibleHeight = size.flexibleWidth = 1;
             UIPresentationView next;
+            UIActionButton preparedListen = null;
             try
             {
                 preparingPresentation = spec;
@@ -64,7 +67,7 @@ namespace Seyra.SceneTools
                 var generatedRoot = transform;
                 while (generatedRoot != null && generatedRoot.GetComponent<GeneratedObject>()?.Kind != "root") generatedRoot = generatedRoot.parent;
                 var resolver = new PresentationMediaResolver(RemoteMediaStore.For(generatedRoot), templates);
-                next.FillValidated(spec.Data, templates.Components, resolver, RequestDiscard);
+                next.FillValidated(spec.Data, templates.Components, resolver, RequestDiscard, button => preparedListen = button);
                 if (state != null) next.RestoreState(state);
                 next.ExportState(state != null ? (bool)state["visible"] : presentationVisible);
                 // Include old + prepared trees in the physical retained-object budget.
@@ -81,6 +84,7 @@ namespace Seyra.SceneTools
                 if (Application.isPlaying) Destroy(old.gameObject); else DestroyImmediate(old.gameObject);
             }
             content = spec.Envelope; presentationJson = spec.ToJson().ToString(Newtonsoft.Json.Formatting.None); presentationView = next;
+            listen.Bind(preparedListen);
             window.Resize(content.CanvasSize);
             next.ResizeMediaHeader();
             stage.SetActive(true);
@@ -91,19 +95,23 @@ namespace Seyra.SceneTools
             window.gameObject.SetActive(presentationVisible);
             Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate(surface);
             if (state != null) next.RestoreState(state);
+            listen.ContentMayHaveChanged();
             CapturePresentationIntegrity();
         }
         public void SetPresentationVisible(bool visible)
         {
             presentationVisible = visible; window.gameObject.SetActive(visible);
         }
-        void PresentationAction(UIPresentationView view, string action) => CapturePresentationIntegrity();
+        void PresentationAction(UIPresentationView view, string action)
+        { CapturePresentationIntegrity(); listen.ContentMayHaveChanged(); }
         bool IsRetiredPresentationTransform(Transform t) => retiredPresentationSlots.Any(slot => slot != null && (t == slot || t.IsChildOf(slot)));
         void CapturePresentationIntegrity()
         {
             expectedPresentationText.Clear();
+            var listenButton = listen != null ? listen.ButtonTransform : null;
             foreach (var text in presentationView.GetComponentsInChildren<TMP_Text>(true))
-                if (text.GetComponentInParent<TMP_InputField>(true) == null) expectedPresentationText[text] = text.text;
+                if (text.GetComponentInParent<TMP_InputField>(true) == null && (listenButton == null || !text.transform.IsChildOf(listenButton)))
+                    expectedPresentationText[text] = text.text;
             foreach (var text in presentationView.GetComponentsInChildren<TMP_Text>(true)) text.richText = false;
             structure = Structure(); surfacePosition = surface.localPosition; surfaceRotation = surface.localRotation;
         }
