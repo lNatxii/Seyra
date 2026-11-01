@@ -1,4 +1,45 @@
-# Spatial layouts (23a / 23b)
+# Spatial layouts (23a / 23b / 28)
+
+## Captured room containment
+
+With a Ready room, arc, plane, hub and surround cards must remain inside the
+current room with a 5 cm margin from the captured floor boundary and wall,
+floor and ceiling planes. A viewer-to-card ray must not cross a wall, even
+when the floor polygon extends beyond it. Cards use oriented boxes of their
+declared width/height and 5 cm depth; billboard depth equals width to enclose
+its rotation. The hub center uses centerSize. This is conservative geometry.
+
+Search order is yaw 0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 180 degrees;
+within each yaw, increase rows then decrease radius/distance in 0.2 m steps,
+including the minimum endpoint. Arc can reach 3 rows, surround 2, unless rows
+was explicit. Plane and hub retain their base arrangement. Explicit radius or
+distance may shrink: minima are 0.9 m for arc, 1.0 m for surround and 0.8 m for
+plane/hub. Public argument minima remain unchanged. The first contained variant
+without furniture/reservation overlaps wins; otherwise use the first variant
+with the fewest overlapping cards (5 cm reservation separation).
+
+Warnings returned by plan/create/apply:
+
+- `room_adjusted:yaw=<g>,rows=<n>,size=<m>`: arrangement changed; size is radius
+  or distance in metres with two decimals, using invariant formatting.
+- `overlaps_existing:<n>`: n cards overlap captured furniture or existing content.
+- `outside_room:<i>`: anchored or lazy_follow card i crosses the room boundary
+  or is behind a wall; its pose is retained, without rejection or search.
+- `room_not_validated`: room is absent or not Ready; legacy poses are retained.
+  Wall/surface instead retain ROOM_UNAVAILABLE.
+
+If no contained variant fits, items is empty and the reason is
+`LAYOUT_DOES_NOT_FIT: the layout does not fit inside the captured room; use a wall layout, fewer cards or smaller cards.`
+maxItems counts contiguous feasible counts from 1 (3 for hub) through 24 (9 for
+hub), stopping at the first failure and ignoring overlaps. A base plan already
+invalid without room constraints retains its existing result. Failed mutations
+create nothing. Room revision and simulated metadata identify the snapshot used.
+
+Legacy lazy_follow is checked only when planned; runtime following can cross
+room limits. Explicit poses, manual transforms and slot loading do not replan.
+Undo/trash/persistence are unchanged, with no slot version change. The stored
+layout specification remains the original; apply searches the current room
+again, while load restores saved poses. Content in another room is rejected.
 
 `layout_plan` is a query; `layout_create` and `layout_apply` use the existing
 recorded scene mutation circuit. All schemas are strict. Use layouts for two

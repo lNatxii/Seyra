@@ -5,6 +5,17 @@ using UnityEngine;
 
 namespace Seyra.Spatial
 {
+    public static class RoomContainment
+    {
+        public static bool InsideFloor(RoomSnapshot room,SpatialBox box,float margin)=>
+            room.Surfaces.Any(s=>s.Kind=="floor"&&SpatialCollision.Fits(box,s,margin));
+        public static bool CrossesPlane(RoomSnapshot room,SpatialBox box,float margin)=>
+            room.Surfaces.Any(s=>s.Kind!="tabletop"&&s.Kind!="opening"&&SpatialCollision.Intersects(box,s,margin));
+        // Returns OUTSIDE_FLOOR, CAPTURED_PLANE or null.
+        public static string Reason(RoomSnapshot room,SpatialBox box,float margin)=>
+            !InsideFloor(room,box,margin)?"OUTSIDE_FLOOR":CrossesPlane(room,box,margin)?"CAPTURED_PLANE":null;
+    }
+
     // Pure geometry shared by planning and swept follow validation. No physics scene queries.
     public static class SpatialCollision
     {

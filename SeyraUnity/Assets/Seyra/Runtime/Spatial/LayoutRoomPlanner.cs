@@ -11,8 +11,23 @@ namespace Seyra.Spatial
         public static bool IsRoomLayout(string layout)=>layout=="wall"||layout=="surface";
         public static PlanResult Plan(JObject spec,int count,Pose view,Func<int,Vector2,Pose> anchor,RoomSnapshot room,IReadOnlyList<SpatialBox> reservations)
         {
-            if(!IsRoomLayout((string)spec["layout"]))return Plan(spec,count,view,anchor);
             spec=Normalize(spec,count);
+            if(!IsRoomLayout((string)spec["layout"]))
+            {
+                PlanResult free;
+                if(room==null||room.State!=RoomState.Ready)
+                {
+                    free=Plan(spec,count,view,anchor);free.Warnings.Add("room_not_validated");return free;
+                }
+                if((string)spec["layout"]=="anchor"||(string)spec["behavior"]=="lazy_follow")
+                {
+                    free=Plan(spec,count,view,anchor);
+                    for(int i=0;i<free.Items.Count;i++)
+                        if(!ItemContained(free.Items[i],CardSize(spec,i),(string)spec["behavior"],view,room))free.Warnings.Add("outside_room:"+i);
+                }
+                else free=FreeInRoom(spec,count,view,room,reservations);
+                free.RoomRevision=room.Revision;free.Simulated=room.Simulated;return free;
+            }
             if(room==null||room.State!=RoomState.Ready)throw new ArgumentException("ROOM_UNAVAILABLE: a ready room is required.");
             string kind=(string)spec["layout"]=="wall"?"wall":"tabletop",id=(string)spec["params"]?["physicalId"];
             if(id!=null&&!room.Surfaces.Any(s=>s.PhysicalId==id&&s.Kind==kind))
@@ -21,6 +36,81 @@ namespace Seyra.Spatial
             result.RoomRevision=room.Revision;result.Simulated=room.Simulated;
             result.Root=new Pose(view.position+Vector3.down*.1f,SpatialGeometry.Yaw(view.rotation*Vector3.forward));
             if(!result.Fits)result.Items.Clear();
+            return result;
+        }
+        static Vector2 CardSize(JObject spec,int index)=>index==0&&(string)spec["layout"]=="hub"&&spec["centerSize"]?.Type==JTokenType.Object?Size(spec["centerSize"]):Size(spec["itemSize"]);
+        static SpatialBox ItemBox(Pose pose,Vector2 size,string behavior)=>new SpatialBox(pose.position,new Vector3(size.x,size.y,behavior=="billboard"?size.x:.05f),pose.rotation);
+        static bool ItemContained(Pose pose,Vector2 size,string behavior,Pose view,RoomSnapshot room)
+        {
+            var box=ItemBox(pose,size,behavior);
+            return RoomContainment.Reason(room,box,SpatialPlacementSettings.RoomMargin)==null
+                &&!room.Surfaces.Any(s=>s.Kind=="wall"&&SpatialCollision.RayHits(view.position,box.Center,s));
+        }
+        static bool Contained(PlanResult plan,JObject spec,Pose view,RoomSnapshot room)
+        {
+            for(int i=0;i<plan.Items.Count;i++)if(!ItemContained(plan.Items[i],CardSize(spec,i),(string)spec["behavior"],view,room))return false;
+            return true;
+        }
+        static int Overlaps(PlanResult plan,JObject spec,RoomSnapshot room,IReadOnlyList<SpatialBox> reservations)
+        {
+            int overlaps=0;
+            for(int i=0;i<plan.Items.Count;i++)
+            {
+                var box=ItemBox(plan.Items[i],CardSize(spec,i),(string)spec["behavior"]);
+                if(room.Objects.Any(o=>SpatialCollision.Intersects(box,o.Box,SpatialPlacementSettings.ReservationGap))
+                    ||reservations!=null&&reservations.Any(b=>SpatialCollision.Intersects(box,b,SpatialPlacementSettings.ReservationGap)))overlaps++;
+            }
+            return overlaps;
+        }
+        // Capacity uses the same bounded search, stopping at its first contained variant.
+        static PlanResult SearchRoom(JObject spec,int count,Pose view,RoomSnapshot room,IReadOnlyList<SpatialBox> reservations,bool capacityOnly)
+        {
+            var original=Build(spec,count,view,null);if(!original.Fits)return null;
+            string layout=(string)spec["layout"];bool radial=layout=="arc"||layout=="surround";
+            var parameters=(JObject)spec["params"];
+            float start=radial?original.Radius:((float?)parameters["distance"]??(layout=="hub"?1.7f:1.6f));
+            float minimum=layout=="arc"?SpatialPlacementSettings.ArcMinRadiusInRoom:layout=="surround"?SpatialPlacementSettings.SurroundMinRadiusInRoom:.8f;
+            int lastRows=parameters["rows"]==null?(layout=="arc"?3:layout=="surround"?2:original.Rows):original.Rows;
+            PlanResult best=null;int bestOverlaps=int.MaxValue;float bestYaw=0,bestSize=start;
+            foreach(float yaw in SpatialPlacementSettings.RoomSearchYaws)
+            for(int rows=original.Rows;rows<=lastRows;rows++)
+            {
+                int steps=Mathf.CeilToInt((start-minimum)/SpatialPlacementSettings.RoomSearchStep);
+                for(int step=0;step<=steps;step++)
+                {
+                    float size=Mathf.Max(minimum,start-step*SpatialPlacementSettings.RoomSearchStep);
+                    var variant=(JObject)spec.DeepClone();var p=(JObject)variant["params"];
+                    p[radial?"radius":"distance"]=size;if(radial)p["rows"]=rows;
+                    var plan=Build(variant,count,new Pose(view.position,Quaternion.Euler(0,yaw,0)*view.rotation),null);
+                    if(!plan.Fits||!Contained(plan,spec,view,room))continue;
+                    if(capacityOnly)return plan;
+                    int overlaps=Overlaps(plan,spec,room,reservations);
+                    if(overlaps>=bestOverlaps)continue;
+                    best=plan;bestOverlaps=overlaps;bestYaw=yaw;bestSize=size;
+                    if(overlaps==0)goto Found;
+                }
+            }
+        Found:
+            if(best!=null)
+            {
+                if(bestYaw!=0||best.Rows!=original.Rows||Mathf.Abs(bestSize-start)>.00001f)
+                    best.Warnings.Add(FormattableString.Invariant($"room_adjusted:yaw={bestYaw:0},rows={best.Rows},size={bestSize:0.00}"));
+                if(bestOverlaps>0)best.Warnings.Add("overlaps_existing:"+bestOverlaps);
+            }
+            return best;
+        }
+        static PlanResult FreeInRoom(JObject spec,int count,Pose view,RoomSnapshot room,IReadOnlyList<SpatialBox> reservations)
+        {
+            var original=Build(spec,count,view,null);
+            if(!original.Fits)return Plan(spec,count,view);
+            var result=SearchRoom(spec,count,view,room,reservations,false)??new PlanResult{Root=original.Root,
+                Reason="LAYOUT_DOES_NOT_FIT: the layout does not fit inside the captured room; use a wall layout, fewer cards or smaller cards."};
+            int min=(string)spec["layout"]=="hub"?3:1,max=(string)spec["layout"]=="hub"?9:24;
+            for(int n=min;n<=max;n++)
+            {
+                if(SearchRoom(spec,n,view,room,reservations,true)==null)break;
+                result.MaxItems=n;
+            }
             return result;
         }
         sealed class WallGrid

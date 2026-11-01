@@ -198,16 +198,15 @@ namespace Seyra.Spatial
         {
             return ValidateVolume(candidate.Box)??ValidateGeometryCore(room,candidate,reservations);
         }
-        static string ValidateGeometryCore(RoomSnapshot room,SpatialCandidate candidate,IEnumerable<SpatialBox> reservations)
+        static string ValidateGeometryCore(RoomSnapshot room,SpatialCandidate candidate,IEnumerable<SpatialBox> reservations,float roomMargin=0)
         {
             var box=candidate.Box;
             var support=room.Surfaces.FirstOrDefault(s=>s.PhysicalId==candidate.PhysicalId&&s.Kind==candidate.Destination);
             if(candidate.Destination!="air"&&(support==null||!SpatialCollision.Fits(box,support,SpatialPlacementSettings.EdgeMargin)))return "SUPPORT_FOOTPRINT";
             foreach(var opening in room.Surfaces.Where(s=>s.Kind=="opening"))if(SpatialCollision.Intersects(box,opening,SpatialPlacementSettings.EdgeMargin))return "OPENING";
-            var floors=room.Surfaces.Where(s=>s.Kind=="floor").ToArray();
-            if(room.State==RoomState.Ready&&(floors.Length==0||!floors.Any(f=>SpatialCollision.Fits(box,f,0))))return "OUTSIDE_FLOOR";
+            if(room.State==RoomState.Ready&&!RoomContainment.InsideFloor(room,box,roomMargin))return "OUTSIDE_FLOOR";
             foreach(var item in room.Objects)if(SpatialCollision.Intersects(box,item.Box))return "FURNITURE";
-            foreach(var surface in room.Surfaces.Where(s=>s.Kind!="tabletop"&&s.Kind!="opening"))if(SpatialCollision.Intersects(box,surface))return "CAPTURED_PLANE";
+            if(RoomContainment.CrossesPlane(room,box,roomMargin))return "CAPTURED_PLANE";
             foreach(var reserved in reservations)if(SpatialCollision.Intersects(box,reserved,SpatialPlacementSettings.ReservationGap))return "RESERVED";
             return null;
         }
@@ -227,7 +226,7 @@ namespace Seyra.Spatial
             ComputeMetrics(candidate,view);
             if(candidate.Distance>SpatialPlacementSettings.MaxDistance)return "TOO_FAR";
             if(SpatialCollision.NearestDistance(box,view.position)<SpatialPlacementSettings.MinDistance)return "TOO_CLOSE";
-            invalid=ValidateGeometryCore(room,candidate,reservations);if(invalid!=null)return invalid;
+            invalid=ValidateGeometryCore(room,candidate,reservations,candidate.Destination=="air"?SpatialPlacementSettings.RoomMargin:0);if(invalid!=null)return invalid;
             foreach(var point in box.Corners.Concat(new[]{box.Center}))
             {
                 if(room.Objects.Any(o=>SpatialCollision.RayHits(view.position,point,o.Box))||room.Surfaces.Any(s=>s.Kind!="tabletop"&&s.Kind!="opening"&&SpatialCollision.RayHits(view.position,point,s)))return "OCCLUDED";
