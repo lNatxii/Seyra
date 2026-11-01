@@ -17,12 +17,14 @@ namespace Seyra.SceneTools
     {
         const int MaxBytes = 1024 * 1024;
         const int TextureLimit = 48;
-        static readonly Regex ValidId = new Regex(@"\Aweb:[0-9a-f]{32}\z", RegexOptions.CultureInvariant);
+        const double PendingLifetime = 120;
+        static readonly Regex ValidId = new Regex(@"\A(?:web|gen):[0-9a-f]{32}\z", RegexOptions.CultureInvariant);
         static readonly Dictionary<Transform, RemoteMediaStore> stores = new Dictionary<Transform, RemoteMediaStore>();
         [SerializeField] Transform generatedRoot;
         int owners;
         readonly Dictionary<string, Sprite> loaded = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         readonly LinkedList<string> recency = new LinkedList<string>();
+        readonly Dictionary<string, double> pending = new Dictionary<string, double>(StringComparer.Ordinal);
         string directory;
 
         public static RemoteMediaStore For(Transform generatedRoot)
@@ -65,7 +67,43 @@ namespace Seyra.SceneTools
         }
         void LateUpdate()
         {
-            if (generatedRoot == null) DestroyStore();
+            if (generatedRoot == null) { DestroyStore(); return; }
+            if (pending.Count == 0) return;
+            var now = Time.realtimeSinceStartupAsDouble;
+            Fail(pending.Where(item => item.Value <= now).Select(item => item.Key).ToArray());
+        }
+
+        public void MarkPending(IEnumerable<string> ids)
+        {
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            var references = ids.ToArray();
+            if (references.Any(id => id == null || !ValidId.IsMatch(id))) throw new ArgumentException("Invalid media ID.", nameof(ids));
+            foreach (var id in references)
+                if (!Exists(id) && !pending.ContainsKey(id)) pending.Add(id, Time.realtimeSinceStartupAsDouble + PendingLifetime);
+        }
+
+        public bool IsPending(string id) => id != null && pending.TryGetValue(id, out var expires) && expires > Time.realtimeSinceStartupAsDouble;
+
+        public bool Exists(string id) => id != null && ValidId.IsMatch(id) &&
+            ((loaded.TryGetValue(id, out var sprite) && sprite != null) || (directory != null && File.Exists(FilePath(id))));
+
+        public int Fail(IEnumerable<string> ids)
+        {
+            if (ids == null) throw new ArgumentNullException(nameof(ids));
+            var references = ids.Where(id => id != null).ToArray();
+            foreach (var id in references)
+                if (id != null) pending.Remove(id);
+            return RefreshPanels(references);
+        }
+
+        internal int RefreshPanels(IEnumerable<string> ids)
+        {
+            var references = new HashSet<string>(ids, StringComparer.Ordinal);
+            if (generatedRoot == null || references.Count == 0) return 0;
+            int refreshed = 0;
+            foreach (var panel in generatedRoot.GetComponentsInChildren<ManagedPanel>(true))
+                if (panel.MediaReferences().Any(references.Contains)) { panel.RefreshMedia(); refreshed++; }
+            return refreshed;
         }
 
         internal void Configure(string persistenceDirectory)
@@ -75,7 +113,7 @@ namespace Seyra.SceneTools
             directory = next;
         }
 
-        public void Register(JArray media)
+        public int Register(JArray media)
         {
             if (media == null || media.Count > 12) throw new ArgumentException("media must contain at most 12 entries.");
             var prepared = new List<(string id, byte[] bytes, Sprite sprite)>();
@@ -122,9 +160,13 @@ namespace Seyra.SceneTools
                 {
                     if (!loaded.ContainsKey(item.id)) { loaded.Add(item.id, item.sprite); recency.AddLast(item.id); }
                     else Release(item.sprite);
+                    pending.Remove(item.id);
                 }
+                var registered = prepared.Select(item => item.id).ToArray();
                 prepared.Clear();
+                int refreshed = RefreshPanels(registered);
                 Trim();
+                return refreshed;
             }
             finally { foreach (var item in prepared) Release(item.sprite); }
         }
@@ -156,9 +198,12 @@ namespace Seyra.SceneTools
         {
             if (bytes.Length < 4 || bytes.Length > MaxBytes || bytes[0] != 0xff || bytes[1] != 0xd8 || bytes[2] != 0xff)
                 throw new ArgumentException("Media must be a JPEG of at most 1 MiB.");
-            using var sha = SHA256.Create();
-            var hash = BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
-            if (!hash.StartsWith(id.Substring(4), StringComparison.Ordinal)) throw new ArgumentException("Media hash does not match its ID.");
+            if (id.StartsWith("web:", StringComparison.Ordinal))
+            {
+                using var sha = SHA256.Create();
+                var hash = BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
+                if (!hash.StartsWith(id.Substring(4), StringComparison.Ordinal)) throw new ArgumentException("Media hash does not match its ID.");
+            }
             // Read SOF dimensions before allocating a decoder texture, including files loaded from disk.
             for (int offset = 2; offset + 3 < bytes.Length;)
             {
@@ -231,7 +276,7 @@ namespace Seyra.SceneTools
         void ClearResources()
         {
             foreach (var sprite in loaded.Values) Release(sprite);
-            loaded.Clear(); recency.Clear();
+            loaded.Clear(); recency.Clear(); pending.Clear();
         }
     }
 
@@ -240,10 +285,12 @@ namespace Seyra.SceneTools
         readonly RemoteMediaStore remote;
         readonly UIPresentationCatalog catalog;
         internal PresentationMediaResolver(RemoteMediaStore remote, UIPresentationCatalog catalog) { this.remote = remote; this.catalog = catalog; }
+        public bool IsPending(string reference) => remote != null && remote.IsPending(reference);
         public bool TryResolve(string reference, out Sprite sprite)
         {
             sprite = null;
-            if (reference != null && reference.StartsWith("web:", StringComparison.Ordinal)) return remote != null && remote.TryResolve(reference, out sprite);
+            if (reference != null && (reference.StartsWith("web:", StringComparison.Ordinal) || reference.StartsWith("gen:", StringComparison.Ordinal)))
+                return remote != null && remote.TryResolve(reference, out sprite);
             return catalog != null && catalog.TryResolve(reference, out sprite);
         }
     }

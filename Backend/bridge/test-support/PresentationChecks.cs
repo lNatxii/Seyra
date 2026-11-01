@@ -138,6 +138,25 @@ public static class PresentationChecks
                     ((JArray)Get((string)item["entityId"])["missingMedia"]).Count == 0, "Layout media card content, size or image is incorrect.");
             }
             Undo(mediaLayout); Undo(mediaCreated);
+            const string generatedId = "gen:0123456789abcdef0123456789abcdef";
+            var generatedArgs = CardArgs("generated-fixture", generatedId);
+            generatedArgs["pendingMedia"] = new JArray(generatedId);
+            generatedArgs["presentation"]["check"] = new JObject { ["label"] = "Done" };
+            var generatedCard = Ok("ui_present", generatedArgs);
+            var generatedPanel = Panel((string)generatedCard["entityId"]);
+            Require(generatedPanel.PresentationView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text == "Creating image…"), "Pending generated image text is missing.");
+            ((Toggle)generatedPanel.PresentationView.GetComponentsInChildren<UIField>(true).First(field => field.Control is Toggle).Control).isOn = true;
+            var generatedMedia = (JObject)media.DeepClone(); generatedMedia["id"] = generatedId;
+            Ok("media_deliver", new JObject { ["media"] = new JArray(generatedMedia) });
+            Require(generatedPanel.PresentationView.TryMedia(generatedId, out var generatedSprite) && generatedSprite != null &&
+                (string)generatedPanel.InteractionState["values"]["checked"] == "true", "Delivered generated image or preserved check mark is missing.");
+            Undo(generatedCard);
+            const string failedId = "gen:fedcba9876543210fedcba9876543210";
+            var failedArgs = CardArgs("generated-failed", failedId); failedArgs["pendingMedia"] = new JArray(failedId);
+            var failedCard = Ok("ui_present", failedArgs);
+            Ok("media_deliver", new JObject { ["failed"] = new JArray(failedId) });
+            Require(Panel((string)failedCard["entityId"]).PresentationView.GetComponentsInChildren<TMP_Text>(true).Any(text => text.text.StartsWith("Image unavailable", StringComparison.Ordinal)), "Failed generated image text is missing.");
+            Undo(failedCard);
             foreach (var entry in corpus.OfType<JObject>().Where(e => (bool)e["valid"]))
             {
                 var data = (JObject)entry["content"].DeepClone();
@@ -211,7 +230,7 @@ public static class PresentationChecks
             Require(!(bool)Get(ids["gallery"])["interaction"]["visible"], "Close did not hide the window.");
             var snapshots = ids.ToDictionary(p => p.Key, p => Panel(p.Value).InteractionState);
             var saved = Ok("content_save", new JObject { ["slot"] = "all" });
-            Require((int)saved["version"] == 6 && (int)saved["nodeCount"] == 12, "Presentations were not saved as atomic v6 nodes.");
+            Require((int)saved["version"] == 7 && (int)saved["nodeCount"] == 12, "Presentations were not saved as atomic v7 nodes.");
             var loaded = Ok("content_load", new JObject { ["slot"] = "all" }); await Task.Delay(200);
             foreach (var pair in ids)
             {

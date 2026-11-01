@@ -16,7 +16,11 @@ namespace Seyra.UI.Presentations
         public string id, description;
         public Sprite sprite;
     }
-    public interface IUIMediaResolver { bool TryResolve(string reference, out Sprite sprite); }
+    public interface IUIMediaResolver
+    {
+        bool TryResolve(string reference, out Sprite sprite);
+        bool IsPending(string reference);
+    }
 
     [CreateAssetMenu(menuName = "Seyra/UI/Presentation catalog")]
     public sealed class UIPresentationCatalog : ScriptableObject, IUIMediaResolver
@@ -41,6 +45,7 @@ namespace Seyra.UI.Presentations
             sprite = media.FirstOrDefault(m => m.id == reference)?.sprite;
             return sprite != null;
         }
+        public bool IsPending(string reference) => false;
         public void RegisterMedia(string id, Sprite sprite, string description = "")
         {
             if (string.IsNullOrWhiteSpace(id) || id.Length > 256 || sprite == null) throw new ArgumentException("Invalid image resource.");

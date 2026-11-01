@@ -32,6 +32,10 @@ namespace Seyra.SceneTools
         public UIPresentationView PresentationView => presentationView;
         public PresentationContent Presentation => PresentationContent.Parse(JObject.Parse(presentationJson));
         public JObject InteractionState => presentationView != null ? presentationView.ExportState(presentationVisible) : null;
+        public void RefreshMedia()
+        {
+            if (IsPresentation) ApplyPresentation(Presentation, InteractionState);
+        }
         public void InitializePresentation(PresentationContent spec, UIPrefabCatalog library, UIPresentationCatalog catalog, JObject state = null)
         {
             if (content != null) throw new InvalidOperationException("The managed view is already initialized.");

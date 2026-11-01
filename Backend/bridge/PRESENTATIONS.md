@@ -47,7 +47,8 @@ restores the original window with its current local state.
 
 ## Media cards
 
-`mediaCard` requires `image` (a photo) and non-empty `body` (at most 4000
+`mediaCard` requires exactly one of `image` (a registered photo) or `generatedImage`,
+and non-empty `body` (at most 4000
 characters), plus the common `id`, `title` and optional `description`. Optional
 `facts` has at most 8 `UIPropertyData` label/value entries (unit defaults to empty);
 `tags` has at most 6 entries (model schema: non-empty, at most 40 characters each).
@@ -56,7 +57,27 @@ with preferred height 45% of the canvas and zero flexible height. It preserves
 aspect ratio, offers no zoom control and keeps its height when the image is
 missing. Description (Label), tags separated by ` · ` (Help), body and
 `label: value` facts are inside the scroll. Image resolution uses `TryMedia` so
-`missingMedia` includes failures. See [web media](MEDIA.md) for sources and limits.
+`missingMedia` includes failures. See [media](MEDIA.md) for sources and limits.
+
+Only `mediaCard` supports `generatedImage: { subject, category, alt }`, including
+cards in `layout_create`. The bridge validates the policy in [MEDIA.md](MEDIA.md),
+rewrites to an internal photo with `source: "AI-generated illustration"`, queries
+disk availability and adds root `pendingMedia` for missing IDs. Generation starts
+only after a confirmed Unity success. Generated-image results retain scene data
+and add `images: { queued, reused, skipped, reason? }`. Other calls keep their
+previous result contract. Surface layouts do not support these presentations.
+
+The header shows `Creating image…`, then the image or `Image unavailable` plus
+alt, with caption `Source: AI-generated illustration`. `RefreshMedia` rebuilds
+through `ApplyPresentation(Presentation, InteractionState)` to preserve mark and
+scroll, including hidden/trash panels. Delivery, failure and pending expiry are
+outside undo history. Persistence retains the existing reference fields and
+version; loading never starts generation. See MEDIA.md for the internal
+`media_status` and `media_deliver` contracts; neither is an MCP tool.
+
+Steps 1–7 are implemented pending review. Step 8 (system prompt) is pending with
+the user, and the feature remains inactive in the intended assistant flow until
+that prompt is approved and applied. Real Muse and Quest validation are pending.
 
 ## Persistence v5
 
@@ -77,7 +98,8 @@ catalog too. Presentations use the existing scene services and slot persistence;
 remote JPEGs use the separate disk cache described in [MEDIA.md](MEDIA.md).
 Replacement prepares an inactive view before retiring the old one.
 
-Photos accept only a registered `imageRef`. The model cannot supply `web:` references. Missing references
+Photos accept only a registered `imageRef`. The model cannot supply `web:` or `gen:` references,
+`source` or `pendingMedia`. Missing references
 render alternate content and appear in `missingMedia`. See [the media contract](MEDIA.md).
 `ui_media_list` lists only registered catalog sprites. The document viewer keeps
 registered `imageRef` only and does not parse PDFs. Work plans do not execute

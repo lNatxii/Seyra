@@ -42,7 +42,7 @@ Revisado el 31 de octubre de 2026, con el hackathon abierto hasta el 4 de noviem
 | 3 | 29. Líneas guía y puntos de interés | 74 | Completed · Revisada; prueba en Quest 3 pendiente. Maquetas con etiquetas señaladas (planetas, piezas). |
 | 4 | 27. Tarjetas que se pueden marcar | 72 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Convierte las tarjetas en listas de seguimiento. |
 | 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
-| 6 | 19. Imágenes generadas con Muse Image | 68 | **Siguiente.** Recupera imágenes en tarjetas sin problemas de derechos tras 26c/26d y luce un modelo de Meta; hay que añadir la entrega de bytes en el bridge. |
+| 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada · Pendiente de revisión. Paso 8 (system prompt) aplicado; prueba con Muse pendiente. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Evita paneles detrás de las paredes; MRUK ya da el contorno. |
 | 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón, diseño listo) ya se puede implementar; 32b (papelera 3D) tras 28. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Reutiliza la voz de 18 y amplía su valor en la demo. Después de 32a. |
@@ -483,17 +483,17 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 19. Imágenes generadas con Muse Image
 
-**Estado:** sin diseñar (redefinida el 30 de octubre de 2026). Prioridad media (puntuación 68). Al diseñar, comprobar contrato, tamaños, coste y latencia de `muse-image-1.0` en `/v1/images/generations`.
+**Estado:** Completed · Pendiente de revisión (1 de noviembre de 2026). Pasos 1–7 implementados; C# compilado y bridge 37/37 tests aprobados. LayoutChecks aprobado con 44 comprobaciones, ejecutado por Claude mediante Unity CLI en Play Mode. PresentationChecks aprobado con 251 aserciones, tras corregir una aserción obsoleta de versión 6 a 7. Paso 8 (system prompt) aplicado. Sin llamadas reales a Muse Image; latencia y validación Quest 3 pendientes. [Implementación y validación](Progress/Completed/19-muse-image-cards.md).
 
 **Entrega:** herramienta para que el agente genere imágenes con Muse Image y las muestre en tarjetas (`mediaCard`, sola o en `layout_create`) o en paneles, con estado de carga. La llave y la llamada viven en el backend; el bridge entrega los bytes a Unity por la pasarela autenticada, ya que 26d retiró el resolver anterior. El agente decide si genera, con una guía en el prompt:
 
-- **Genera** cuando la imagen ayuda a reconocer o entender algo visual: ingredientes de una receta, platos, animales, plantas, ilustraciones de un concepto.
+- **Genera** cuando la imagen ayuda a reconocer un objeto físico genérico: ingredientes, platos, herramientas, piezas técnicas, animales y plantas.
 - **No genera** cuando basta con texto: preguntas simples, datos, listas, respuestas en el chat, o cuando el usuario pide no usar imágenes.
-- **No genera** imágenes que puedan pasar por reales: portadas de libros, pósteres de películas, personas reales o marcas. Esas tarjetas siguen solo con texto.
+- **No genera** imágenes con derechos o que puedan pasar por reales: portadas de libros, pósteres de películas, personas reales, marcas o ubicaciones. Esas tarjetas siguen solo con texto.
 
 **Aceptación:** «dame los ingredientes de una carbonara» crea tarjetas con una imagen generada de cada ingrediente; «¿cuánta pasta por persona?» responde en el chat sin generar nada; «muéstrame los libros de Isabel Allende» crea tarjetas sin portadas inventadas. Las tarjetas aparecen sin esperar a las imágenes o con un estado de carga visible; un fallo o una cuota agotada deja la tarjeta con su texto y lo indica, sin reintentos ni mutaciones duplicadas. Número de imágenes por turno, tamaño y memoria acotados; la imagen se guarda y se recupera con el slot; deshacer y borrar liberan las texturas. Sin modelos 3D ni edición de texturas de objetos físicos.
 
-**Dependencias:** 05, 08, 23 y 26 (reutiliza `mediaCard` y `RemoteMediaStore`). Amplía la persistencia para gestionar los archivos generados.
+**Dependencias:** 05, 08, 23 y 26 (reutiliza `mediaCard` y `RemoteMediaStore`). Sin cambio de formato de slot: se guardan referencias y los archivos quedan en disco.
 
 ### 20. Memoria contextual compacta de sesión
 

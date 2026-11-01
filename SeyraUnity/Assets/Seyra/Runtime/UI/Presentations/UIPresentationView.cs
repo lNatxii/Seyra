@@ -68,6 +68,7 @@ namespace Seyra.UI.Presentations
             if (!missingMedia.Contains(reference)) missingMedia.Add(reference);
             return false;
         }
+        public bool IsMediaPending(string reference) => media != null && media.IsPending(reference);
         public void Record(string action, bool submitted = false)
         {
             if (Revision < int.MaxValue) Revision++; LastAction = action; Submitted = submitted;

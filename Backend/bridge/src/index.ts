@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { tools } from './tools.js';
+import { createImageService } from './images.js';
 
 const log = (message: string) => console.error(`[seyra] ${message}`);
 function integer(name: string, fallback: number, maximum: number) {
@@ -101,11 +102,13 @@ async function invoke(name: string, args: unknown) {
   }
   return respond(result);
 }
+const images = createImageService({ invoke });
+const imageTools = new Set(['ui_present', 'ui_update', 'layout_create']);
 for (const tool of tools) server.registerTool(tool.name, {
   description: tool.description,
   inputSchema: tool.schema,
   annotations: { readOnlyHint: tool.readOnly, destructiveHint: false, idempotentHint: tool.readOnly },
-}, (args: unknown) => invoke(tool.name, args));
+}, (args: unknown) => imageTools.has(tool.name) ? images.execute(tool.name, args) : invoke(tool.name, args));
 
 async function shutdown(code = 0) {
   if (closing) return;

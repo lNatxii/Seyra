@@ -30,6 +30,7 @@ namespace Seyra.UI.Presentations
                 aspect.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
                 aspect.aspectRatio = sprite.rect.width / sprite.rect.height;
             }
+            else if (v.IsMediaPending(d.image.imageRef)) Text(v, "Creating image…", header, UITextRole.Help);
             else Text(v, "Image unavailable" + (d.image.alt.Length > 0 ? "\n" + d.image.alt : ""), header, UITextRole.Help);
             if (d.image.source.Length > 0) Text(v, "Source: " + d.image.source, v.Body, UITextRole.Help);
             Text(v, d.description, v.Body, UITextRole.Label);

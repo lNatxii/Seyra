@@ -10,6 +10,19 @@ namespace Seyra.SceneTools
     {
         readonly UIPresentationCatalog presentations;
         readonly RemoteMediaStore remoteMedia;
+        static string[] MediaIds(JToken token, string field)
+        {
+            var ids = token as JArray ?? throw new ArgumentException(field + " must be an array.");
+            return ids.Select(id => id.Type == JTokenType.String &&
+                System.Text.RegularExpressions.Regex.IsMatch((string)id, @"\A(?:web|gen):[0-9a-f]{32}\z")
+                ? (string)id : throw new ArgumentException("Invalid media ID in " + field + ".")).Distinct(StringComparer.Ordinal).ToArray();
+        }
+        static string[] PendingMediaArguments(JObject args) => args["pendingMedia"] == null ? Array.Empty<string>() : MediaIds(args["pendingMedia"], "pendingMedia");
+        void ApplyPendingMedia(string[] ids)
+        {
+            remoteMedia.MarkPending(ids);
+            remoteMedia.RefreshPanels(ids);
+        }
         void RegisterMediaArguments(JObject args)
         {
             if (args["media"] != null)
@@ -42,6 +55,21 @@ namespace Seyra.SceneTools
         }
         JObject ExecutePresentation(string tool, JObject args)
         {
+            if (tool == "media_status")
+            {
+                Keys(args, new[] { "ids" });
+                return new JObject { ["existing"] = new JArray(MediaIds(args["ids"], "ids").Where(remoteMedia.Exists)) };
+            }
+            if (tool == "media_deliver")
+            {
+                Keys(args, Array.Empty<string>(), new[] { "media", "failed" });
+                var failed = args["failed"] == null ? Array.Empty<string>() : MediaIds(args["failed"], "failed");
+                var media = args["media"] == null ? null : args["media"] as JArray ?? throw new ArgumentException("media must be an array.");
+                if (media != null && media.Count > 1) throw new ArgumentException("media_deliver accepts at most one media entry.");
+                int refreshed = media == null ? 0 : remoteMedia.Register(media);
+                refreshed += remoteMedia.Fail(failed);
+                return new JObject { ["refreshed"] = refreshed };
+            }
             if (tool == "ui_catalog")
             {
                 Keys(args, Array.Empty<string>());
@@ -67,18 +95,22 @@ namespace Seyra.SceneTools
             }
             if (tool == "ui_present")
             {
-                Keys(args, new[] { "name", "parentId", "position", "rotation", "scale", "width", "height", "presentation" }, new[] { "media" });
+                Keys(args, new[] { "name", "parentId", "position", "rotation", "scale", "width", "height", "presentation" }, new[] { "media", "pendingMedia" });
+                var pending = PendingMediaArguments(args);
                 RegisterMediaArguments(args);
                 var spec = PresentationArguments(args);
                 var live = LiveContent().Select(t => t.GetComponent<ManagedPanel>()).Where(p => p != null && p.IsPresentation).ToArray();
                 if (live.Length >= 16 || live.Any(p => p.Presentation.Data.id == spec.Data.id)) throw new ArgumentException("Presentation ID already exists or the limit of 16 live presentations was reached.");
                 var parent = Parent(args["parentId"]);
                 if ((string)args["parentId"] == "Generated" && activeRequest != null) parent = Find(new JValue(activeRequest));
-                return Inspect(InstantiatePresentation(String(args["name"], 256), parent.transform, spec, null, activeRequest, ReadVector(args["position"]), Quaternion.Euler(ReadVector(args["rotation"])), ReadVector(args["scale"])));
+                var created = InstantiatePresentation(String(args["name"], 256), parent.transform, spec, null, activeRequest, ReadVector(args["position"]), Quaternion.Euler(ReadVector(args["rotation"])), ReadVector(args["scale"]));
+                ApplyPendingMedia(pending);
+                return Inspect(created);
             }
             if (tool == "ui_update")
             {
-                Keys(args, new[] { "entityId", "width", "height", "presentation" }, new[] { "media" });
+                Keys(args, new[] { "entityId", "width", "height", "presentation" }, new[] { "media", "pendingMedia" });
+                var pending = PendingMediaArguments(args);
                 RegisterMediaArguments(args);
                 var target = PresentationTarget(args);
                 var updated = (JObject)args.DeepClone();
@@ -87,7 +119,7 @@ namespace Seyra.SceneTools
                     check["completed"] = (string)target.InteractionState?["values"]?["checked"] == "true";
                 var spec = PresentationArguments(updated);
                 if (spec.Data.id != target.Presentation.Data.id) throw new ArgumentException("An update must preserve the presentation content ID.");
-                target.RequireIntact(); target.ApplyPresentation(spec); return Inspect(target.gameObject);
+                target.RequireIntact(); target.ApplyPresentation(spec); ApplyPendingMedia(pending); return Inspect(target.gameObject);
             }
             Keys(args, new[] { "entityId" });
             var panel = PresentationTarget(args);

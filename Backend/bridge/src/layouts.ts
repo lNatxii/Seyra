@@ -39,7 +39,7 @@ export const layoutTools = [
       validate(a, a.count, ctx);
       if (a.layout === 'anchor' ? a.targets?.length !== a.count : a.targets !== undefined) ctx.addIssue({ code: 'custom', message: 'Only anchor requires targets, one per item.' });
     }) },
-  { name: 'layout_create', readOnly: false, description: guidance + 'Creates an atomic layout group using existing panel/presentation contracts, with automatic request grouping. Photos accept only a registered imageRef. Never supply web: imageRef values. Supports request undo, format 5 persistence, billboard and fixed_facing planes. Never retry ambiguous mutations.',
+  { name: 'layout_create', readOnly: false, description: guidance + 'Creates an atomic layout group using existing panel/presentation contracts, with automatic request grouping. Photos accept only a registered imageRef. Never supply web: or gen: imageRef values. mediaCard accepts exactly one of image or generatedImage; generatedImage requires a generic physical subject in English (2..80 characters), category and alt (1..200 characters). At most 12 generated images per call. Cards appear first and images arrive asynchronously; images in the result reports queued, reused and skipped counts. Generated images require presentation dimensions of at least 0.4 meters and are not supported on surface layouts. Supports request undo, format 5 persistence, billboard and fixed_facing planes. Never retry ambiguous mutations.',
     schema: z.object({ ...common, name: z.string().trim().min(1).max(256), parentId: id.optional(), items: z.array(item).min(1).max(24) }).strict().superRefine((a, ctx) => {
       validate(a, a.items.length, ctx);
       a.items.forEach((i, index) => {

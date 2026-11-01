@@ -103,9 +103,11 @@ namespace Seyra.SceneTools
             GameObject root=null;JObject specification;GameObject[] children=null;JArray items=null,targets=null;
             var panels=new List<PanelContent>();var specs=new List<PresentationContent>();
             string name;
+            var pending = Array.Empty<string>();
             if(create)
             {
-                Keys(args,new[]{"name","layout","itemSize","items"},new[]{"behavior","centerSize","gap","params","parentId","media"});
+                Keys(args,new[]{"name","layout","itemSize","items"},new[]{"behavior","centerSize","gap","params","parentId","media","pendingMedia"});
+                pending=PendingMediaArguments(args);
                 RegisterMediaArguments(args);
                 name=String(args["name"],256);items=args["items"] as JArray??throw new ArgumentException("items must be an array.");
                 specification=LayoutPlanner.Normalize(args,items.Count);
@@ -190,6 +192,7 @@ namespace Seyra.SceneTools
                 if(targets!=null)specification["targets"]=targets.DeepClone();
                 RestoreLayout(root,specification);Check(root.transform);
                 for(int i=0;i<total;i++)PlacementService.Register(children[i].transform,plan.Candidates.Count>i?plan.Candidates[i]:null);
+                if(create)ApplyPendingMedia(pending);
                 return new JObject{["rootId"]=Id(root),["entityId"]=Id(root),["requestGroupId"]=requestId,["layout"]=specification["layout"],["behavior"]=specification["behavior"],
                     ["items"]=new JArray(children.Select((c,i)=>new JObject{["index"]=i,["entityId"]=Id(c),["name"]=c.name})),["warnings"]=new JArray(plan.Warnings)};
             }
