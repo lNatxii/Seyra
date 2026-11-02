@@ -30,11 +30,11 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 15b; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. 15a y 15b están terminadas; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| Siguiente | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Diseño listo. Sustituye el punto por una caja que envuelve el objeto; el fondo es una estimación. Riesgo: solo se valida en el visor. |
+| 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
@@ -450,7 +450,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 15a:** Completed · Revisada (2 de noviembre de 2026). Rejilla medida en Quest 3: unos 1190 de 1200 aciertos en 14–18 ms. Recorrido correcto según el usuario; error en centímetros sin medir. [Diseño](Progress/Completed/15a-segmented-objects-3d-position.md).
 
-**Estado 15b:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/15b-translucent-object-boxes.md).
+**Estado 15b:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario, poco precisa y sin error medido. [Diseño](Progress/Completed/15b-translucent-object-boxes.md).
 
 **Estado 15c:** sin diseñar.
 
