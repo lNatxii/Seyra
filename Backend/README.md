@@ -150,6 +150,35 @@ The authenticated gateway exposes `GET /_seyra/tts/config` with `Cache-Control: 
 
 ## Camera questions
 
-`seyra_camera_look` takes one headset photo when the user asks a question that needs sight. The shutter and three-second popup notify the user; there are no new chat controls. The bridge sends the JPEG and a standalone question directly to the Meta Model API with `store: false`, and returns only the textual analysis to OpenCode. The photo does not enter `opencode.db`; the question and text answer can remain in session history. The bridge and headset keep image data only in memory, without writing it to disk or logs. Unity retains only the last eight capture metadata records, without image bytes. `store: false` describes the API request; it does not establish all provider retention policies.
+`seyra_camera_look` answers a specific question about a headset photo without
+creating content. `seyra_camera_segment` answers what the user is looking at
+and creates a card showing the photo with coloured masks, boxes and labels.
+Both show the shutter and three-second popup. The bridge sends the photo to
+Muse Spark through the Meta Model API with `store: false`; segmentation also
+sends it to SAM 3.1 through that API with `store: false`, once per object name.
+This describes the requests and makes no claim about internal provider retention.
 
-The bridge uses its existing `META_API_KEY`, permits one camera call at a time and at most 20 attempts per ten minutes, polls Unity for up to ten seconds and gives Meta thirteen seconds. Failures are not retried automatically. The prompt limits capture to the user's visual requests; this is not a technical consent check. Turn cancellation may not interrupt an already-started camera call. See [camera tool and retention contract](bridge/CAMERA.md). Scene setup and end-to-end headset validation remain separate steps.
+With camera_look, the photo stays only in memory, without disk writes or logs.
+With camera_segment, the composed image (at most 512 px on its longest side,
+with the photo as its background) is written on the headset to
+`Media/<hex>.jpg` and referenced by saved slots. Deleting the card does not
+delete that file. The full-resolution photo is not saved. OpenCode receives
+text only, never image bytes or base64; the question, answer and textual tool
+results can remain in session history in opencode.db. Unity retains only the
+last eight capture metadata records without image bytes.
+
+The tools share the existing META_API_KEY, one lock through the entire call
+and at most 20 capture attempts per ten minutes. Capture has up to ten seconds;
+camera_look gives Muse thirteen seconds. camera_segment gives Muse seven
+seconds and parallel SAM requests a single shared budget of
+`Math.min(8000, 21000 - elapsed)` ms, measured from call start, reserving three
+seconds for composition/card operations and one second of margin. A non-positive
+budget skips SAM. Failures are not retried automatically. The prompt limits
+capture to explicit visual requests; this is not a technical consent check.
+Turn cancellation may not interrupt a started call or prevent card creation.
+See [camera tools and retention contract](bridge/CAMERA.md). End-to-end headset
+validation remains pending.
+
+`@meta-sam/parser` 0.1.0 uses the SAM License. Include a copy of that license
+when redistributing the package or its derivatives; the installed copy is
+`bridge/node_modules/@meta-sam/parser/LICENSE`.

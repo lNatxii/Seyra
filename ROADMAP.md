@@ -30,10 +30,11 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 14a; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
+| 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; prueba con Unity y Quest 3 pendiente. Muestra un modelo de Meta sobre lo que el usuario tiene delante. Temporal: en 2D, sin relación con el espacio 3D. |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
 | 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
 | 2b | 18. Respuestas habladas | 75 | Completed · Cerrada. Voz `wit$Rebecca` probada en Quest 3; latencia sin medir. |
@@ -44,13 +45,13 @@ Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
-| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) ya se puede diseñar. |
+| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) aplazada por decisión del usuario. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Completed · Revisada; audio real y Quest pendientes de prueba. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Completed · Revisada; prueba en Quest 3 pendiente. Toque, ficha que sigue al objeto y agarre con vuelta. |
-| 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
-| 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. Aplazada por decisión del usuario. |
+| 13 | 13, 14b, 15, 16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -429,11 +430,19 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 14. Segmentación puntual con SAM 3.1
 
-**Entrega:** enviar una captura y una descripción o selección compatible con la API para obtener regiones y máscaras. Vincular los resultados a `captureId`, dimensiones y transformación de imagen utilizados.
+**Estado 14a:** Completed · Revisada (2 de noviembre de 2026). Bridge 49/49, muestra con API real y elección de herramienta 7/7 comprobados por Claude; recorrido integrado con Unity y Quest 3 pendiente. [Implementación, validación y limitaciones](Progress/Completed/14a-sam-segmentation-panel.md).
 
-**Aceptación:** máscara alineada con la captura previsualizada; varias coincidencias pueden distinguirse y seleccionarse; ausencia de coincidencias, errores y tiempos de espera no generan anotaciones falsas. Limitar payloads y liberar texturas/máscaras.
+**Estado 14b:** sin diseñar.
 
-**Dependencias:** 11 y 12. No incluye vídeo, tracking continuo ni reconstrucción 3D.
+**Entrega 14a (temporal):** «What am I looking at?» toma la foto y Muse Spark responde y nombra hasta seis objetos, porque SAM 3.1 necesita una frase por petición y no etiqueta por sí mismo. SAM devuelve cajas y máscaras. El bridge pinta la imagen con colores, cajas y etiquetas, y la deja en el espacio en una `mediaCard`. No se relaciona con el espacio 3D.
+
+**Aceptación 14a:** obturador, panel de 3 s, respuesta y tarjeta que se queda en el espacio; máscaras alineadas con los objetos; si SAM falla o no encuentra nada, Seyra responde igualmente y no inventa regiones; preguntas concretas como «read this label» no dejan panel; todo termina antes de 25 s.
+
+**Entrega 14b:** elegir una coincidencia y preguntar por ella o usarla como contexto. Vincular los resultados a `captureId`, dimensiones y transformación de imagen utilizados.
+
+**Aceptación 14b:** varias coincidencias pueden distinguirse y seleccionarse; ausencia de coincidencias, errores y tiempos de espera no generan anotaciones falsas. Limitar payloads y liberar texturas/máscaras.
+
+**Dependencias:** 11 y 12; 14a además usa 19, 22 y 32a. 14b depende de 14a. No incluye vídeo, tracking continuo ni reconstrucción 3D.
 
 ### 15. Anotaciones asistidas sobre objetos segmentados
 
@@ -441,7 +450,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Aceptación:** la correspondencia entre imagen y mundo se verifica en varios puntos del entorno; se descartan resultados obsoletos; la tolerancia de colocación se acuerda con mediciones del prototipo. No confundir estabilidad de un anclaje con seguimiento de un objeto que se mueve.
 
-**Dependencias:** 13 y 14. El seguimiento de objetos móviles queda fuera de esta versión.
+**Dependencias:** 13 y 14b. El seguimiento de objetos móviles queda fuera de esta versión.
 
 ### 16. Continuidad del contenido anclado entre sesiones
 
@@ -537,7 +546,7 @@ Colaboración multiusuario, sincronización cloud, agentes paralelos, ejecución
 Documentación consultada el 27 de octubre de 2026. La disponibilidad documental no confirma acceso con la cuenta del proyecto ni compatibilidad con su versión de OpenCode.
 
 - [Meta Model API: modelos](https://dev.meta.ai/docs/models): referencia de Muse Spark, Muse Image y Muse Voice Transcribe. Confirmar modelo, acceso, coste y formatos durante 08, 17 y 19.
-- [Meta Model API: introducción y SAM 3.1](https://dev.meta.ai/docs/overview): referencia para la segmentación. Validar el contrato real en 14.
+- [Meta Model API: introducción y SAM 3.1](https://dev.meta.ai/docs/overview): referencia para la segmentación. Contrato real medido el 2 de noviembre de 2026 en 14a.
 - [Passthrough Camera API: visión general](https://developers.meta.com/vr/documentation/unity/unity-pca-overview/): distingue captura RGB del passthrough visual y de Media Projection; identifica Quest 3/3S como dispositivos compatibles.
 - [Passthrough Camera API: uso en Unity](https://developers.meta.com/vr/documentation/unity/unity-pca-documentation/): referencia de captura, calibración, timestamps y pose. En 11 comprobar el SDK instalado, sin copiar APIs de una versión distinta.
 - La consulta por `metavr docs search` no pudo completarse por acceso local/red; las referencias anteriores se comprobaron mediante la documentación web oficial. No se ha validado hardware en esta tarea de planificación.

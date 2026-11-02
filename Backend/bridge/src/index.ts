@@ -5,7 +5,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { tools } from './tools.js';
 import { createImageService } from './images.js';
-import { cameraTool, createCameraService } from './camera.js';
+import { cameraTool, cameraSegmentTool, createCameraService } from './camera.js';
 
 const log = (message: string) => console.error(`[seyra] ${message}`);
 function integer(name: string, fallback: number, maximum: number) {
@@ -116,6 +116,11 @@ server.registerTool(cameraTool.name, {
   inputSchema: cameraTool.schema,
   annotations: { readOnlyHint: cameraTool.readOnly, destructiveHint: false, idempotentHint: false },
 }, args => camera.look(args));
+server.registerTool(cameraSegmentTool.name, {
+  description: cameraSegmentTool.description,
+  inputSchema: cameraSegmentTool.schema,
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+}, args => camera.segment(args));
 
 async function shutdown(code = 0) {
   if (closing) return;

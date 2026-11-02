@@ -1,4 +1,4 @@
-# Camera look contract
+# Camera contracts
 
 `camera_look` is registered directly by the MCP server (OpenCode exposes it as
 `seyra_camera_look`). It is not a scene batch operation and is absent from
@@ -57,21 +57,139 @@ the existing `{success:false,error:{code,message}}` envelope:
 Unity invoke errors are returned unchanged. One call runs at a time in each
 bridge process; that lock lasts through Meta processing and is released in
 `finally`. The rolling budget is also in process memory and resets on restart.
-The camera is read-only with respect to scene content, but calling it takes a
+`camera_look` is read-only with respect to scene content, but calling it takes a
 new photo; it is deliberately not marked idempotent.
 
 ## Retention and integration
 
-JPEG/base64 lives only in memory during capture and analysis. It is not logged,
-written to disk, returned to OpenCode or placed in generated content, undo,
-trash or saved slots. OpenCode stores the question and textual answer only.
-Unity keeps at most eight metadata records without bytes. Meta receives the
-photo with `store:false`; this flag is not a claim about all provider-side
-operational retention.
+With `camera_look`, JPEG/base64 lives only in memory during capture and
+analysis. It is not logged, written to disk, returned to OpenCode or placed in
+generated content, undo, trash or saved slots.
 
-The scene must contain a root CameraCapture object with CameraCaptureService
-and CameraCaptureFeedback, with the shutter clip and popup assigned. Closing
-the chat must not deactivate this object. Scene setup is a separate manual
-step. A model instruction restricts use to explicit visual requests; this is
-not a technical permission gate. Canceling an OpenCode turn may not reach the
-bridge, so an already-started call can still complete and send one photo.
+With `camera_segment`, the composed image (at most 512 px on its longest side,
+including the camera photo as its background) is delivered to the headset and
+written to `Media/<hex>.jpg`. Saved slots reference that local image. Deleting
+the card does not delete the file; RemoteMediaStore does not remove it. The
+full-resolution photo is not saved. A delivery can leave a file even if card
+creation subsequently fails.
+
+OpenCode receives text only, never photo bytes or base64; its session history
+can retain the question, answer and textual tool results. Unity retains at most
+eight capture metadata records without bytes. Muse Spark and SAM 3.1 receive the
+photo through the Meta Model API with `store: false`. This describes the request
+and makes no claim about the provider's internal retention.
+
+
+## Segmentation tool: camera_segment
+
+`camera_segment` is registered directly beside `camera_look` (exposed as
+`seyra_camera_segment`), outside scene batches. It creates a card, so its MCP
+annotations are `readOnlyHint: false`, `destructiveHint: false` and
+`idempotentHint: false`. Its only argument is
+`{ question: string }`: trimmed, non-empty and at most 1000 characters. The
+question must be complete and standalone. Capture shows the same shutter and
+three-second popup as look. The card is a flat picture, not a mark in the room.
+
+Both tools share one in-process lock and the rolling limit of 20 capture
+attempts per ten minutes. The lock lasts through the entire call, including
+image composition, delivery, card creation and placement. There are no retries
+of capture, model requests or mutations. Restarting the bridge resets the limit.
+
+### Muse and SAM requests
+
+Both use `POST https://api.meta.ai/v1/responses`, authenticated with the
+bridge's `META_API_KEY`, without streaming and with `store: false`.
+
+Muse uses `model: "muse-spark-1.3"`, `max_output_tokens: 2000`,
+`reasoning: { effort: "low" }`, approved segmentation instructions and
+`input: [{ role: "user", content: [{ type: "input_text", text: question },
+{ type: "input_image", image_url: "data:image/jpeg;base64,<jpeg>" }] }]`.
+It has a 7000 ms timeout. Instructions request English JSON
+`{ answer: string, objects: string[] }`, at most six distinct separate objects
+that a person could point at or pick up, smallest and most interesting first;
+never surfaces, structures, people or body parts. The response must be
+`completed`. Message `output_text` values are joined, JSON is extracted, and
+answer must contain 1–2000 characters. Invalid object names are discarded;
+accepted names match `^[A-Za-z][A-Za-z0-9 '-]{1,59}$`, are deduplicated ignoring
+case and limited to six. No objects means empty, without SAM.
+
+For each name, SAM receives:
+
+```json
+{
+  "model": "sam-3.1", "store": false,
+  "metadata": { "include_confidence": "true" },
+  "input": [{ "type": "message", "role": "user", "content": [
+    { "type": "input_text", "text": "<noun>" },
+    { "type": "input_image", "image_url": "data:image/jpeg;base64,<jpeg>" }
+  ] }]
+}
+```
+
+SAM requests run in parallel with Promise.allSettled and one shared timeout
+signal. Each response must be completed. Message output_text is adapted to
+Responses events for `@meta-sam/parser`; empty text is zero matches. The parser's
+mask bounds are used directly: x2 and y2 are exclusive. Mask confidence below
+0.5 or missing is discarded. Remaining detections are sorted by descending
+confidence and limited to eight. A decodeMaskToRaster exception leaves a null
+raster and retains its box; rendering then draws the box and label only.
+Individual failed SAM requests are discarded; all failed means failed.
+
+### Result and card
+
+```json
+{ "success": true, "data": {
+  "answer": "A ceramic mug is visible.",
+  "captureId": "cap_a1b2c3d4e5f6", "width": 1280, "height": 960,
+  "segmentation": "ok",
+  "objects": [{ "label": "ceramic mug", "confidence": 0.93,
+    "box": { "x1": 910, "y1": 600, "x2": 1151, "y2": 841 } }],
+  "panel": { "entityId": "<runtime-id>", "placed": true }
+} }
+```
+
+Width and height describe the captured photo. Boxes use source pixels and
+half-open bounds. Results contain text and metadata only, never JPEG or raster.
+
+| segmentation | Meaning | panel |
+| --- | --- | --- |
+| ok | Detections exist and card creation is confirmed | {entityId, placed} |
+| empty | Muse lists no objects, or successful SAM requests yield no retained detections | null |
+| failed | No SAM time remains, all SAM requests fail, or composition, delivery or card creation fails | null |
+
+A failure after Muse preserves answer and any detections already available.
+`placed: false` means the card was created but placement failed, was not
+confirmed or returned applied false; it remains at its initial pose.
+
+The bridge renders a JPEG of at most 512 px, with coloured masks, boxes and
+labels, and at most 1 MiB. It calls `media_deliver` first, then `ui_present`
+with a mediaCard and an imageRef (never a media field), then `spatial_place`
+with destination air, allowAirFallback true and minScale 1. Each invoke must
+confirm success. Delivery/creation failures yield failed; placement failures
+yield placed false. No mutation is retried. Closing, grabbing, listening,
+undo and saving reuse the card's existing behavior. Creation and placement are
+two undo operations. Logs never include base64, keys or provider response bodies.
+
+### Errors and timing
+
+Capture uses the same CAMERA_NOT_CONFIGURED, CAMERA_LIMIT, CAMERA_BUSY,
+CAMERA_UNAVAILABLE, CAMERA_FAILED and CAMERA_TIMEOUT codes listed above;
+Unity invoke errors during capture are returned unchanged. VISION_FAILED means
+Muse failed, timed out, was incomplete or returned invalid JSON, so no answer
+is available. A SAM or card failure is a successful tool envelope with
+segmentation failed and the Muse answer, rather than VISION_FAILED.
+
+| Phase | Budget |
+| --- | --- |
+| Capture | Up to 10 s, with the existing one-second cancellation allowance on capture timeout |
+| Muse | Up to 7 s |
+| Parallel SAM | Math.min(8000, 21000 - elapsed) ms from the start of the tool call |
+| Composition, delivery, creation and placement | 3 s reserved |
+| Margin within the 25 s MCP execution budget | 1 s |
+
+If the SAM budget is not positive, no SAM request is sent and segmentation is
+failed. Its one AbortSignal.timeout uses the computed budget. The reservation
+is a budget plan, not a measured or enforced three-second composition/mutation
+deadline; invoke uses the existing transport timeouts. camera_look retains its
+13 s vision timeout. Canceling a turn can still allow an initiated segment
+call to finish and create a card.

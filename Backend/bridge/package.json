@@ -13,6 +13,7 @@
     "test:unity": "node test-unity.mjs"
   },
   "dependencies": {
+    "@meta-sam/parser": "0.1.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@peculiar/x509": "2.1.0",
     "reflect-metadata": "0.2.2",

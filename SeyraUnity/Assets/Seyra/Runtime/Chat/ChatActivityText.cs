@@ -15,7 +15,7 @@ namespace Seyra.Chat
             if (name.StartsWith("seyra_", StringComparison.Ordinal)) name = name.Substring(6);
             switch (name)
             {
-                case "camera_look": return "Looking through the camera…";
+                case "camera_look": case "camera_segment": return "Looking through the camera…";
                 case "scene_hierarchy": case "scene_find": case "scene_get": case "scene_bounds":
                 case "request_list": case "history_list": case "content_list": case "ui_catalog":
                 case "ui_media_list": case "ui_list": case "ui_get": case "card_checks":
