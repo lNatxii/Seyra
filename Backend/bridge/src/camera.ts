@@ -176,6 +176,16 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         id: imageRef, mime: 'image/jpeg', width: output.width, height: output.height, data: output.jpeg.toString('base64'),
       }] }));
       if (!delivered?.success) return respondSegment('failed');
+      let regions: { position?: unknown; rotation?: unknown; box?: unknown }[] = [];
+      try {
+        const located = outcome(await invoke('camera_locate', {
+          captureId: data.captureId, regions: detections.map(detection => ({ points: samplePoints(detection), box: detection.box })),
+        }));
+        if (located?.success && located.data.state === 'ready' && Array.isArray(located.data.regions)) {
+          regions = located.data.regions;
+        }
+      } catch { /* Localization must never invalidate the photo card. Do not retry. */ }
+      const hasBox = detections.some((_, index) => regionSchema.safeParse(regions[index]).success && boxSchema.safeParse(regions[index]?.box).success);
       const created = outcome(await invoke('ui_present', {
         name: 'Segmentation', parentId: 'Generated',
         position: { x: 0, y: 1.4, z: 1 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 },
@@ -186,6 +196,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
             alt: `Photo of the surroundings with labelled objects: ${detections.map(item => item.label).join(', ')}`.slice(0, 200),
             source: 'Camera photo, segmented by SAM 3.1' },
           body: answer,
+          ...(hasBox ? { check: { label: 'Show boxes', completed: true } } : {}),
         },
       }));
       if (!created?.success || typeof created.data.entityId !== 'string') return respondSegment('failed');
@@ -196,11 +207,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         placed = placement?.success === true && placement.data.applied === true;
       } catch { /* Do not retry an unconfirmed placement. */ }
       try {
-        const located = outcome(await invoke('camera_locate', {
-          captureId: data.captureId, regions: detections.map(detection => ({ points: samplePoints(detection), box: detection.box })),
-        }));
-        if (located?.success && located.data.state === 'ready' && Array.isArray(located.data.regions)) {
-          const regions = located.data.regions;
+        if (regions.length > 0) {
           let locatedCount = 0;
           const nodes = detections.flatMap<Record<string, unknown>>((detection, index) => {
             const parsed = regionSchema.safeParse(regions[index]);
@@ -213,12 +220,19 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
             if (parsedBox.success) {
               const box = parsedBox.data;
               return [
-                { key: `box_${index}`, name: `${detection.label} box`, type: 'primitive', primitiveType: 'cube',
+                { key: `box_${index}`, name: `${detection.label} box`, type: 'primitive', primitiveType: 'cube', parentKey: 'boxes',
                   transform: { position: box.center, rotation: box.rotation, scale: box.size },
                   appearance: { style: 'colored_translucent', color: { ...color, a: 0.25 } } },
+                { key: `boxline_${index}`, name: `${detection.label} box line`, type: 'line', parentKey: 'boxes',
+                  line: { points: [{ position: { ...box.center, y: box.center.y + box.size.y / 2 } }, { key: `label_${index}` }], color, width: 0.003 } },
+                { key: `dot_${index}`, name: `${detection.label} point`, type: 'primitive', primitiveType: 'sphere', parentKey: 'points',
+                  transform: { position, scale: { x: 0.03, y: 0.03, z: 0.03 } }, appearance: { style: 'unlit', color } },
+                { key: `line_${index}`, name: `${detection.label} line`, type: 'line', parentKey: 'points',
+                  line: { points: [{ key: `dot_${index}` }, { key: `label_${index}` }], color, width: 0.003 } },
                 { key: `label_${index}`, name: `${detection.label} label`, type: 'panel',
-                  transform: { position: { ...box.center, y: box.center.y + box.size.y / 2 + 0.06 }, rotation },
-                  panel: { version: 1, kind: 'label', title: '', text: detection.label, width: 0.2, height: 0.05, fontSize: 24 } },
+                  transform: { position: { ...box.center, y: box.center.y + box.size.y / 2 + 0.1 }, rotation },
+                  panel: { version: 1, kind: 'label', chip: true, title: '', text: detection.label,
+                    width: Math.min(0.4, Math.max(0.16, 0.05 + detection.label.length * 0.013)), height: 0.05, fontSize: 22 } },
               ];
             }
             return [
@@ -227,15 +241,23 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
                 appearance: { style: 'unlit', color } },
               { key: `label_${index}`, name: `${detection.label} label`, type: 'panel',
                 transform: { position: { ...position, y: position.y + 0.1 }, rotation },
-                panel: { version: 1, kind: 'label', title: '', text: detection.label, width: 0.2, height: 0.05, fontSize: 24 } },
+                panel: { version: 1, kind: 'label', chip: true, title: '', text: detection.label, width: Math.min(0.4, Math.max(0.16, 0.05 + detection.label.length * 0.013)), height: 0.05, fontSize: 22 } },
               { key: `line_${index}`, name: `${detection.label} line`, type: 'line',
                 line: { points: [{ key: `dot_${index}` }, { key: `label_${index}` }], color, width: 0.003 } },
             ];
           });
+          if (hasBox) nodes.unshift(
+            { key: 'boxes', name: 'Boxes', type: 'empty', transform: { position: { x: 0, y: 0, z: 0 } } },
+            { key: 'points', name: 'Points', type: 'empty', transform: { position: { x: 0, y: 0, z: 0 } } },
+          );
           if (nodes.length > 0) {
             const built = outcome(await invoke('scene_build', { name: 'Object labels', nodes }));
-            if (built?.success && typeof built.data.rootId === 'string')
+            if (built?.success && typeof built.data.rootId === 'string') {
               labels = { rootId: built.data.rootId, located: locatedCount, total: detections.length };
+              const ids = built.data.nodes as Record<string, unknown> | undefined;
+              if (hasBox && typeof ids?.boxes === 'string' && typeof ids?.points === 'string')
+                await invoke('camera_marks_bind', { cardId: entityId, rootId: built.data.rootId, boxesId: ids.boxes, pointsId: ids.points });
+            }
           }
         }
       } catch { /* Localization and labels must never invalidate the photo card. Do not retry. */ }
