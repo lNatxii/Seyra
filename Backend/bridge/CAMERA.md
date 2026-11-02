@@ -9,7 +9,8 @@ standalone question and one photo, without the conversation.
 ## Runtime operations
 
 These operations are internal to the Unity bridge and are not MCP tools. All
-take `{}`. They are classified as queries, bypassing mutation history and the
+capture operations take `{}`; `camera_locate` takes the arguments below. They
+are classified as queries, bypassing mutation history and the
 `completed` response cache so JPEG bytes are not retained there.
 
 | Operation | Result data |
@@ -17,12 +18,60 @@ take `{}`. They are classified as queries, bypassing mutation history and the
 | `camera_capture_start` | `{state:"started"}`, `{state:"busy"}` or `{state:"unavailable"}` |
 | `camera_capture_result` | `{state:"pending"}`, `{state:"unavailable"}`, `{state:"failed",message}` or `{state:"ready",captureId,width,height,jpegBase64}` |
 | `camera_capture_cancel` | `{state:"idle"}` or `{state:"unavailable"}` if no service exists |
+| `camera_locate` | `{state:"ready",regions:[...]}`, `{state:"unavailable",regions:[]}` or `{state:"no_depth",regions:[]}` |
 
 Unity locates and caches the active `CameraCaptureService`. Start calls Capture
 only when it is not busy. Result consumes Ready with Take, encodes the JPEG as
 base64 and clears its byte reference immediately afterward, even on failure.
 The pending popup survives Take for the remainder of its three seconds, then
 releases its texture. A new capture or Clear closes it immediately.
+
+### camera_locate
+
+This internal query reads depth for an existing capture; it takes no new photo
+and creates no scene content. Input:
+
+```json
+{ "captureId": "cap_a1b2c3d4e5f6", "regions": [
+  { "points": [{ "x": 100, "y": 200 }, { "x": 110, "y": 210 }, { "x": 120, "y": 220 }] }
+] }
+```
+
+`captureId` is a non-empty string. At most eight regions and 32 points per
+region are accepted. Empty arrays are allowed. Each point requires finite
+numeric `x` and `y`, in source-photo pixels measured from the top left.
+Pixels outside `[0,width)` / `[0,height)` and cells without depth are ignored.
+Invalid argument shapes or limits use the normal Unity error envelope.
+
+Example result data (inside the normal success envelope):
+
+```json
+{ "state": "ready", "regions": [
+  { "position": { "x": 0.1, "y": 0.8, "z": 1.2 },
+    "rotation": { "x": 10, "y": 180, "z": 0 },
+    "valid": 3, "requested": 3,
+    "points": [{ "x": 0.1, "y": 0.8, "z": 1.2 },
+               { "x": 0.11, "y": 0.81, "z": 1.21 },
+               { "x": 0.09, "y": 0.79, "z": 1.19 }] }
+] }
+```
+
+`ready` preserves input region order. A region is `null` unless at least three
+samples and 40% of its requested points have depth. `valid` counts successful
+samples; `requested` counts input points. `position` is the per-axis median
+of the valid world points, converted to local coordinates of `generated`
+with `generated.InverseTransformPoint`. Returned `points` are the valid samples
+in the same local coordinates, not the depth grid. `rotation` contains local
+Euler angles in degrees relative to `generated`, derived from
+`Quaternion.LookRotation(worldPosition - CameraPose.position, Vector3.up)`.
+These coordinates can be used directly by `scene_build` without placement.
+
+`unavailable` means no camera service exists. `no_depth` means the capture was
+not found or has no depth grid; both return `regions: []`. The optional grid
+is 40 × 30 with a six-metre ray limit. Depth is an estimate from capture time:
+it does not track objects, and thin, shiny or transparent objects can lack
+usable samples. Image Y mapping and visible label orientation still require
+the full headset validation in feature 15a, step 6.
 
 ## Vision request and result
 
@@ -75,7 +124,12 @@ creation subsequently fails.
 
 OpenCode receives text only, never photo bytes or base64; its session history
 can retain the question, answer and textual tool results. Unity retains at most
-eight capture metadata records without bytes. Muse Spark and SAM 3.1 receive the
+eight recent capture records without JPEG bytes, including their optional depth
+grids. The grid lives only in headset memory and is released with its recent
+record; it is never saved or sent off the headset. Only calculated positions
+(the region median and valid sample positions, plus label rotation and counts)
+leave the headset for depth localization. `camera_segment` does not forward the
+sample points to OpenCode. Muse Spark and SAM 3.1 receive the
 photo through the Meta Model API with `store: false`. This describes the request
 and makes no claim about the provider's internal retention.
 
@@ -88,7 +142,8 @@ annotations are `readOnlyHint: false`, `destructiveHint: false` and
 `idempotentHint: false`. Its only argument is
 `{ question: string }`: trimmed, non-empty and at most 1000 characters. The
 question must be complete and standalone. Capture shows the same shutter and
-three-second popup as look. The card is a flat picture, not a mark in the room.
+three-second popup as look. The card is a flat picture; when depth is available,
+the tool also creates points, labels and lines at located objects in the room.
 
 Both tools share one in-process lock and the rolling limit of 20 capture
 attempts per ten minutes. The lock lasts through the entire call, including
@@ -143,13 +198,21 @@ Individual failed SAM requests are discarded; all failed means failed.
   "captureId": "cap_a1b2c3d4e5f6", "width": 1280, "height": 960,
   "segmentation": "ok",
   "objects": [{ "label": "ceramic mug", "confidence": 0.93,
-    "box": { "x1": 910, "y1": 600, "x2": 1151, "y2": 841 } }],
-  "panel": { "entityId": "<runtime-id>", "placed": true }
+    "box": { "x1": 910, "y1": 600, "x2": 1151, "y2": 841 },
+    "position": { "x": 0.1, "y": 0.8, "z": 1.2 } }],
+  "panel": { "entityId": "<runtime-id>", "placed": true },
+  "labels": { "rootId": "<composition-root-id>", "located": 1, "total": 1 }
 } }
 ```
 
 Width and height describe the captured photo. Boxes use source pixels and
 half-open bounds. Results contain text and metadata only, never JPEG or raster.
+`objects[].position` is an estimated position in local coordinates of
+`generated`, or `null` when not located. `labels` is `null` unless creation of
+the label composition is confirmed; otherwise `rootId` identifies that
+composition, `located` counts its marked detections and `total` counts all
+retained detections. A position can remain non-null even if label creation
+fails. No internal sample `points` are returned by this MCP tool.
 
 | segmentation | Meaning | panel |
 | --- | --- | --- |
@@ -169,6 +232,20 @@ confirm success. Delivery/creation failures yield failed; placement failures
 yield placed false. No mutation is retried. Closing, grabbing, listening,
 undo and saving reuse the card's existing behavior. Creation and placement are
 two undo operations. Logs never include base64, keys or provider response bodies.
+
+After card creation and the placement attempt, the bridge calls `camera_locate`
+with up to 24 mask samples per detection (or a 3 × 3 grid in the central 50%
+of its box without a mask). Valid regions produce one `scene_build` composition:
+a 3 cm sphere, a label 10 cm above it and a connecting line per object. Their
+colours use the same original detection index as the image. No placement or
+retries are applied to this composition. Missing depth, localization failures
+and label creation failures preserve the card and its segmentation result.
+
+The label composition is one additional undo operation, so the first undo
+removes its points, labels and lines together. Labels have no Close button;
+deletion uses the existing chat operations. They can be saved as normal scene
+content, but have no persistent spatial anchors: after restart they can be
+misaligned. Moving a physical object does not move its label.
 
 ### Errors and timing
 
