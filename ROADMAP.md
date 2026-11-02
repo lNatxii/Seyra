@@ -30,14 +30,14 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. Las siguientes features son 35 y 37. Descartadas por el usuario el 2 de noviembre: 09, 13, 16, 21, 26b y 32b. 15c se da por cubierta con 15a, 15b y 15d.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. La siguiente feature es 37. Descartadas por el usuario el 2 de noviembre: 09, 13, 16, 21, 26b y 32b. 15c se da por cubierta con 15a, 15b y 15d.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
 | 1a | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real. |
-| Siguiente | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
-| Después | 37. Modelos generados que se pueden agarrar y mover | 80 | Diseño listo. Pedida por el usuario: planetas o cubos que se cogen y se dejan donde se quiera, siempre desde el padre. Más trabajo que 35, que solo toca el prompt. |
+| 2e | 35. Limpiar la vista al cambiar de tema | 72 | Completed · Revisada; prueba de conversación pendiente. Solo prompt, y depende del juicio del modelo. |
+| Siguiente | 37. Modelos generados que se pueden agarrar y mover | 80 | Diseño listo. Pedida por el usuario: planetas o cubos que se cogen y se dejan donde se quiera, siempre desde el padre. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -303,7 +303,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 ### 35. Limpiar la vista al cambiar de tema
 
-**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/35-clear-view-on-topic-change.md).
+**Estado:** Completed · Revisada (2 de noviembre de 2026). Texto del prompt aplicado y `scene_edit` comprobado en Unity (contenedores cerrados, deshacer, raíz ya cerrada). Pendiente la prueba de conversación del usuario. [Implementación y revisión](Progress/Completed/35-clear-view-on-topic-change.md).
 
 **Entrega:** al pasar a un tema sin relación, Seyra retira lo que creó para el tema anterior, también en paredes y mesas, y lo dice en una frase. Es un cambio del system prompt, sin herramientas nuevas. El borrado es recuperable.
 

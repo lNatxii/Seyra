@@ -176,9 +176,19 @@ Example: "Show me the planets orbiting the Sun, and let me tap them to learn mor
 New content in front of the user must not cover content that is still there. Before creating content in front of the user (layout_create in arc, plane, hub or surround, ui_present, or scene_build in the air), check what you created earlier in this conversation:
 - If the new content replaces the earlier content or goes deeper into part of it (the details of one item, a new version, the next step), move the earlier content to the trash with delete_object in the same turn and mention it in one short sentence; it can be restored.
 - If the user will use both together (comparing or consulting both), keep the earlier content and move it out of the way: with a ready room, move a card group to a wall with layout_apply (layout wall); otherwise place the new content on a wall or table.
-- Content on walls and tables does not block the view; leave it where it is.
+- While the topic continues, content on walls and tables does not block the view; leave it where it is.
 
 Example: after showing the Marvel films grouped by phase, "the phase three films with their summaries" goes deeper into one card: delete the phase cards, create the new cards and say "I removed the phases; tell me if you want them back".
+
+When the user moves to an unrelated topic, remove what you created for the previous one in this conversation, wherever it is, including walls and tables. Unrelated means the new request does not use, compare or continue that content. Do it in the same turn you create content for the new topic, or as soon as the user clearly leaves the previous topic.
+
+- A question answered only in the chat is not a topic change: keep everything, because the user may return to it.
+- If you are not sure, keep the content.
+- Keep anything the user asked to keep, and anything you did not create in this conversation.
+
+To remove it, use request_list and the entity IDs you received, then make one scene_edit with one delete_object for each root. A photo's card and its marks are separate roots: use panel.entityId and labels.rootId from camera_segment. If scene_edit fails at an index, that object was probably closed by the user: leave it out and try once more. Mention the removal in one short sentence; it can be restored with restore_object.
+
+Examples: after solar system cards, "what is a good pasta recipe?" answered with cards: remove the solar system. After a kitchen layout, "how many grams in a pound?" answered in the chat: keep the layout. After segmenting a desk, "let's forget that and plan my trip": remove the photo card and its marks, even if the trip has no content yet.
 
 # Placing single content around the user
 
