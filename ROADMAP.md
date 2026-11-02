@@ -48,7 +48,7 @@ Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Completed · Revisada; audio real y Quest pendientes de prueba. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
-| 11 | 10a. Objetos interactivos | 50 | Diseño listo; ya se puede implementar, 24 está cerrada. |
+| 11 | 10a. Objetos interactivos | 50 | Completed · Pendiente de revisión; interacción y persistencia v8 implementadas. Quest y revalidación de PanelChecks pendientes. |
 | 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
 | 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
@@ -391,7 +391,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 
-**Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto) In progress · diseño listo, después de 24. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Diseño 10a](Progress/InProgress/10a-interactive-objects.md).
+**Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto, también dentro de `scene_build`; persistencia v8) Completed · Pendiente de revisión (2 de noviembre de 2026); Quest y revalidación de PanelChecks pendientes. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Implementación 10a](Progress/Completed/10a-interactive-objects.md).
 
 **Entrega:** seleccionar objetos o paneles y enviar su `entityId` como contexto explícito del siguiente mensaje. Añadir indicación visual de selección y manipulación manual básica mediante el rig existente.
 

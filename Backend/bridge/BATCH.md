@@ -86,9 +86,9 @@ Each successful batch creates exactly one history entry (maximum 128 entries).
 Suboperations never record individual entries. Any failure restores the prior
 snapshot and adds no history; restoration failure is `ROLLBACK_FAILED`.
 Operation/request undo reverses the complete batch; creations enter recoverable
-trash. Content uses persistence v7 (reads v1–v7), including managed lines and
+trash. Content uses persistence v8 (reads v1–v8), including managed lines and
 containers, primitive appearance, panels and spatial placement metadata.
-Motion changes are part of batch history and rollback. Persistence v7 saves motion configuration, base, phase and pause state.
+Motion changes are part of batch history and rollback. Persistence v8 saves interaction and motion configuration, base, phase and pause state.
 
 Validation: `npm run build --prefix Backend/bridge`,
 `npm test --prefix Backend/bridge`, C# compilation, then Play Mode
@@ -115,5 +115,4 @@ declared detail. Interactive ancestry is rejected before creation. Runtime targe
 nesting, geometry, interaction and presentation limits still apply atomically.
 The result adds `details`, mapping node keys with a detail to its entityId.
 scene_edit accepts interaction_set using the registered standalone schema.
-Interactive content cannot yet be saved: the temporary persistence block remains
-until format v8 is implemented. Other content continues using v7.
+Interactive content is saved in v8, including owned detail IDs and visibility; v1–v7 remain readable.

@@ -174,13 +174,14 @@ public static class MotionChecks
             Check(Find(earth).GetComponent<SeyraMotion>().Capture().Pivot == Find(sun).transform, "Loaded pivot must bind to the loaded object, not the previous instance in trash.");
             Check(JToken.DeepEquals(captured, Find(earth).GetComponent<SeyraMotion>().Capture().ToJson()), "Loaded bound orbit lost base, phase or pause.");
             Ok("delete_object", new JObject { ["entityId"] = sun });
-            var saved = Ok("content_save", new JObject { ["slot"] = "motion" }); Check((int)saved["version"] == 7, "Expected v7.");
+            var saved = Ok("content_save", new JObject { ["slot"] = "motion" }); Check((int)saved["version"] == 8, "Expected v8.");
             var document = JObject.Parse(File.ReadAllText(Path.Combine(storage, "motion.json")));
-            Check(document["root"]["motion"].Type == JTokenType.Null && ((JArray)document["nodes"]).All(n => n["motion"] != null), "Every v7 node must carry motion.");
+            Check(document["root"]["motion"].Type == JTokenType.Null && ((JArray)document["nodes"]).All(n => n["motion"] != null), "Every v8 node must carry motion.");
             Ok("content_load", new JObject { ["slot"] = "motion" }); system.Step(0);
             Check(JToken.DeepEquals(captured, Find(earth).GetComponent<SeyraMotion>().Capture().ToJson()), "Loaded orbit lost base, phase or pause.");
             Check(JToken.DeepEquals(spinState, Find(body).GetComponent<SeyraMotion>().Capture().ToJson()), "Loaded spin lost base, phase or pause.");
             Check((string)Get(earth)["motions"]["status"] == "pivot_missing", "Missing saved pivot must load frozen.");
+            ((JObject)document["root"]).Remove("interaction"); foreach (JObject node in (JArray)document["nodes"]) node.Remove("interaction");
             document["version"] = 6; ((JObject)document["root"]).Remove("motion"); foreach (var node in (JArray)document["nodes"]) ((JObject)node).Remove("motion");
             File.WriteAllText(Path.Combine(storage, "legacy.json"), document.ToString());
             Ok("content_load", new JObject { ["slot"] = "legacy" });
