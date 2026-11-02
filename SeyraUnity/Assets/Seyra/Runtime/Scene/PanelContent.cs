@@ -10,6 +10,7 @@ namespace Seyra.SceneTools
         public string kind, title, text;
         public string checkLabel = "";
         public bool checkCompleted;
+        public bool chip;
         public bool HasCheck => !string.IsNullOrEmpty(checkLabel);
         public double width, height, fontSize;
         internal UnityEngine.Vector2 CanvasSize => new UnityEngine.Vector2((float)width, (float)height) * 1000;
@@ -18,6 +19,7 @@ namespace Seyra.SceneTools
             var json = new JObject { ["version"] = 1, ["kind"] = kind, ["title"] = title,
             ["text"] = text, ["width"] = width, ["height"] = height, ["fontSize"] = fontSize };
             if (HasCheck) json["check"] = new JObject { ["label"] = checkLabel, ["completed"] = checkCompleted };
+            if (chip) json["chip"] = true;
             return json;
         }
         public bool SameDeclared(PanelContent other) => other != null && JToken.DeepEquals(DeclaredJson(), other.DeclaredJson());
@@ -32,7 +34,7 @@ namespace Seyra.SceneTools
         {
             var json = token as JObject ?? throw new ArgumentException("panel must be an object.");
             var keys = new System.Collections.Generic.HashSet<string> { "version", "kind", "title", "text", "width", "height", "fontSize" };
-            foreach (var property in json.Properties()) if (property.Name != "check" && !keys.Remove(property.Name)) throw new ArgumentException("Unknown panel field.");
+            foreach (var property in json.Properties()) if (property.Name != "check" && property.Name != "chip" && !keys.Remove(property.Name)) throw new ArgumentException("Unknown panel field.");
             if (keys.Count != 0 || json["version"].Type != JTokenType.Integer || (int)json["version"] != 1)
                 throw new ArgumentException("Missing fields or unsupported panel content version.");
             string ReadText(string name, int limit)
@@ -57,6 +59,13 @@ namespace Seyra.SceneTools
             if (string.IsNullOrWhiteSpace(result.text)) throw new ArgumentException("Panel text must not be empty.");
             if (kind == "label" && result.title.Length != 0) throw new ArgumentException("Labels require an empty title.");
             if (kind == "label" && result.height * 1000 < result.fontSize) throw new ArgumentException("Label height must fit at least one text line.");
+            if (json.Property("chip") != null)
+            {
+                if (kind != "label") throw new ArgumentException("Only labels can be chips.");
+                if (json["chip"].Type != JTokenType.Boolean || !(bool)json["chip"])
+                    throw new ArgumentException("chip must be true when provided.");
+                result.chip = true;
+            }
             if (json.Property("check") != null)
             {
                 if (kind == "label") throw new ArgumentException("Labels cannot have a check.");

@@ -221,6 +221,16 @@ public static class PanelChecks
             Owned(presentationId).GetComponentsInChildren<UIActionButton>(true).Single(b => b.Label == "Close").OnClick.Invoke();
             Require(voice.State == SpokenReplyState.Idle, "Presentation Close must stop playback.");
             Require((bool)Get(presentationId)["deleted"], "Presentation Close must discard rather than only hide.");
+            var chipData = Data("label", "Object label"); chipData["chip"] = true;
+            var chipContent = PanelContent.Parse(chipData);
+            var chipCreated = Ok("create_panel", CreateArgs("ChipLabel", chipData));
+            await Task.Delay(150);
+            Require((bool)Get((string)chipCreated["entityId"])["panelIntact"] &&
+                (bool)chipContent.ToJson()["chip"] && (bool)chipContent.Copy().ToJson()["chip"],
+                "Chip labels must remain intact and preserve chip through ToJson and Copy.");
+            var invalidChip = Data(); invalidChip["chip"] = true;
+            Require(!(bool)Call("create_panel", CreateArgs("InvalidChipPanel", invalidChip))["success"],
+                "Only labels can be chips.");
             return new JObject { ["passed"] = true, ["assertions"] = checks, ["persistenceVersion"] = (int)saved["version"] }.ToString();
         }
         finally
