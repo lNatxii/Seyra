@@ -159,7 +159,6 @@ async function start(root, values) {
   const env = { ...process.env, ...local };
   if (!env.META_API_KEY?.trim() && env.MODEL_API_KEY?.trim()) env.META_API_KEY = env.MODEL_API_KEY;
   if (!env.META_API_KEY?.trim() || env.META_API_KEY === 'TU_CLAVE') fail('Add META_API_KEY (Meta Model API key from dev.meta.ai) to Backend/.env.local');
-  if (!env.HELMCODE_API_KEY?.trim() || env.HELMCODE_API_KEY === 'TU_CLAVE') console.warn('seyra_glm will not work without HELMCODE_API_KEY');
   if (!local.OPENCODE_SERVER_PASSWORD?.trim()) fail('OPENCODE_SERVER_PASSWORD is missing from Backend/.env.local. Add your own HTTP password; it is separate from provider API keys. OpenCode was not started.');
   env.OPENCODE_PASSWORD = local.OPENCODE_SERVER_PASSWORD;
   if (!findExecutable('opencode2')) fail('opencode2 was not found in PATH. Install the OpenCode v2 CLI before continuing.');

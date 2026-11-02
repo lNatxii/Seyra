@@ -49,7 +49,7 @@ const server = http.createServer(async (req,res) => {
     if(data.finish)finish(sessions.get(data.session));
     return send(res,{ok:true});
   }
-  if(url.pathname==='/api/agent')return send(res,{data:[{id:'seyra'},{id:'seyra_deepseek',model:{id:'fixture',providerID:'test'}}]});
+  if(url.pathname==='/api/agent')return send(res,{data:[{id:'seyra'},{id:'seyra_fixture',model:{id:'fixture',providerID:'test'}}]});
   if(url.pathname==='/api/session'&&req.method==='POST') {
     const id='fixture-'+(++sequence);
     sessions.set(id,{id,messages:[],interrupts:0,mutations:0,stopped:true});

@@ -15,14 +15,8 @@ async function freePort() {
 const outcome=result=>JSON.parse(result.content[0].text);
 test('schema, agent permissions and parent contract', async()=>{
   const config=JSON.parse(await readFile(new URL('../../opencode.json',import.meta.url),'utf8'));
-  assert.deepEqual(Object.keys(config.agents),['seyra','seyra_glm','seyra_deepseek','seyra_zai']);
+  assert.deepEqual(Object.keys(config.agents),['seyra']);
   assert.equal(config.model,'meta/muse-spark-1.3');
-  const {model:glmModel,...glm}=config.agents.seyra_glm;
-  assert.equal(glmModel,'helmcode/glm5.3-flash');assert.deepEqual(glm,config.agents.seyra);
-  const {model,...deepseek}=config.agents.seyra_deepseek;
-  assert.equal(model,'opencode/deepseek-v4.1-flash-free');assert.deepEqual(deepseek,config.agents.seyra);
-  const {model:zaiModel,...zai}=config.agents.seyra_zai;
-  assert.equal(zaiModel,'zai-coding-plan/glm-5.3-flash');assert.deepEqual(zai,config.agents.seyra);
   const permissions=config.agents.seyra.permissions;
   assert.deepEqual(permissions,[
     {action:'*',resource:'*',effect:'deny'},

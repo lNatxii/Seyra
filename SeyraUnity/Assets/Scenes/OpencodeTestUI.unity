@@ -1920,7 +1920,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Seyra.UI.OpenCodeTestChat
   serverUrl: http://127.0.0.1:4096
-  agent: seyra_zai
+  agent: seyra
   input: {fileID: 1889891577}
   sendButton: {fileID: 1346531631}
   reconnectButton: {fileID: 1412192599}

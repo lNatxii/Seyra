@@ -4,10 +4,10 @@ const server=http.createServer(async(req,res)=>{
  let body='';for await(const chunk of req)body+=chunk;
  const url=new URL(req.url,'http://localhost');let data;
  if(url.pathname==='/test/state'){data={round,decision,replies};}
- else if(url.pathname==='/api/agent'){data={data:[{id:'seyra'},{id:'seyra_deepseek',model:{providerID:'test',id:'permission-test-model'}}]};}
+ else if(url.pathname==='/api/agent'){data={data:[{id:'seyra'},{id:'seyra_fixture',model:{providerID:'test',id:'permission-test-model'}}]};}
  else if(req.method==='POST'&&url.pathname==='/api/session'){
   const request=JSON.parse(body);
-  if(request.agent==='seyra_deepseek'&&(request.model?.providerID!=='test'||request.model?.id!=='permission-test-model')){
+  if(request.agent==='seyra_fixture'&&(request.model?.providerID!=='test'||request.model?.id!=='permission-test-model')){
    res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Agent model was not forwarded'}));return;
   }
   data={data:{id:'permission-ui-test'}};
