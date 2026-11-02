@@ -148,6 +148,8 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
     let detections: Detection[] = [];
     const vector = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() });
     const regionSchema = z.object({ position: vector, rotation: vector });
+    const boxSchema = z.object({ center: vector, rotation: vector,
+      size: z.object({ x: z.number().finite().positive(), y: z.number().finite().positive(), z: z.number().finite().positive() }) });
     const positions: ({ x: number; y: number; z: number } | null)[] = [];
     let labels: { rootId: string; located: number; total: number } | null = null;
     const paletteColor = (index: number) => {
@@ -195,16 +197,30 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
       } catch { /* Do not retry an unconfirmed placement. */ }
       try {
         const located = outcome(await invoke('camera_locate', {
-          captureId: data.captureId, regions: detections.map(detection => ({ points: samplePoints(detection) })),
+          captureId: data.captureId, regions: detections.map(detection => ({ points: samplePoints(detection), box: detection.box })),
         }));
         if (located?.success && located.data.state === 'ready' && Array.isArray(located.data.regions)) {
           const regions = located.data.regions;
-          const nodes = detections.flatMap((detection, index) => {
+          let locatedCount = 0;
+          const nodes = detections.flatMap<Record<string, unknown>>((detection, index) => {
             const parsed = regionSchema.safeParse(regions[index]);
             if (!parsed.success) return [];
             const { position, rotation } = parsed.data;
             positions[index] = position;
+            locatedCount++;
             const color = paletteColor(index);
+            const parsedBox = boxSchema.safeParse(regions[index]?.box);
+            if (parsedBox.success) {
+              const box = parsedBox.data;
+              return [
+                { key: `box_${index}`, name: `${detection.label} box`, type: 'primitive', primitiveType: 'cube',
+                  transform: { position: box.center, rotation: box.rotation, scale: box.size },
+                  appearance: { style: 'colored_translucent', color: { ...color, a: 0.25 } } },
+                { key: `label_${index}`, name: `${detection.label} label`, type: 'panel',
+                  transform: { position: { ...box.center, y: box.center.y + box.size.y / 2 + 0.06 }, rotation },
+                  panel: { version: 1, kind: 'label', title: '', text: detection.label, width: 0.2, height: 0.05, fontSize: 24 } },
+              ];
+            }
             return [
               { key: `dot_${index}`, name: `${detection.label} point`, type: 'primitive', primitiveType: 'sphere',
                 transform: { position, scale: { x: 0.03, y: 0.03, z: 0.03 } },
@@ -219,7 +235,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
           if (nodes.length > 0) {
             const built = outcome(await invoke('scene_build', { name: 'Object labels', nodes }));
             if (built?.success && typeof built.data.rootId === 'string')
-              labels = { rootId: built.data.rootId, located: nodes.length / 3, total: detections.length };
+              labels = { rootId: built.data.rootId, located: locatedCount, total: detections.length };
           }
         }
       } catch { /* Localization and labels must never invalidate the photo card. Do not retry. */ }

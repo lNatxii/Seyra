@@ -107,6 +107,41 @@ test('segment locates objects after card placement and builds labels in detectio
   tools.find(item => item.name === 'scene_build').schema.parse(build);
 });
 
+test('segment builds a translucent box and falls back to a point while counting located detections', async () => {
+  const position = { x: 0.1, y: 0.8, z: 1.2 };
+  const rotation = { x: 10, y: 180, z: 0 };
+  const box = { center: { x: 0.1, y: 0.85, z: 1.3 }, rotation: { x: 0, y: 180, z: 0 },
+    size: { x: 0.09, y: 0.11, z: 0.09 } };
+  const { service, calls } = await setup({ locate: { state: 'ready', regions: [
+    { position, rotation, box }, { position, rotation },
+  ] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  const regions = calls.find(item => item.name === 'camera_locate').args.regions;
+  assert.deepEqual(regions.map(region => region.box), result.data.objects.map(item => item.box));
+  assert.ok(regions.every(region => region.points.length > 0));
+  assert.deepEqual(result.data.labels, { rootId: 'object-labels', located: 2, total: 2 });
+  assert.ok(result.data.objects.every(item => JSON.stringify(item.position) === JSON.stringify(position)));
+  const build = calls.find(item => item.name === 'scene_build').args;
+  assert.deepEqual(build.nodes, [
+    { key: 'box_0', name: 'ceramic mug box', type: 'primitive', primitiveType: 'cube',
+      transform: { position: box.center, rotation: box.rotation, scale: box.size },
+      appearance: { style: 'colored_translucent', color: { r: 1, g: 77 / 255, b: 77 / 255, a: 0.25 } } },
+    { key: 'label_0', name: 'ceramic mug label', type: 'panel',
+      transform: { position: { ...box.center, y: box.center.y + box.size.y / 2 + 0.06 }, rotation },
+      panel: { version: 1, kind: 'label', title: '', text: 'ceramic mug', width: 0.2, height: 0.05, fontSize: 24 } },
+    { key: 'dot_1', name: 'open notebook point', type: 'primitive', primitiveType: 'sphere',
+      transform: { position, scale: { x: 0.03, y: 0.03, z: 0.03 } },
+      appearance: { style: 'unlit', color: { r: 45 / 255, g: 212 / 255, b: 191 / 255, a: 1 } } },
+    { key: 'label_1', name: 'open notebook label', type: 'panel',
+      transform: { position: { ...position, y: position.y + 0.1 }, rotation },
+      panel: { version: 1, kind: 'label', title: '', text: 'open notebook', width: 0.2, height: 0.05, fontSize: 24 } },
+    { key: 'line_1', name: 'open notebook line', type: 'line',
+      line: { points: [{ key: 'dot_1' }, { key: 'label_1' }],
+        color: { r: 45 / 255, g: 212 / 255, b: 191 / 255, a: 1 }, width: 0.003 } },
+  ]);
+  tools.find(item => item.name === 'scene_build').schema.parse(build);
+});
+
 test('segment preserves the card without labels when camera_locate has no depth', async () => {
   const { service, calls } = await setup();
   const result = decode(await service.segment({ question: 'What am I looking at?' }));
