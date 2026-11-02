@@ -13,6 +13,7 @@ namespace Seyra.SceneTools
         JObject ExecuteCamera(string tool, JObject args)
         {
             if (tool == "camera_locate") return LocateCameraRegions(args);
+            if (tool == "camera_marks_bind") return BindCameraMarks(args);
             Keys(args, Array.Empty<string>());
             if (cameraCapture == null) cameraCapture = UnityEngine.Object.FindAnyObjectByType<CameraCaptureService>();
             if (cameraCapture == null) return new JObject { ["state"] = "unavailable" };
@@ -40,6 +41,30 @@ namespace Seyra.SceneTools
                 };
             }
             finally { photo.Jpeg = null; }
+        }
+
+        JObject BindCameraMarks(JObject args)
+        {
+            Keys(args, new[] { "cardId", "rootId", "boxesId", "pointsId" });
+            GameObject cardObject, root, boxes, points;
+            try
+            {
+                cardObject = Find(args["cardId"]);
+                root = Find(args["rootId"]);
+                boxes = Find(args["boxesId"]);
+                points = Find(args["pointsId"]);
+            }
+            catch (ArgumentException)
+            {
+                return new JObject { ["state"] = "unavailable" };
+            }
+            var card = cardObject.GetComponent<ManagedPanel>();
+            if (card == null || card.PresentationView == null || !card.PresentationView.Values.ContainsKey("checked"))
+                return new JObject { ["state"] = "unavailable" };
+            var markSwitch = root.GetComponent<ObjectMarkSwitch>();
+            if (markSwitch == null) markSwitch = root.AddComponent<ObjectMarkSwitch>();
+            markSwitch.Bind(card, boxes, points);
+            return new JObject { ["state"] = "bound" };
         }
 
         JObject LocateCameraRegions(JObject args)
