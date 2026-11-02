@@ -13,6 +13,7 @@ namespace Seyra.SceneTools
         internal void DiscardPanel(GameObject go)
         {
             if (disposed) return;
+            if (go.GetComponent<SeyraFollowTarget>() != null) { go.GetComponent<ManagedPanel>().SetWindowVisible(false); return; }
             try { ExecuteRecorded("delete_object", new JObject { ["entityId"] = Id(go) }); }
             catch (Exception error) { Debug.LogWarning("Seyra: could not discard the panel: " + error.Message); }
         }

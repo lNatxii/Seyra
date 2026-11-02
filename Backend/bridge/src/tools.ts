@@ -1,5 +1,6 @@
 import { lineTools } from './lines.js';
 import { motionTools } from './motion.js';
+import { interactionSetSchema, interactionDescription } from './interaction.js';
 import { batchTools } from './batch.js';
 import { layoutTools } from './layouts.js';
 import { z } from 'zod';
@@ -17,6 +18,7 @@ const channel = z.number().finite().min(0).max(1);
 export const appearanceWithoutEntityId = z.object({ style: z.enum(appearanceStyles), color: z.object({ r: channel, g: channel, b: channel, a: channel }).strict() }).strict().refine(a => ['colored_translucent', 'ui_unlit', 'transparent'].includes(a.style) || a.color.a === 1, 'This style requires alpha=1.');
 export const appearance = appearanceWithoutEntityId.safeExtend({ entityId: id });
 const baseTools = [
+  { name: 'interaction_set', readOnly: false, schema: interactionSetSchema(id), description: interactionDescription },
   ...motionTools(id, vector),
   ...lineTools(id, vector, creation, appearanceWithoutEntityId),
   ...layoutTools,

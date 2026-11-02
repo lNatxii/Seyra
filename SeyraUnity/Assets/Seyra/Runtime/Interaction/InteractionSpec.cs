@@ -13,7 +13,8 @@ namespace Seyra.SceneTools
         public float DetailGap = .05f;
         public PanelContent DetailPanel;
         public PresentationContent DetailPresentation;
-        public string Signature => ToJson().ToString(Formatting.None);
+        public string Signature => new JObject { ["grabbable"] = Grabbable, ["returnOnRelease"] = ReturnOnRelease,
+            ["exclusive"] = Exclusive, ["detailId"] = DetailId, ["detailSide"] = DetailSide, ["detailGap"] = DetailGap }.ToString(Formatting.None);
         public InteractionSpec Copy()
         {
             var copy = (InteractionSpec)MemberwiseClone();

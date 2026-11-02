@@ -22,6 +22,7 @@ namespace Seyra.SceneTools
         float selectedAt;
         bool selectionMoved;
         public InteractionSpec Specification => specification?.Copy();
+        public ManagedPanel Detail => detail;
         public BoxCollider SelectionBox { get; private set; }
         public RayInteractable Ray { get; private set; }
         public bool IsHeld => false; // Grabbing and returning are implemented in step 7.
@@ -32,7 +33,6 @@ namespace Seyra.SceneTools
             active.Remove(this);
             hovering.Clear(); selecting.Clear();
             if (highlight != null) highlight.SetActive(false);
-            if (detail != null) detail.SetWindowVisible(false);
         }
         public void Configure(InteractionSpec spec, IEnumerable<Vector3> geometryPoints, ManagedPanel detailPanel = null)
         {

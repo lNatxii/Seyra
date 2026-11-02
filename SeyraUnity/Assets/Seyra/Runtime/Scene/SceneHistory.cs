@@ -18,7 +18,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<GameObject,ObjectState> deletedOrigins=new Dictionary<GameObject,ObjectState>();
         Snapshot lastCapture;
         string storageDirectory;
-        static readonly HashSet<string> recordedTools=new HashSet<string>{"motion_set","motion_remove","create_point","create_line","update_line","create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
+        static readonly HashSet<string> recordedTools=new HashSet<string>{"interaction_set","motion_set","motion_remove","create_point","create_line","update_line","create_gameobject","create_primitive","create_panel","update_panel","ui_present","ui_update","ui_remove","set_transform","place_relative","spatial_place","set_appearance","set_parent","rename_object","request_begin","delete_object","restore_object","content_load","scene_build","scene_edit","layout_create","layout_apply"};
 
         void InitializeLifecycle(string directory)
         {
@@ -85,6 +85,10 @@ namespace Seyra.SceneTools
             public string AppearanceSignature;
             public MotionState Motion;
             public string MotionSignature;
+            public InteractionSpec Interactive;
+            public string InteractiveSignature,FollowSide;
+            public Transform FollowTarget;
+            public float FollowGap;
             public LineContent Line;
             public Transform[] LineTargets;
             public string LineSignature;
@@ -102,12 +106,14 @@ namespace Seyra.SceneTools
                     Layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification,Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,
                     Line=go.GetComponent<ManagedLine>()?.Content,LineTargets=go.GetComponent<ManagedLine>()?.Targets,LineSignature=go.GetComponent<ManagedLine>()?.Signature,
                     Motion=go.GetComponent<SeyraMotion>()?.Capture(),MotionSignature=go.GetComponent<SeyraMotion>()?.Signature,
+                    Interactive=go.GetComponent<SeyraInteractive>()?.Specification,InteractiveSignature=go.GetComponent<SeyraInteractive>()?.Specification?.Signature,
+                    FollowTarget=go.GetComponent<SeyraFollowTarget>()?.Target,FollowSide=go.GetComponent<SeyraFollowTarget>()?.Side,FollowGap=go.GetComponent<SeyraFollowTarget>()?.Gap??0,
                     Panel=go.GetComponent<ManagedPanel>()?.Content,PanelSignature=go.GetComponent<ManagedPanel>()?.StateSignature,
                     Presentation=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().Presentation.ToJson():null,
                     Interaction=go.GetComponent<ManagedPanel>()?.IsPresentation==true?go.GetComponent<ManagedPanel>().InteractionState:null};
             }
             public bool Same(ObjectState other)=>ReferenceEquals(Object,other.Object) && ReferenceEquals(Parent,other.Parent) && Sibling==other.Sibling && Name==other.Name && Tag==other.Tag && Layer==other.Layer && Active==other.Active &&
-                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && MotionSignature==other.MotionSignature && LineSignature==other.LineSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
+                ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Position)!=0 || Position.Equals(other.Position)) && ((DrivenTransform.Channels(Object.transform)&DrivenChannels.Rotation)!=0 || Rotation.Equals(other.Rotation)) && Scale.Equals(other.Scale) && EntityId==other.EntityId && Kind==other.Kind && Shape==other.Shape && GroupId==other.GroupId && Components==other.Components && Style==other.Style && Color.Equals(other.Color) && AppearanceSignature==other.AppearanceSignature && MotionSignature==other.MotionSignature && InteractiveSignature==other.InteractiveSignature && ReferenceEquals(FollowTarget,other.FollowTarget) && FollowSide==other.FollowSide && FollowGap.Equals(other.FollowGap) && LineSignature==other.LineSignature && PanelSignature==other.PanelSignature && JToken.DeepEquals(Layout,other.Layout) && ReferenceEquals(Placement,other.Placement);
             public void Validate()
             {
                 if(Object==null || (!ReferenceEquals(Parent,null) && Parent==null))throw new InvalidOperationException("Cannot restore: an object or its parent was destroyed outside Seyra.");
@@ -115,6 +121,13 @@ namespace Seyra.SceneTools
             public void Apply(bool restoreInteraction=false,bool restoreMotion=false)
             {
                 var t=Object.transform;
+                if(Interactive==null && Object.GetComponent<SeyraInteractive>() is SeyraInteractive interactive)UnityEngine.Object.DestroyImmediate(interactive);
+                if(FollowTarget==null && Object.GetComponent<SeyraFollowTarget>() is SeyraFollowTarget follow)
+                {
+                    UnityEngine.Object.DestroyImmediate(follow);
+                    var billboard=Object.GetComponent<Seyra.Spatial.SeyraBillboard>();if(billboard!=null)UnityEngine.Object.DestroyImmediate(billboard);
+                    Object.GetComponent<ManagedPanel>()?.SetGrabEnabled(true);
+                }
                 var motion=Object.GetComponent<SeyraMotion>();
                 // Undo preserves live behavior when only unrelated declared state changed.
                 // Rollback must also recover bases/phases after a same-signature reconfiguration.
@@ -216,6 +229,8 @@ namespace Seyra.SceneTools
             foreach(var group in target.States.Values.GroupBy(s=>s.Parent))foreach(var state in group.OrderBy(s=>s.Sibling))state.Object.transform.SetSiblingIndex(state.Sibling);
             foreach(var state in target.States.Values)state.Object.SetActive(state.Active);
             foreach(var state in target.States.Values)RestoreLayout(state.Object,state.Layout);
+            foreach(var state in target.States.Values)RestoreInteractive(state,restoreMotion);
+            MarkMotionDirty();
             Reindex();lastCapture=target;
         }
         JObject ExecuteRecorded(string tool,JObject args)
@@ -270,18 +285,21 @@ namespace Seyra.SceneTools
                     return new JObject{["activeRequestGroupId"]=activeRequest,["requests"]=new JArray(LiveContent().Select(t=>t.GetComponent<GeneratedObject>()).Where(r=>r!=null&&r.Kind=="request").Select(r=>new JObject{["requestGroupId"]=r.EntityId,["name"]=r.name,["open"]=r.EntityId==activeRequest}))};
                 case "delete_object":
                     Keys(args,new[]{"entityId"});var deleted=Find(args["entityId"]);
+                    RequireIndependentDetail(deleted);
                     if(Id(deleted)==activeRequest)throw new InvalidOperationException("End the request before deleting its container.");
-                    MoveToTrash(deleted);return Inspect(deleted);
+                    MoveToTrash(deleted);MoveInteractionDetails(deleted);return Inspect(deleted);
                 case "restore_object":
                     Keys(args,new[]{"entityId"});var restored=Find(args["entityId"],true);
                     if(!IsDeleted(restored)||!deletedOrigins.TryGetValue(restored,out var origin))throw new ArgumentException("This object has no recoverable deletion in this runtime.");
-                    var recovering=restored.GetComponentsInChildren<ManagedPanel>(true).Where(p=>p.IsPresentation).ToArray();
+                    var recovering=restored.GetComponentsInChildren<ManagedPanel>(true)
+                        .Concat(restored.GetComponentsInChildren<SeyraInteractive>(true).Select(i=>i.Detail).Where(p=>p!=null&&IsDeleted(p.gameObject)))
+                        .Where(p=>p.IsPresentation).Distinct().ToArray();
                     var livePresentations=LiveContent().Select(t=>t.GetComponent<ManagedPanel>()).Where(p=>p!=null&&p.IsPresentation).ToArray();
                     if(livePresentations.Length+recovering.Length>16 || recovering.Any(p=>livePresentations.Any(q=>p.Presentation.Data.id==q.Presentation.Data.id)))
                         throw new ArgumentException("Restoration would exceed the presentation limit or duplicate a content ID.");
                     origin.Validate();
                     if(origin.Parent==null||IsDeleted(origin.Parent.gameObject))throw new InvalidOperationException("Restore the original parent first.");
-                    origin.Apply();restored.transform.SetSiblingIndex(origin.Sibling);restored.SetActive(origin.Active);Reindex();return Inspect(restored);
+                    origin.Apply();restored.transform.SetSiblingIndex(origin.Sibling);restored.SetActive(origin.Active);RestoreInteractionDetails(restored);Reindex();return Inspect(restored);
                 case "history_list":
                     Keys(args,Array.Empty<string>(),new[]{"offset","limit"});
                     int offset=Int(args,"offset",0,0,1000000),limit=Int(args,"limit",20,1,100);
