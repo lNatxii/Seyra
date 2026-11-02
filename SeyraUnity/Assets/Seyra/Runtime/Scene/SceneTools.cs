@@ -156,7 +156,7 @@ namespace Seyra.SceneTools
             while(stack.Count>0)
             {
                 var (t,depth)=stack.Pop();
-                if(t==trash || IsDeleted(t.gameObject))continue;
+                if(t==trash || IsDeleted(t.gameObject) || t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
                 if(!inactive && !t.gameObject.activeInHierarchy) continue;
                 result.Add((t.gameObject,Node(t.gameObject,depth)));
                 if(result.Count>50000) throw new InvalidOperationException("More than 50000 nodes; narrow the query with rootId. A truncated hierarchy will not be returned.");
@@ -206,6 +206,8 @@ namespace Seyra.SceneTools
             node["depth"]=depth; node["runtimeId"]=RuntimeId;
             var layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification;if(layout!=null)node["layout"]=layout;
             var motions=MotionsJson(go);if(motions!=null)node["motions"]=motions;
+            var interactive=go.GetComponent<SeyraInteractive>();if(interactive!=null)node["interaction"]=InteractionJson(interactive);
+            var follow=go.GetComponent<SeyraFollowTarget>();if(follow!=null)node["followTarget"]=new JObject{["targetId"]=follow.Target!=null?Id(follow.Target.gameObject):null,["side"]=follow.Side,["gap"]=follow.Gap};
             var spatial=SpatialState(go);if(spatial!=null)node["spatial"]=spatial;
             node["transform"]=new JObject{["position"]=Vector(t.position),["rotation"]=Vector(t.eulerAngles),["localPosition"]=Vector(t.localPosition),["localRotation"]=Vector(t.localEulerAngles),["localScale"]=Vector(t.localScale),["lossyScale"]=Vector(t.lossyScale)};
             var appearance=go.GetComponent<ManagedAppearance>();
@@ -286,6 +288,7 @@ namespace Seyra.SceneTools
         }
         JObject Execute(string tool,JObject args)
         {
+            if(tool=="interaction_set")return InteractionSet(args);
             if(tool=="motion_set")return MotionSet(args);
             if(tool=="motion_remove")return MotionRemove(args);
             if(tool=="motion_control")return MotionControl(args);
@@ -352,6 +355,7 @@ namespace Seyra.SceneTools
                 var go=Find(args["entityId"]);var t=go.transform;var parent=Parent(args["parentId"]);
                 RequirePanelRoot(go);
                 if(go.GetComponent<SeyraMotion>()!=null)throw new RoomToolException("MOTION_DRIVEN",MotionDrivenMessage);
+                RequireIndependentDetail(go);
                 if(t==generated || !t.IsChildOf(generated))throw new ArgumentException("Only descendants of Generated can be reparented.");
                 if(parent==go || parent.transform.IsChildOf(t))throw new ArgumentException("The hierarchy cannot contain cycles.");
                 if(parent.scene!=go.scene)throw new ArgumentException("Moving between scenes is not allowed.");

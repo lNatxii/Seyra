@@ -24,7 +24,7 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27), movimiento (24) y botón «Close» (32a). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 y 28 en Quest 3. |
-| Persistencia | Slots v7 con primitivas, apariencia, paneles, presentaciones, layouts, líneas y movimiento. | Controles para el usuario (09) y anclajes entre sesiones (16). |
+| Persistencia | Slots v8 con primitivas, apariencia, paneles, presentaciones, layouts, líneas, movimiento e interacción. | Controles para el usuario (09) y anclajes entre sesiones (16). |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
 
@@ -48,7 +48,7 @@ Revisado el 1 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Completed · Revisada; audio real y Quest pendientes de prueba. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
-| 11 | 10a. Objetos interactivos | 50 | Diseño listo; ya se puede implementar, 24 está cerrada. |
+| 11 | 10a. Objetos interactivos | 50 | Completed · Revisada; prueba en Quest 3 pendiente. Toque, ficha que sigue al objeto y agarre con vuelta. |
 | 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. |
 | 13 | 13–16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
@@ -391,7 +391,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 10. Selección e interacción bidireccional con contenido virtual
 
-**Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto) In progress · diseño listo, después de 24. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Diseño 10a](Progress/InProgress/10a-interactive-objects.md).
+**Estado:** 10a (objetos interactivos con panel de detalle: selección por rayo, agarre opcional con vuelta al soltar, ficha que sigue al objeto, también dentro de `scene_build`; persistencia v8) Completed · Revisada (2 de noviembre de 2026). InteractionChecks 56, PanelChecks 252 y bridge 44/44 aprobados. Quest pendiente. 10b (selección como contexto del mensaje y manipulación integrada en el historial) sin diseñar. [Implementación y revisión 10a](Progress/Completed/10a-interactive-objects.md).
 
 **Entrega:** seleccionar objetos o paneles y enviar su `entityId` como contexto explícito del siguiente mensaje. Añadir indicación visual de selección y manipulación manual básica mediante el rig existente.
 

@@ -1,5 +1,6 @@
 import { lineTools } from './lines.js';
 import { motionTools } from './motion.js';
+import { interactionSetSchema, interactionDescription } from './interaction.js';
 import { batchTools } from './batch.js';
 import { layoutTools } from './layouts.js';
 import { z } from 'zod';
@@ -17,6 +18,7 @@ const channel = z.number().finite().min(0).max(1);
 export const appearanceWithoutEntityId = z.object({ style: z.enum(appearanceStyles), color: z.object({ r: channel, g: channel, b: channel, a: channel }).strict() }).strict().refine(a => ['colored_translucent', 'ui_unlit', 'transparent'].includes(a.style) || a.color.a === 1, 'This style requires alpha=1.');
 export const appearance = appearanceWithoutEntityId.safeExtend({ entityId: id });
 const baseTools = [
+  { name: 'interaction_set', readOnly: false, schema: interactionSetSchema(id), description: interactionDescription },
   ...motionTools(id, vector),
   ...lineTools(id, vector, creation, appearanceWithoutEntityId),
   ...layoutTools,
@@ -86,10 +88,10 @@ const baseTools = [
     description: 'Undoes the latest operation (scope=operation) or the entire most recent request block (scope=request). Cannot skip later operations. Query history_list and supply expectedOperationId to avoid acting on a different latest change. Restores the scene to its state before those operations; creations move to trash. Preserves references/components. If Transform, hierarchy, components or state changed externally, returns HISTORY_CONFLICT without overwriting them. Does not undo file writes; no redo.',
     schema: z.object({ scope: z.enum(['operation', 'request']), expectedOperationId: z.string().regex(/^op_[a-f0-9]{32}$/).optional() }).strict() },
   { name: 'content_save', readOnly: false,
-    description: 'Saves live Generated content to a versioned local JSON slot (atomic file replacement). Includes persistent managed object IDs, containers/requests, primitives, hierarchy, ordering, Transform, name, tag/layer and activeSelf. Format v7 supports parametric motion with base, phase and pause state, managed lines, layouts, presentations, empty objects, native primitives with the six managed appearance styles and uniform RGBA, and atomic panel/label contracts (version 1); panel internals are reconstructed rather than serialized as scene nodes; rejects arbitrary material/component changes; rejects content that cannot be reconstructed before overwriting. Excludes trash, history, external objects and secrets. Requires the request to be closed. slot is a name, never a path. Maximum 2048 objects and 5 MiB.',
+    description: 'Saves live Generated content to a versioned local JSON slot (atomic file replacement). Includes persistent managed object IDs, containers/requests, primitives, hierarchy, ordering, Transform, name, tag/layer and activeSelf. Format v8 supports interactive objects and owned detail windows, parametric motion with base, phase and pause state, managed lines, layouts, presentations, empty objects, native primitives with the six managed appearance styles and uniform RGBA, and atomic panel/label contracts (version 1); panel internals are reconstructed rather than serialized as scene nodes; rejects arbitrary material/component changes; rejects content that cannot be reconstructed before overwriting. Excludes trash, history, external objects and secrets. Requires the request to be closed. slot is a name, never a path. Maximum 2048 objects and 5 MiB.',
     schema: z.object({ slot: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict() },
   { name: 'content_load', readOnly: false,
-    description: 'Loads a saved slot and REPLACES live Generated content. Reads versions 1 through 7, including parametric motion with missing pivots restored as pivot_missing, and managed lines with missing targets restored as target_missing. Validates version, IDs, parents, cycles, geometry and panel contracts; reconstructs in staging first and keeps previous content in trash for undo. Preserves saved entityId values and generates new componentId values. Requires the request to be closed. Does not change other scene roots or load arbitrary code or components. History lasts only for this runtime. Do not retry automatically after a timeout: inspect the scene first.',
+    description: 'Loads a saved slot and REPLACES live Generated content. Reads versions 1 through 8, including parametric motion with missing pivots restored as pivot_missing, and managed lines with missing targets restored as target_missing. Validates version, IDs, parents, cycles, geometry and panel contracts; reconstructs in staging first and keeps previous content in trash for undo. Preserves saved entityId values and generates new componentId values. Requires the request to be closed. Does not change other scene roots or load arbitrary code or components. History lasts only for this runtime. Do not retry automatically after a timeout: inspect the scene first.',
     schema: z.object({ slot: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/) }).strict() },
   { name: 'content_list', readOnly: true,
     description: 'Lists up to 1000 saved generated-content slots with name, bytes and date. Does not read arbitrary paths.',

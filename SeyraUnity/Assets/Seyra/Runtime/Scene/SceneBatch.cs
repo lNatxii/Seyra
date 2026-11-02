@@ -8,7 +8,7 @@ namespace Seyra.SceneTools
 {
     public sealed partial class SceneToolService
     {
-        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "update_line", "set_parent", "delete_object", "place_relative", "motion_set", "motion_remove" };
+        static readonly HashSet<string> batchEdits = new HashSet<string> { "set_transform", "set_appearance", "rename_object", "update_panel", "update_line", "set_parent", "delete_object", "place_relative", "motion_set", "motion_remove", "interaction_set" };
 
         static MotionSpec ParseBatchMotion(JToken token)
         {
@@ -92,7 +92,8 @@ namespace Seyra.SceneTools
                     if (kind == "primitive") required = required.Concat(new[] { "primitiveType" }).ToArray();
                     else if (kind == "panel") required = required.Concat(new[] { "panel" }).ToArray();
                     else if (kind != "empty") throw new ArgumentException("Unsupported node type.");
-                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance", "motions" } : new[] { "relativeTo", "parentKey", "motions" });
+                    Keys(node, required, kind == "primitive" ? new[] { "relativeTo", "parentKey", "appearance", "motions", "interaction" } : kind == "empty" ? new[] { "relativeTo", "parentKey", "motions", "interaction" } : new[] { "relativeTo", "parentKey", "motions" });
+                    if (node["interaction"] != null) InteractionSpec.Parse(node["interaction"]);
                     var transform = node["transform"] as JObject ?? throw new ArgumentException("transform must be an object.");
                     Keys(transform, new[] { "position" }, new[] { "rotation", "scale" });
                     if (node["motions"] != null)
@@ -130,6 +131,8 @@ namespace Seyra.SceneTools
             }
             foreach (var entry in ordered)
             {
+                if (entry.node["interaction"] != null && entry.ancestors.Any(key => byKey[key].node["interaction"] != null))
+                    throw new RoomToolException("INTERACTION_NESTED", "Interactive objects cannot contain other interactive objects.");
                 if (entry.node["motions"] is JArray motions)
                     foreach (var motion in motions)
                         if (motion["pivotKey"] != null)
@@ -163,7 +166,7 @@ namespace Seyra.SceneTools
                 Keys(placement, new[] { "destination" }, new[] { "physicalId", "allowAirFallback", "minScale" });
                 if (Text(placement, "destination") == "air" && placement["physicalId"] != null) throw new ArgumentException("Air has no physical support.");
             }
-            RequireCapacity(2 + ordered.Sum(entry => (string)entry.node["type"] == "panel" ? 64 : 1));
+            RequireCapacity(2 + ordered.Sum(entry => ((string)entry.node["type"] == "panel" ? 64 : 1) + (entry.node["interaction"]?["detail"] != null ? 64 : 0)));
             bool automatic = activeRequest == null;
             string requestId = activeRequest;
             try
@@ -247,6 +250,17 @@ namespace Seyra.SceneTools
                     }
                     result["placement"] = placed;
                 }
+                var details = new JObject();
+                foreach (var entry in ordered)
+                    if (entry.node["interaction"] is JObject fields)
+                    {
+                        var interaction = (JObject)fields.DeepClone();
+                        string key = Text(entry.node, "key");
+                        interaction["entityId"] = ids[key].DeepClone(); interaction["interactive"] = true;
+                        var configured = BatchCall("interaction_set", interaction);
+                        if (configured["interaction"]?["detailId"]?.Type == JTokenType.String) details[key] = configured["interaction"]["detailId"].DeepClone();
+                    }
+                result["details"] = details;
                 return result;
             }
             finally { if (automatic) activeRequest = null; }

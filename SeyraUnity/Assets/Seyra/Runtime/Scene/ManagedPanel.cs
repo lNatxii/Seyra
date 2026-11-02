@@ -15,6 +15,18 @@ namespace Seyra.SceneTools
     {
         [SerializeField] PanelContent content;
         [SerializeField] UIXRWindow window;
+        [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("presentationVisible")] bool windowVisible = true;
+        public bool WindowVisible => windowVisible;
+        public void SetWindowVisible(bool visible)
+        {
+            windowVisible = visible;
+            if (window != null) window.gameObject.SetActive(visible);
+            if (visible) GetComponent<SeyraFollowTarget>()?.Snap();
+        }
+        public void SetGrabEnabled(bool enabled)
+        {
+            if (window?.GrabFrame != null) window.GrabFrame.gameObject.SetActive(enabled);
+        }
         [SerializeField] RectTransform surface;
         [SerializeField] TMP_Text heading, body;
         [SerializeField] ScrollRect scroll;
@@ -121,7 +133,7 @@ namespace Seyra.SceneTools
             ["id"] = t.GetInstanceID(), ["parent"] = t == transform ? 0 : t.parent.GetInstanceID(),
             ["name"] = t == transform ? "" : t.name, ["layer"] = t == transform ? 0 : t.gameObject.layer, ["tag"] = t == transform ? "" : t.tag,
             // ISDK creates these transient interaction helpers in Start or on grab; they are not authored content.
-            ["components"] = new JArray(t.GetComponents<Component>().Where(c => !(c is GeneratedObject) && !(c is Seyra.Spatial.SeyraBillboard) &&
+            ["components"] = new JArray(t.GetComponents<Component>().Where(c => !(c is GeneratedObject) && !(c is SeyraFollowTarget) && !(c is Seyra.Spatial.SeyraBillboard) &&
                 !(c is Oculus.Interaction.InteractableTriggerBroadcaster) && !(c is Oculus.Interaction.MoveTowardsTargetProvider) &&
                 !(c is Oculus.Interaction.RigidbodyKinematicLocker))
                 .Select(c => c == null ? 0 : c.GetInstanceID())) })).ToString(Newtonsoft.Json.Formatting.None);

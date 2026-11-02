@@ -14,6 +14,7 @@ namespace Seyra.SceneTools
         SeyraMotionSystem system;
         readonly List<UIMetaGrabFrame> grabFrames = new List<UIMetaGrabFrame>();
         readonly List<UIMetaGrabFrame> ownFrames = new List<UIMetaGrabFrame>();
+        readonly List<SeyraInteractive> interactiveObjects = new List<SeyraInteractive>();
         bool ownWasHeld, releasePending, invalidDependency;
         string signature = "{}";
 
@@ -148,11 +149,18 @@ namespace Seyra.SceneTools
         }
         void ApplyPose()
         {
-            if (state.Spin != null) transform.localRotation = state.BaseRotation * Quaternion.AngleAxis(state.SpinAngle, state.Spin.Axis);
-            if (state.Position == null) return;
+            PoseAtCurrentPhase(out var position, out var rotation);
+            if (state.Spin != null) transform.localRotation = rotation;
+            if (state.Position != null) transform.localPosition = position;
+        }
+        public void PoseAtCurrentPhase(out Vector3 position, out Quaternion rotation)
+        {
+            position = transform.localPosition; rotation = transform.localRotation;
+            if (state.Spin != null) rotation = state.BaseRotation * Quaternion.AngleAxis(state.SpinAngle, state.Spin.Axis);
+            if (state.Position == null || PivotMissing || invalidDependency) return;
             if (state.Position.Kind == "orbit")
-                transform.localPosition = PivotLocal(state.Position, state.Pivot) + Quaternion.AngleAxis(state.PositionAngle, state.Position.Axis) * state.Offset;
-            else transform.localPosition = state.BasePosition + state.Position.Axis * (state.Position.Amplitude * Mathf.Sin(2 * Mathf.PI * state.Time / state.Position.Period));
+                position = PivotLocal(state.Position, state.Pivot) + Quaternion.AngleAxis(state.PositionAngle, state.Position.Axis) * state.Offset;
+            else position = state.BasePosition + state.Position.Axis * (state.Position.Amplitude * Mathf.Sin(2 * Mathf.PI * state.Time / state.Position.Period));
         }
         static float Advance(float phase, float speed, float dt, float period) => (float)(((double)phase + (double)speed * dt) % period);
 
@@ -160,6 +168,8 @@ namespace Seyra.SceneTools
         public void Evaluate(float dt)
         {
             bool held = false, ownHeld = false;
+            for (int i = 0; i < interactiveObjects.Count; i++)
+                if (interactiveObjects[i] != null && interactiveObjects[i].isActiveAndEnabled && interactiveObjects[i].IsHeld) held = true;
             for (int i = 0; i < grabFrames.Count; i++)
                 if (grabFrames[i] != null && grabFrames[i].isActiveAndEnabled && grabFrames[i].IsGrabbed) held = true;
             for (int i = 0; i < ownFrames.Count; i++)
@@ -189,13 +199,14 @@ namespace Seyra.SceneTools
         void ClearGrabCache()
         {
             for (int i = 0; i < ownFrames.Count; i++) if (ownFrames[i] != null) ownFrames[i].GrabChanged -= OwnGrabChanged;
-            ownFrames.Clear(); grabFrames.Clear();
+            ownFrames.Clear(); grabFrames.Clear(); interactiveObjects.Clear();
         }
         internal void CacheGrabFrames()
         {
             // Structural work runs from MarkDirty, never from Step, including event subscriptions.
             ClearGrabCache();
             GetComponentsInChildren(true, grabFrames);
+            GetComponentsInChildren(true, interactiveObjects);
             for (int i = 0; i < grabFrames.Count; i++)
             {
                 var frame = grabFrames[i];
