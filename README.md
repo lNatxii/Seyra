@@ -14,9 +14,6 @@ All of these come from the Meta XR All-in-One SDK (`com.meta.xr.sdk.all` 207.0.1
 | Interaction SDK (`com.meta.xr.sdk.interaction`, `.interaction.ovr`) | 207.0.1 | Hand and controller interaction, grabbing, panels |
 | MR Utility Kit (`com.meta.xr.mrutilitykit`) | 207.0.1 | Captured room, walls and furniture for placement. Passthrough Camera API (`PassthroughCameraAccess`) for photos, and environment raycasting (`EnvironmentRaycastManager`) to find the 3D position of real objects. |
 | Voice SDK (`com.meta.xr.sdk.voice`) | 85.0.1 | Spoken replies through Wit.ai |
-| Haptics SDK (`com.meta.xr.sdk.haptics`) | 207.0.1 | Included, not used directly |
-| Audio SDK (`com.meta.xr.sdk.audio`) | 85.0.0 | Included, not used directly |
-| Platform SDK (`com.meta.xr.sdk.platform`) | 207.0.0 | Included, not used directly |
 
 The backend uses `@meta-sam/parser` 0.1.0 to read SAM 3.1 masks.
 
