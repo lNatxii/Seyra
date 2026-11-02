@@ -30,14 +30,14 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. La siguiente feature es 37. Descartadas por el usuario el 2 de noviembre: 09, 13, 16, 21, 26b y 32b. 15c se da por cubierta con 15a, 15b y 15d.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. No queda ninguna feature por implementar en este orden: falta probar en Quest 3 lo ya hecho. Descartadas por el usuario el 2 de noviembre: 09, 13, 16, 21, 26b y 32b. 15c se da por cubierta con 15a, 15b y 15d.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
 | 1a | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real. |
 | 2e | 35. Limpiar la vista al cambiar de tema | 72 | Completed · Revisada; prueba de conversación pendiente. Solo prompt, y depende del juicio del modelo. |
-| Siguiente | 37. Modelos generados que se pueden agarrar y mover | 80 | Diseño listo. Pedida por el usuario: planetas o cubos que se cogen y se dejan donde se quiera, siempre desde el padre. |
+| 2f | 37. Modelos generados que se pueden agarrar y mover | 80 | Completed · Revisada; prueba en Quest pendiente. Planetas o cubos que se cogen enteros desde el padre. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -511,7 +511,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 37. Modelos generados que se pueden agarrar y mover
 
-**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/37-movable-generated-models.md).
+**Estado:** Completed · Revisada (2 de noviembre de 2026). InteractionChecks 81, MotionChecks 95, SceneBatchChecks 45 y PanelChecks 256 aprobadas con eventos simulados. Pendiente Quest 3, sobre todo el agarre cercano. [Implementación y revisión](Progress/Completed/37-movable-generated-models.md).
 
 **Entrega:** todo lo creado con `scene_build` se puede coger y mover como un conjunto desde su objeto padre, con la mano o con el rayo, y queda flotando donde se suelta. El padre lleva un `Rigidbody` kinemático sin gravedad en su hijo auxiliar. Las piezas nunca se agarran por separado, aunque pueden seguir abriendo su ficha. Lo situado por la segmentación no es movible (`movable: false`).
 

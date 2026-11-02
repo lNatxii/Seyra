@@ -7,7 +7,7 @@ Never retry a mutation after an ambiguous timeout or disconnect; inspect first.
 ## scene_build
 
 Arguments: `name` (trimmed, 1..256), optional `parentId`, `nodes` (1..64 total,
-maximum depth 6 via parentKey), optional `placement`. Creates an identity-transform container
+maximum depth 6 via parentKey), optional `placement`, optional boolean `movable` (default true). Creates an identity-transform container
 under the specified Generated parent, or the open request container by default.
 When no request is open, opens and closes an automatic request around the build.
 
@@ -59,7 +59,7 @@ is limited to 1024 characters. With no rejected candidates, only the placement
 reason is included. The error code and complete rollback remain unchanged.
 
 Returns `rootId`, `entityId`, `requestGroupId`, `nodes` (key to entityId), optional
-confirmed `placement`, `operationId`, `operationIds`. The requestGroupId supplies
+confirmed `placement`, `movable` (actual applied state), `operationId`, `operationIds`. The requestGroupId supplies
 the history group even after the automatic request closes.
 
 ## scene_edit
@@ -111,8 +111,19 @@ Only empty and primitive nodes accept optional `interaction`, the fields of
 [interaction_set](INTERACTION.md) without entityId or interactive. Configuration
 runs after placement, so the selection box accounts for the final scale. Details
 do not consume nodes; capacity preflight reserves 64 additional objects per
-declared detail. Interactive ancestry is rejected before creation. Runtime target,
+declared detail. Grabbable ancestry is rejected before creation; non-grabbable details may be nested. Runtime target,
 nesting, geometry, interaction and presentation limits still apply atomically.
 The result adds `details`, mapping node keys with a detail to its entityId.
 scene_edit accepts interaction_set using the registered standalone schema.
 Interactive content is saved in v8, including owned detail IDs and visibility; v1–v7 remain readable.
+
+## Movable composition roots
+
+After node interactions, scene_build configures the root with grabbable true and
+returnOnRelease false by default. Set movable false for physical-world annotations,
+including camera segmentation marks. create_primitive remains unchanged; use a
+one-node scene_build for a movable primitive. Panels and lines alone do not enable
+root grabbing. An existing grabbable ancestor or the 32-interaction limit leaves
+the composition created with movable false. Parts requesting grabbable true in a
+movable build fail with INTERACTION_NESTED. Non-grabbable detail parts are valid.
+Automatic root grabbing belongs to the same atomic history entry as the build.

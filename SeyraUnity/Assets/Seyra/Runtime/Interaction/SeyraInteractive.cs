@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Oculus.Interaction;
+using Oculus.Interaction.HandGrab;
+using Oculus.Interaction.Grab;
+using Oculus.Interaction.GrabAPI;
 using Oculus.Interaction.Surfaces;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -14,6 +17,12 @@ namespace Seyra.SceneTools
         readonly HashSet<int> hovering = new HashSet<int>();
         readonly HashSet<int> selecting = new HashSet<int>();
         SeyraInteractionRig rig;
+        Grabbable grab;
+        SeyraInteractive ancestorGrab;
+        Grabbable linkedGrab;
+        Vector3 selectionRootPosition;
+        Vector3[] configuredPoints;
+        public static Action<SeyraInteractive, Vector3, Quaternion, Vector3> MoveCommitHandler;
         GameObject highlight;
         ManagedPanel detail;
         InteractionSpec specification;
@@ -32,7 +41,7 @@ namespace Seyra.SceneTools
         public bool TrySavedPose(out Vector3 position, out Quaternion rotation, out Vector3 scale)
         {
             position = savedPosition; rotation = savedRotation; scale = savedScale;
-            return IsHeld && specification != null && specification.ReturnOnRelease;
+            return IsHeld && specification != null;
         }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void Reset() => active.Clear();
         void OnEnable() => active.Add(this);
@@ -63,6 +72,9 @@ namespace Seyra.SceneTools
             IsHeld = returning = false;
             RemoveRig(); hovering.Clear(); selecting.Clear();
             specification = spec.Copy(); detail = detailPanel;
+            configuredPoints = new List<Vector3>(geometryPoints).ConvertAll(point => transform.InverseTransformPoint(point)).ToArray();
+            ancestorGrab = FindAncestorGrab();
+            linkedGrab = ancestorGrab != null ? ancestorGrab.grab : null;
             var host = new GameObject("__SeyraInteraction"); host.SetActive(false);
             host.transform.SetParent(transform, false);
             rig = host.AddComponent<SeyraInteractionRig>();
@@ -71,16 +83,29 @@ namespace Seyra.SceneTools
                 SelectionBox = host.AddComponent<BoxCollider>(); SelectionBox.isTrigger = true;
                 SelectionBox.center = local.center; SelectionBox.size = local.size;
                 var surface = host.AddComponent<ColliderSurface>(); surface.InjectAllColliderSurface(SelectionBox);
-                Ray = host.AddComponent<RayInteractable>(); Ray.InjectAllRayInteractable(surface);
+                ISurface raySurface = surface;
+                bool container = spec.Grabbable && GetComponent<MeshFilter>() == null;
+                if (container)
+                {
+                    var geometry = host.AddComponent<SeyraGeometrySurface>(); geometry.Configure(transform); raySurface = geometry;
+                }
+                Ray = host.AddComponent<RayInteractable>(); Ray.InjectAllRayInteractable(raySurface);
+                Ray.InjectOptionalMovementProvider(host.AddComponent<MoveRelativeToTargetProvider>());
                 if (spec.Grabbable)
                 {
-                    var grab = host.AddComponent<Grabbable>();
+                    var body = host.AddComponent<Rigidbody>(); body.isKinematic = true; body.useGravity = false;
+                    grab = host.AddComponent<Grabbable>();
+                    grab.InjectOptionalRigidbody(body);
                     var movement = host.AddComponent<GrabFreeTransformer>();
                     grab.InjectOptionalOneGrabTransformer(movement); grab.InjectOptionalTwoGrabTransformer(movement);
                     grab.InjectOptionalTargetTransform(transform); grab.InjectOptionalThrowWhenUnselected(false);
                     Ray.InjectOptionalPointableElement(grab);
+                    var near = host.AddComponent<GrabInteractable>(); near.InjectAllGrabInteractable(body); near.InjectOptionalPointableElement(grab);
+                    var hand = host.AddComponent<HandGrabInteractable>();
+                    hand.InjectAllHandGrabInteractable(GrabTypeFlags.All, body, GrabbingRule.DefaultPinchRule, GrabbingRule.DefaultPalmRule);
+                    hand.InjectOptionalPointableElement(grab);
                 }
-                var mesh = GetComponent<MeshFilter>()?.sharedMesh;
+                var mesh = TryGetComponent<MeshFilter>(out var meshFilter) ? meshFilter.sharedMesh : null;
                 if (mesh != null)
                 {
                     highlight = new GameObject("Highlight", typeof(MeshFilter), typeof(MeshRenderer));
@@ -98,9 +123,21 @@ namespace Seyra.SceneTools
                     highlight.transform.localPosition = local.center; highlight.transform.localScale = local.size * 1.06f;
                 }
                 var renderer = highlight.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = rig.CreateHighlightMaterial(); renderer.shadowCastingMode = ShadowCastingMode.Off; renderer.receiveShadows = false;
+                renderer.sharedMaterial = rig.CreateHighlightMaterial();
+                if (container) renderer.sharedMaterial.SetColor("_BaseColor", new Color(1, 1, 1, .10f));
+                renderer.shadowCastingMode = ShadowCastingMode.Off; renderer.receiveShadows = false;
                 highlight.SetActive(false);
-                Ray.WhenPointerEventRaised += Pointer;
+                if (grab != null) grab.WhenPointerEventRaised += Pointer;
+                else
+                {
+                    if (ancestorGrab != null)
+                    {
+                        Ray.InjectOptionalPointableElement(ancestorGrab.grab);
+                        // Part boxes can coincide with the root mesh bounds; prefer the detail on equal hits.
+                        Ray.TiebreakerScore = 1;
+                    }
+                    Ray.WhenPointerEventRaised += Pointer;
+                }
                 if (detail != null)
                 {
                     var follow = detail.GetComponent<SeyraFollowTarget>() ?? detail.gameObject.AddComponent<SeyraFollowTarget>();
@@ -119,6 +156,22 @@ namespace Seyra.SceneTools
                     if (other != this && other.gameObject.scene == gameObject.scene && other.detail != null) other.detail.SetWindowVisible(false);
             detail.SetWindowVisible(visible);
         }
+        SeyraInteractive FindAncestorGrab()
+        {
+            for (var parent = transform.parent; parent != null; parent = parent.parent)
+            {
+                var candidate = parent.GetComponent<SeyraInteractive>();
+                if (candidate?.specification?.Grabbable == true) return candidate;
+            }
+            return null;
+        }
+        public void EnsureAncestorGrab()
+        {
+            var ancestor = FindAncestorGrab();
+            if (ancestor == ancestorGrab && (ancestor == null || ancestor.grab == linkedGrab)) return;
+            var spec = specification.Copy(); spec.DetailOpen = detail != null && detail.WindowVisible;
+            Configure(spec, Array.ConvertAll(configuredPoints, point => transform.TransformPoint(point)), detail);
+        }
         void Pointer(PointerEvent evt)
         {
             switch (evt.Type)
@@ -131,6 +184,7 @@ namespace Seyra.SceneTools
                         // Regrabbing during return keeps the original destination and exact scale.
                         if (!returning) { savedPosition = transform.localPosition; savedRotation = transform.localRotation; savedScale = transform.localScale; }
                         returning = false; IsHeld = specification.Grabbable;
+                        selectionRootPosition = ancestorGrab != null ? ancestorGrab.transform.position : transform.position;
                         selectionPoint = evt.Pose.position; selectedAt = Time.unscaledTime; selectionMoved = false;
                     }
                     else selectionMoved = true;
@@ -143,7 +197,8 @@ namespace Seyra.SceneTools
                     if (!specification.Grabbable)
                     {
                         // Ray hit points can follow a moving target or disappear; selection is enough without a grab.
-                        if (detail != null) SetDetailVisible(!detail.WindowVisible);
+                        if (detail != null && (ancestorGrab == null || Time.unscaledTime - selectedAt < .35f &&
+                            Vector3.Distance(selectionRootPosition, ancestorGrab.transform.position) < .03f)) SetDetailVisible(!detail.WindowVisible);
                     }
                     else if (selecting.Count == 0 && !selectionMoved && Time.unscaledTime - selectedAt < .35f &&
                         (evt.Pose.Equals(Pose.identity) || Vector3.Distance(selectionPoint, evt.Pose.position) < .03f))
@@ -168,7 +223,10 @@ namespace Seyra.SceneTools
             if (!specification.Grabbable) return;
             if (!specification.ReturnOnRelease)
             {
-                IsHeld = false; GetComponent<SeyraMotion>()?.Rebase(); return;
+                IsHeld = false;
+                if (GetComponent<SeyraMotion>() is SeyraMotion motion) motion.Rebase();
+                else MoveCommitHandler?.Invoke(this, savedPosition, savedRotation, savedScale);
+                return;
             }
             returning = true; IsHeld = true; returnStarted = Time.unscaledTime;
             returnPosition = transform.localPosition; returnRotation = transform.localRotation; returnScale = transform.localScale;
@@ -200,13 +258,14 @@ namespace Seyra.SceneTools
         }
         void RemoveRig()
         {
+            if (grab != null) grab.WhenPointerEventRaised -= Pointer;
             if (Ray != null) Ray.WhenPointerEventRaised -= Pointer;
             if (rig != null)
             {
                 rig.gameObject.SetActive(false);
                 if (Application.isPlaying) Destroy(rig.gameObject); else DestroyImmediate(rig.gameObject);
             }
-            rig = null; Ray = null; SelectionBox = null; highlight = null;
+            grab = null; rig = null; Ray = null; SelectionBox = null; highlight = null;
         }
         void OnDestroy() => RemoveRig();
     }

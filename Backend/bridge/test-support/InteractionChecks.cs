@@ -135,6 +135,63 @@ public static class InteractionChecks
             File.WriteAllText(Path.Combine(storage, "legacy.json"), document.ToString());
             Ok("content_load", new JObject { ["slot"] = "legacy" });
             Check(root.GetComponentsInChildren<SeyraInteractive>().Length == 0, "Legacy v7 must load without interaction."); cases++;
+            JObject Model(bool? movable = null, bool partGrab = false)
+            {
+                var args = new JObject { ["name"] = "Movable model", ["nodes"] = new JArray {
+                    new JObject { ["key"] = "left", ["name"] = "Left", ["type"] = "primitive", ["primitiveType"] = "cube",
+                        ["transform"] = new JObject { ["position"] = V(-.3f, 0, 2), ["scale"] = V(.1f, .1f, .1f) },
+                        ["interaction"] = new JObject { ["grabbable"] = partGrab, ["detail"] = new JObject { ["panel"] = Panel("Left") } } },
+                    new JObject { ["key"] = "right", ["name"] = "Right", ["type"] = "primitive", ["primitiveType"] = "cube",
+                        ["transform"] = new JObject { ["position"] = V(.3f, 0, 2), ["scale"] = V(.1f, .1f, .1f) } } } };
+                if (movable.HasValue) args["movable"] = movable.Value;
+                return args;
+            }
+            var model = Ok("scene_build", Model());
+            string modelId = (string)model["rootId"];
+            var modelObject = Find(modelId); var modelInteraction = modelObject.GetComponent<SeyraInteractive>();
+            Check((bool)model["movable"] && modelInteraction.Specification.Grabbable && !modelInteraction.Specification.ReturnOnRelease, "Build roots must be movable by default.");
+            var fixedModel = Ok("scene_build", Model(false));
+            Check(!(bool)fixedModel["movable"] && Find((string)fixedModel["rootId"]).GetComponent<SeyraInteractive>() == null, "movable false must omit automatic root grabbing."); cases++;
+
+            Error("scene_build", Model(partGrab: true), "INTERACTION_NESTED");
+            var part = Find((string)model["nodes"]["left"]).GetComponent<SeyraInteractive>();
+            Check(part != null && !part.Specification.Grabbable && part.Detail != null, "Detail parts must coexist with a movable root."); cases++;
+
+            var modelRig = modelObject.GetComponentsInChildren<SeyraInteractionRig>(false).First(rig => rig.transform.parent == modelObject.transform);
+            var body = modelRig.GetComponent<Rigidbody>();
+            Check(body != null && body.isKinematic && !body.useGravity && modelObject.GetComponent<Rigidbody>() == null && modelObject.GetComponent<Grabbable>() == null, "Physics and SDK grabbing must stay on the auxiliary child.");
+            Check(modelRig.GetComponent<GrabInteractable>() != null && modelRig.GetComponent<Oculus.Interaction.HandGrab.HandGrabInteractable>() != null, "Both near grab interactables must be configured.");
+            Ok("content_save", new JObject { ["slot"] = "movable" }); cases++;
+            await Task.Delay(150);
+
+            var surface = modelRig.GetComponent<SeyraGeometrySurface>();
+            var meshPosition = part.transform.position;
+            Check(surface.Raycast(new Ray(meshPosition - Vector3.forward, Vector3.forward), out _), "Geometry surface must hit a mesh.");
+            Check(!surface.Raycast(new Ray(new Vector3(0, 0, 1), Vector3.forward), out _), "Geometry surface must miss the gap between parts.");
+            var panelObject = new GameObject("Surface panel exclusion"); panelObject.transform.SetParent(modelObject.transform, false);
+            panelObject.transform.localPosition = new Vector3(0, 1, 2); panelObject.AddComponent<ManagedPanel>();
+            var panelMesh = GameObject.CreatePrimitive(PrimitiveType.Cube); panelMesh.transform.SetParent(panelObject.transform, false);
+            surface.Configure(modelObject.transform);
+            Check(!surface.Raycast(new Ray(new Vector3(0, 1, 0), Vector3.forward), out _), "Geometry surface must ignore panel meshes.");
+            Object.DestroyImmediate(panelObject); surface.Configure(modelObject.transform); cases++;
+
+            Tap(part); Check(part.Detail.WindowVisible, "A part tap must open its detail through the root grab.");
+            Tap(part); Check(!part.Detail.WindowVisible, "A second tap must close its detail.");
+            var modelPosition = modelObject.transform.localPosition; var modelRotation = modelObject.transform.localRotation; var modelScale = modelObject.transform.localScale;
+            var historyBefore = Ok("history_list").ToString();
+            start = part.transform.position; Send(part, PointerEventType.Hover, start); Send(part, PointerEventType.Select, start);
+            Check(modelInteraction.IsHeld && modelInteraction.TrySavedPose(out var capturedPosition, out _, out _) && capturedPosition.Equals(modelPosition), "Forwarded selection must hold the root and expose its original pose.");
+            Send(part, PointerEventType.Move, start + Vector3.right * .2f);
+            Check(Vector3.Distance(modelObject.transform.localPosition, modelPosition) > .03f, "Dragging a part must move the whole model.");
+            Send(part, PointerEventType.Unselect, start + Vector3.right * .2f); Send(part, PointerEventType.Unhover, start + Vector3.right * .2f);
+            Check(!part.Detail.WindowVisible && !modelInteraction.IsHeld, "Dragging a part must not open its detail."); cases++;
+            Check(Ok("history_list").ToString() != historyBefore, "Release must add a recorded move.");
+            var releasedPosition = modelObject.transform.localPosition;
+            Ok("content_save", new JObject { ["slot"] = "moved" });
+            Undo();
+            Check(modelPosition.Equals(modelObject.transform.localPosition) && modelRotation.Equals(modelObject.transform.localRotation) && modelScale.Equals(modelObject.transform.localScale), "Undo must restore the exact original local pose without conflict.");
+            Ok("content_load", new JObject { ["slot"] = "moved" });
+            Check(Find(modelId).transform.localPosition.Equals(releasedPosition), "Save/load must preserve the moved pose."); cases++;
             return "Interaction checks passed: " + checks + " assertions; " + cases + " design cases.";
         }
         finally

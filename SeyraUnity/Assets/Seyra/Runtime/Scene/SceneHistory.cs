@@ -234,6 +234,7 @@ namespace Seyra.SceneTools
             foreach(var state in target.States.Values)state.Object.SetActive(state.Active);
             foreach(var state in target.States.Values)RestoreLayout(state.Object,state.Layout);
             foreach(var state in target.States.Values)RestoreInteractive(state,restoreMotion);
+            RefreshAncestorGrabs(generated.gameObject);
             MarkMotionDirty();
             Reindex();lastCapture=target;
         }

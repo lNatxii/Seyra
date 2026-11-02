@@ -36,7 +36,7 @@ namespace Seyra.SceneTools
             if (spec == null) return null;
             var detail = interactive.Detail;
             return new JObject { ["grabbable"] = spec.Grabbable, ["returnOnRelease"] = spec.ReturnOnRelease,
-                ["exclusive"] = spec.Exclusive, ["detailId"] = spec.DetailId, ["detailSide"] = spec.DetailSide,
+                ["exclusive"] = spec.Exclusive, ["detailId"] = spec.DetailId == null ? JValue.CreateNull() : new JValue(spec.DetailId), ["detailSide"] = spec.DetailSide,
                 ["detailGap"] = spec.DetailGap, ["detailVisible"] = detail != null && !IsDeleted(detail.gameObject) && detail.WindowVisible,
                 ["status"] = interactive.IsHeld ? "held" : "idle" };
         }
@@ -52,16 +52,21 @@ namespace Seyra.SceneTools
                 var oldDetail = current?.Detail;
                 if (current != null) UnityEngine.Object.DestroyImmediate(current);
                 if (oldDetail != null && !IsDeleted(oldDetail.gameObject)) MoveToTrash(oldDetail.gameObject);
+                RefreshAncestorGrabs(go);
                 return Inspect(go);
             }
-            for (var ancestor = go.transform.parent; ancestor != null && ancestor != generated; ancestor = ancestor.parent)
-                if (ancestor.GetComponent<SeyraInteractive>() != null) throw new RoomToolException("INTERACTION_NESTED", "Interactive objects cannot contain other interactive objects.");
-            if (go.GetComponentsInChildren<SeyraInteractive>(true).Any(i => i.gameObject != go))
-                throw new RoomToolException("INTERACTION_NESTED", "Interactive objects cannot contain other interactive objects.");
-            if (current == null && LiveContent().Count(t => t.GetComponent<SeyraInteractive>() != null) >= 32)
-                throw new RoomToolException("INTERACTION_LIMIT", "At most 32 live objects may be interactive.");
             var fields = (JObject)args.DeepClone(); fields.Remove("entityId"); fields.Remove("interactive");
             var spec = InteractionSpec.Parse(fields);
+            if (spec.Grabbable)
+            {
+                for (var ancestor = go.transform.parent; ancestor != null && ancestor != generated; ancestor = ancestor.parent)
+                    if (ancestor.GetComponent<SeyraInteractive>()?.Specification?.Grabbable == true)
+                        throw new RoomToolException("INTERACTION_NESTED", "Grabbable objects cannot contain other grabbable objects.");
+                if (go.GetComponentsInChildren<SeyraInteractive>(true).Any(i => i.gameObject != go && i.Specification.Grabbable))
+                    throw new RoomToolException("INTERACTION_NESTED", "Grabbable objects cannot contain other grabbable objects.");
+            }
+            if (current == null && LiveContent().Count(t => t.GetComponent<SeyraInteractive>() != null) >= 32)
+                throw new RoomToolException("INTERACTION_LIMIT", "At most 32 live objects may be interactive.");
             var points = GeometryPoints(go);
             var detail = current?.Detail;
             if (spec.DetailPanel != null || spec.DetailPresentation != null)
@@ -97,7 +102,30 @@ namespace Seyra.SceneTools
             spec.DetailPanel = null; spec.DetailPresentation = null;
             if (current == null) current = go.AddComponent<SeyraInteractive>();
             current.Configure(spec, points, detail);
+            RefreshAncestorGrabs(go);
             return Inspect(go);
+        }
+        void CommitInteractiveMove(SeyraInteractive interactive, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            if (disposed || interactive == null || !interactive.transform.IsChildOf(generated)) return;
+            var target = interactive.transform;
+            var finalPosition = target.localPosition; var finalRotation = target.localRotation; var finalScale = target.localScale;
+            if (position.Equals(finalPosition) && rotation.Equals(finalRotation) && scale.Equals(finalScale)) return;
+            try
+            {
+                target.localPosition = position; target.localRotation = rotation; target.localScale = scale;
+                ExecuteRecorded("set_transform", new JObject { ["entityId"] = Id(target.gameObject), ["space"] = "local",
+                    ["position"] = Vector(finalPosition), ["rotation"] = Vector(finalRotation.eulerAngles), ["scale"] = Vector(finalScale) });
+            }
+            catch (Exception error)
+            {
+                target.localPosition = finalPosition; target.localRotation = finalRotation; target.localScale = finalScale;
+                Debug.LogWarning("Could not record the interactive move: " + error.Message);
+            }
+        }
+        static void RefreshAncestorGrabs(GameObject root)
+        {
+            foreach (var child in root.GetComponentsInChildren<SeyraInteractive>(true)) child.EnsureAncestorGrab();
         }
         void RestoreInteractive(ObjectState state, bool force)
         {

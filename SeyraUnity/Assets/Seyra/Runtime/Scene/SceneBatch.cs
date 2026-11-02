@@ -60,7 +60,8 @@ namespace Seyra.SceneTools
                 return new JObject { ["count"] = results.Count, ["results"] = results };
             }
 
-            Keys(args, new[] { "name", "nodes" }, new[] { "parentId", "placement" });
+            Keys(args, new[] { "name", "nodes" }, new[] { "parentId", "placement", "movable" });
+            bool movable = args["movable"] == null || Bool(args, "movable");
             string groupName = String(args["name"], 256);
             var nodes = args["nodes"] as JArray ?? throw new ArgumentException("nodes must be an array.");
             var ordered = new List<(JObject node, string parent, string[] ancestors)>();
@@ -131,8 +132,10 @@ namespace Seyra.SceneTools
             }
             foreach (var entry in ordered)
             {
-                if (entry.node["interaction"] != null && entry.ancestors.Any(key => byKey[key].node["interaction"] != null))
-                    throw new RoomToolException("INTERACTION_NESTED", "Interactive objects cannot contain other interactive objects.");
+                if (movable && (bool?)entry.node["interaction"]?["grabbable"] == true)
+                    throw new RoomToolException("INTERACTION_NESTED", "Parts of a movable model cannot be grabbable.");
+                if ((bool?)entry.node["interaction"]?["grabbable"] == true && entry.ancestors.Any(key => (bool?)byKey[key].node["interaction"]?["grabbable"] == true))
+                    throw new RoomToolException("INTERACTION_NESTED", "Grabbable objects cannot contain other grabbable objects.");
                 if (entry.node["motions"] is JArray motions)
                     foreach (var motion in motions)
                         if (motion["pivotKey"] != null)
@@ -261,6 +264,20 @@ namespace Seyra.SceneTools
                         if (configured["interaction"]?["detailId"]?.Type == JTokenType.String) details[key] = configured["interaction"]["detailId"].DeepClone();
                     }
                 result["details"] = details;
+                result["movable"] = false;
+                if (movable && ordered.Any(entry => (string)entry.node["type"] == "primitive"))
+                {
+                    try
+                    {
+                        BatchCall("interaction_set", new JObject { ["entityId"] = rootId, ["interactive"] = true,
+                            ["grabbable"] = true, ["returnOnRelease"] = false });
+                        result["movable"] = true;
+                    }
+                    catch (RoomToolException error) when (error.Code == "INTERACTION_NESTED" || error.Code == "INTERACTION_LIMIT" || error.Code == "INTERACTION_UNSUPPORTED")
+                    {
+                        // Automatic grabbing is optional; retain the successfully created composition.
+                    }
+                }
                 return result;
             }
             finally { if (automatic) activeRequest = null; }

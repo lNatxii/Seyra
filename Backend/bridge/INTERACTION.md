@@ -8,7 +8,7 @@ Detail is exactly `{panel: PanelContract}` (kind panel only) or
 `{presentation, width, height}` with the ui_present contracts and dimensions.
 
 Targets are live Generated primitives and empty containers with geometry, outside
-layouts and direct layout children. Nested interactive objects are rejected.
+layouts and direct layout children. Only two grabbable objects on the same ancestry branch are rejected. Non-grabbable detail parts under a grabbable root are valid.
 At most 32 live objects may be interactive. Configuration replaces defaults;
 omitted detail retains the existing entity. Same-type detail updates preserve its
 entityId; changing type trashes the previous detail. Presentation updates preserve
@@ -22,7 +22,7 @@ without inheriting its scale or rotation. Hover and local detail visibility do
 not record history. Close hides a detail; Listen and content updates retain their
 normal behavior. Detail windows cannot be grabbed.
 
-Without grabbing, a matching Select/Unselect toggles the detail regardless of
+Without grabbing or a grabbable ancestor, a matching Select/Unselect toggles the detail regardless of
 duration or hit-point movement, without restoring the target's previous pose.
 Cancel never toggles. With grabbing, a tap is shorter than 0.35 seconds with
 less than 3 cm of hit-point displacement; identity poses from lost ray hits on
@@ -38,13 +38,12 @@ undo and rollback restore configuration and detail content together.
 Physical hand/controller input and Quest behavior remain pending validation.
 
 With `grabbable: true`, ray input uses Grabbable and GrabFreeTransformer on the
-auxiliary child, targets the managed object, and requires no Rigidbody. Releasing
+auxiliary child, targets the managed object, and uses a kinematic Rigidbody without gravity, GrabInteractable and HandGrabInteractable on that auxiliary child. Ray movement uses MoveRelativeToTargetProvider. Releasing
 after a drag returns in 0.4 seconds by default, restoring exact local scale and
 the saved pose (or the motion pose at its frozen phase, relative to the current
 pivot). Motion on the object and its ancestors stays held through the return.
 With returnOnRelease=false, the released pose stays and own motion is rebased;
-this external pose change can produce HISTORY_CONFLICT on undo. During a grab
-with return enabled, history captures the saved pose rather than the dragged pose.
+otherwise the release records set_transform for undo. During any grab, history captures the saved pose rather than the dragged pose. Own motion is rebased without recording. History errors keep the final pose and warn; later undo may report HISTORY_CONFLICT.
 
 ## Persistence v8
 
@@ -56,7 +55,7 @@ frame are reconstructed from the owning target after hierarchy and layouts.
 SDK auxiliaries and highlight materials are reconstructed, never serialized.
 
 Loads accept v1–v8; v1–v7 have no interactive configuration. Validation rejects
-unsupported targets, nested interaction, layout children, missing/shared details,
+unsupported targets, nested grabbable objects, layout children, missing/shared details,
 label details, motion on details and more than 32 interactive objects before
 replacing content. Presentation limits remain 16. Invalid geometry or transforms
 during reconstruction trigger the existing recorded rollback. Local visibility
@@ -72,3 +71,10 @@ integrity, follow and scale, SDK drag/return with undo, ancestor held status,
 owned-detail protection, joint trash/undo, v8 round-trip and v7 compatibility.
 Run it in SeyraAssistant Play Mode through Unity Pipeline. Real ray targeting,
 hand/controller feel, Listen output, overlap and frame cost require Quest testing.
+
+Movable containers use SeyraGeometrySurface against per-mesh local bounds (minimum
+8 cm in world space), excluding auxiliary rigs and ManagedPanel subtrees. Empty
+gaps do not intercept rays. Near grabbing retains the enclosing trigger box.
+Non-grabbable parts forward ray events to their ancestor Grabbable. Their detail
+only toggles on release within 0.35 seconds and less than 3 cm of root movement. Equal-distance ray hits prefer the detail part over the root mesh.
+Ancestor links are refreshed on interaction changes, history restore and load.

@@ -31,6 +31,7 @@ namespace Seyra.SceneTools
             uiCatalog = panelCatalog;
             presentations = presentationCatalog ?? Resources.Load<Seyra.UI.Presentations.UIPresentationCatalog>("SeyraUIPresentations");
             InitializeLifecycle(persistenceDirectory);
+            SeyraInteractive.MoveCommitHandler += CommitInteractiveMove;
             remoteMedia = RemoteMediaStore.Acquire(generated, storageDirectory);
             foreach (var panel in generated.GetComponentsInChildren<ManagedPanel>(true)) panel.DiscardHandler = DiscardPanel;
         }
@@ -40,6 +41,7 @@ namespace Seyra.SceneTools
         {
             if (disposed) return;
             disposed = true;
+            SeyraInteractive.MoveCommitHandler -= CommitInteractiveMove;
             if (remoteMedia != null) remoteMedia.ReleaseOwner();
         }
 

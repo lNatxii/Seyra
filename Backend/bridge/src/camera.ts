@@ -263,7 +263,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
             { key: 'points', name: 'Points', type: 'empty', transform: { position: { x: 0, y: 0, z: 0 } } },
           );
           if (nodes.length > 0) {
-            const built = outcome(await invoke('scene_build', { name: 'Object labels', nodes }));
+            const built = outcome(await invoke('scene_build', { name: 'Object labels', nodes, movable: false }));
             if (built?.success && typeof built.data.rootId === 'string') {
               labels = { rootId: built.data.rootId, located: locatedCount, total: detections.length };
               const ids = built.data.nodes as Record<string, unknown> | undefined;

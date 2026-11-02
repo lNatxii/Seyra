@@ -103,7 +103,7 @@ namespace Seyra.SceneTools
                 while(parent!="Generated")
                 {
                     if(!visited.Add(parent)||!byId.TryGetValue(parent,out var ancestor))throw new ArgumentException("Invalid saved interaction ancestry.");
-                    if(ancestor.Interactive!=null)throw new RoomToolException("INTERACTION_NESTED","Interactive objects cannot contain other interactive objects.");
+                    if(node.Interactive.Grabbable && ancestor.Interactive?.Grabbable==true)throw new RoomToolException("INTERACTION_NESTED","Grabbable objects cannot contain other grabbable objects.");
                     parent=ancestor.Parent;
                 }
                 var id=node.Interactive.DetailId;
@@ -388,6 +388,7 @@ namespace Seyra.SceneTools
                     var detail=spec.DetailId!=null?created[spec.DetailId].GetComponent<ManagedPanel>():null;
                     go.AddComponent<SeyraInteractive>().Configure(spec,GeometryPoints(go),detail);
                 }
+                RefreshAncestorGrabs(generated.gameObject);
                 Check(generated);generated.gameObject.SetActive(root.Active);Reindex();
                 return new JObject{["slot"]=Text(args,"slot"),["loaded"]=true,["nodeCount"]=nodes.Length,["entityId"]=Id(generated.gameObject),["historyReset"]=false};
             }

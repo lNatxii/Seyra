@@ -25,7 +25,7 @@ const transform = { position: { x: 0, y: 0, z: 0 } };
 const empty = key => ({ key, name: key, type: 'empty', transform });
 test('scene batches accept interaction only on primitives and containers', () => {
   assert.equal(schema('scene_build').safeParse({ name: 'Interactive', nodes: [{ ...empty('part'), type: 'primitive', primitiveType: 'sphere', interaction: {} }] }).success, true);
-  assert.equal(schema('scene_build').safeParse({ name: 'Nested', nodes: [{ ...empty('parent'), interaction: {} }, { ...empty('child'), parentKey: 'parent', interaction: {} }] }).success, false);
+  assert.equal(schema('scene_build').safeParse({ name: 'Nested', nodes: [{ ...empty('parent'), interaction: {} }, { ...empty('child'), parentKey: 'parent', interaction: {} }] }).success, true);
   assert.equal(schema('scene_edit').safeParse({ operations: [{ tool: 'interaction_set', arguments: { entityId: 'go_target', interactive: true } }] }).success, true);
 });
 test('scene_build motion contracts validate pivots, ranges and position channels', () => {
@@ -193,4 +193,16 @@ test('guide point and line batch contracts', () => {
   for (const width of [.0009, .051]) { args = valid(); args.nodes[5].line.width = width; cases.push(args); }
   args = valid(); args.nodes[5].line.color = { r: 1, g: 1, b: 1, a: .5 }; cases.push(args);
   for (const invalid of cases) assert.equal(build.safeParse(invalid).success, false, JSON.stringify(invalid));
+});
+
+test('scene_build movable flag and grabbable nesting', () => {
+  const build = args => schema('scene_build').safeParse(args).success;
+  const part = { ...empty('part'), type: 'primitive', primitiveType: 'sphere' };
+  for (const movable of [undefined, true, false]) assert.equal(build({ name: 'Model', movable, nodes: [part] }), true);
+  assert.equal(build({ name: 'Model', movable: 1, nodes: [part] }), false);
+  assert.equal(build({ name: 'Model', nodes: [{ ...part, interaction: { grabbable: true } }] }), false);
+  assert.equal(build({ name: 'Model', movable: false, nodes: [{ ...part, interaction: { grabbable: true } }] }), true);
+  const parent = { ...empty('parent'), interaction: { grabbable: true } };
+  assert.equal(build({ name: 'Model', movable: false, nodes: [parent, { ...part, parentKey: 'parent', interaction: {} }] }), true);
+  assert.equal(build({ name: 'Model', movable: false, nodes: [parent, { ...part, parentKey: 'parent', interaction: { grabbable: true } }] }), false);
 });
