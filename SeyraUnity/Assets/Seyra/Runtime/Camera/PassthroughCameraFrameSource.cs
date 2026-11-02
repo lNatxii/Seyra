@@ -1,5 +1,6 @@
 using System;
 using Meta.XR;
+using Meta.XR.MRUtilityKit;
 using UnityEngine;
 using UnityEngine.Android;
 using UnityEngine.Rendering;
@@ -11,6 +12,9 @@ namespace Seyra.Cameras
         public const bool FlipVertically = false; // Confirm with readable text on Quest before chat integration.
         const string CameraPermission = "horizonos.permission.HEADSET_CAMERA";
         PassthroughCameraAccess access;
+        EnvironmentRaycastManager raycaster;
+        float stableSince = -1f;
+        bool depthReady;
         PermissionCallbacks permissionCallbacks;
         int stableFrames, lastFrame = -1;
         public bool IsSupported => PassthroughCameraAccess.IsSupported;
@@ -26,7 +30,23 @@ namespace Seyra.Cameras
                     lastFrame = Time.frameCount;
                     stableFrames++;
                 }
-                return stableFrames >= 15 && access.IsUpdatedThisFrame;
+                if (stableFrames < 15) return false;
+                if (stableSince < 0f) stableSince = Time.realtimeSinceStartup;
+                if (!access.IsUpdatedThisFrame) return false;
+                if (raycaster == null || !raycaster.isActiveAndEnabled) return true;
+                if (Time.realtimeSinceStartup - stableSince >= 1f) return true;
+                try
+                {
+                    var ray = access.ViewportPointToRay(new Vector2(0.5f, 0.5f), access.GetCameraPose());
+                    raycaster.Raycast(ray, out var hit, CaptureDepthGrid.MaxDistance);
+                    depthReady = hit.status != EnvironmentRaycastHitStatus.NotReady;
+                    return depthReady;
+                }
+                catch (Exception)
+                {
+                    depthReady = false;
+                    return true;
+                }
             }
         }
         public void RequestPermission(Action<bool> done)
@@ -42,6 +62,30 @@ namespace Seyra.Cameras
         {
             if (!HasPermission) throw new InvalidOperationException("Camera permission is required before Begin.");
             End();
+            stableSince = -1f;
+            depthReady = false;
+            try
+            {
+                if (EnvironmentRaycastManager.IsSupported &&
+                    Permission.HasUserAuthorizedPermission(OVRPermissionsRequester.ScenePermission))
+                {
+                    if (raycaster == null)
+                        raycaster = FindAnyObjectByType<EnvironmentRaycastManager>(FindObjectsInactive.Include);
+                    if (raycaster == null)
+                    {
+                        var depthObject = new GameObject("EnvironmentRaycast");
+                        depthObject.SetActive(false);
+                        depthObject.transform.SetParent(transform, false);
+                        raycaster = depthObject.AddComponent<EnvironmentRaycastManager>();
+                        depthObject.SetActive(true);
+                    }
+                    raycaster.enabled = true;
+                }
+            }
+            catch (Exception)
+            {
+                if (raycaster != null) raycaster.enabled = false;
+            }
             var cameraObject = new GameObject("PassthroughCamera");
             cameraObject.SetActive(false);
             cameraObject.transform.SetParent(transform, false);
@@ -57,6 +101,7 @@ namespace Seyra.Cameras
         }
         public void End()
         {
+            if (raycaster != null) raycaster.enabled = false;
             if (access == null) return;
             access.enabled = false;
             Destroy(access.gameObject);
@@ -70,12 +115,46 @@ namespace Seyra.Cameras
                 TimestampUtc = access.Timestamp.ToUniversalTime(),
                 CameraPose = access.GetCameraPose(), Intrinsics = access.Intrinsics
             };
+            ReadDepth(frame);
             AsyncGPUReadback.Request(texture, 0, request => {
                 if (request.hasError) { done(null); return; }
                 frame.Rgba = request.GetData<byte>().ToArray();
                 ApplyOrientation(frame, FlipVertically);
                 done(frame);
             });
+        }
+        void ReadDepth(RawCameraFrame frame)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            float meters = float.NaN;
+            bool? active = null;
+            try
+            {
+                var rig = FindAnyObjectByType<OVRCameraRig>();
+                if (rig != null && rig.centerEyeAnchor != null)
+                    meters = Vector3.Distance(frame.CameraPose.position, rig.centerEyeAnchor.position);
+                active = MRUK.Instance?.IsWorldLockActive;
+                if (!depthReady || raycaster == null || !raycaster.isActiveAndEnabled) return;
+                var grid = new CaptureDepthGrid();
+                for (int row = 0; row < CaptureDepthGrid.Rows; row++)
+                for (int column = 0; column < CaptureDepthGrid.Columns; column++)
+                {
+                    var ray = access.ViewportPointToRay(CaptureDepthGrid.CellViewport(column, row), frame.CameraPose);
+                    raycaster.Raycast(ray, out var hit, CaptureDepthGrid.MaxDistance);
+                    if (hit.status != EnvironmentRaycastHitStatus.Hit) continue;
+                    int index = row * CaptureDepthGrid.Columns + column;
+                    grid.Points[index] = hit.point;
+                    grid.Valid[index] = true;
+                    grid.Hits++;
+                }
+                frame.Depth = grid;
+            }
+            catch (Exception) { frame.Depth = null; }
+            finally
+            {
+                timer.Stop();
+                Debug.Log($"[Seyra] Depth grid: {frame.Depth?.Hits ?? 0}/1200 hits in {timer.Elapsed.TotalMilliseconds:F2} ms; pose to eye {meters:F2} m; world lock {active}");
+            }
         }
         static void ApplyOrientation(RawCameraFrame frame, bool flipVertically)
         {

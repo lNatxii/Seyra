@@ -15,6 +15,7 @@ namespace Seyra.Cameras
         public string Camera;
         public Pose CameraPose;
         public PassthroughCameraAccess.CameraIntrinsics Intrinsics;
+        public CaptureDepthGrid Depth;
     }
 
     public sealed class RawCameraFrame
@@ -24,5 +25,6 @@ namespace Seyra.Cameras
         public DateTime TimestampUtc;
         public Pose CameraPose;
         public PassthroughCameraAccess.CameraIntrinsics Intrinsics;
+        public CaptureDepthGrid Depth;
     }
 }
