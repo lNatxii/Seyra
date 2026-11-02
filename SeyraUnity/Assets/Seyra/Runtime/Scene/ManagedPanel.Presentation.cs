@@ -15,7 +15,6 @@ namespace Seyra.SceneTools
         [SerializeField] string presentationJson;
         [SerializeField] UIPresentationView presentationView;
         [SerializeField] UIPresentationCatalog templates;
-        [SerializeField] bool presentationVisible = true;
         readonly HashSet<Transform> retiredPresentationSlots = new HashSet<Transform>();
         readonly Dictionary<TMP_Text, string> expectedPresentationText = new Dictionary<TMP_Text, string>();
         PresentationContent preparingPresentation;
@@ -31,7 +30,7 @@ namespace Seyra.SceneTools
         public bool IsPresentation => !string.IsNullOrEmpty(presentationJson);
         public UIPresentationView PresentationView => presentationView;
         public PresentationContent Presentation => PresentationContent.Parse(JObject.Parse(presentationJson));
-        public JObject InteractionState => presentationView != null ? presentationView.ExportState(presentationVisible) : null;
+        public JObject InteractionState => presentationView != null ? presentationView.ExportState(windowVisible) : null;
         public void RefreshMedia()
         {
             if (IsPresentation) ApplyPresentation(Presentation, InteractionState);
@@ -69,7 +68,7 @@ namespace Seyra.SceneTools
                 var resolver = new PresentationMediaResolver(RemoteMediaStore.For(generatedRoot), templates);
                 next.FillValidated(spec.Data, templates.Components, resolver, RequestDiscard, button => preparedListen = button);
                 if (state != null) next.RestoreState(state);
-                next.ExportState(state != null ? (bool)state["visible"] : presentationVisible);
+                next.ExportState(state != null ? (bool)state["visible"] : windowVisible);
                 // Include old + prepared trees in the physical retained-object budget.
                 var root = transform; while (root.parent != null && root.GetComponent<GeneratedObject>()?.Kind != "root") root = root.parent;
                 if (root.GetComponentsInChildren<Transform>(true).Length > 8192) throw new InvalidOperationException("Retained object limit reached while preparing the presentation.");
@@ -91,16 +90,12 @@ namespace Seyra.SceneTools
             next.ActionRequested += PresentationAction;
             window.SetTheme(window.Themes.CurrentThemeIndex);
             UIAssetResources.EnsureTextMaterials(next.gameObject);
-            presentationVisible = state != null ? (bool)state["visible"] : presentationVisible;
-            window.gameObject.SetActive(presentationVisible);
+            windowVisible = state != null ? (bool)state["visible"] : windowVisible;
+            window.gameObject.SetActive(windowVisible);
             Canvas.ForceUpdateCanvases(); LayoutRebuilder.ForceRebuildLayoutImmediate(surface);
             if (state != null) next.RestoreState(state);
             listen.ContentMayHaveChanged();
             CapturePresentationIntegrity();
-        }
-        public void SetPresentationVisible(bool visible)
-        {
-            presentationVisible = visible; window.gameObject.SetActive(visible);
         }
         void PresentationAction(UIPresentationView view, string action)
         { CapturePresentationIntegrity(); listen.ContentMayHaveChanged(); }

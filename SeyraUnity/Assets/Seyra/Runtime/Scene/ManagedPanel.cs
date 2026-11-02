@@ -15,6 +15,18 @@ namespace Seyra.SceneTools
     {
         [SerializeField] PanelContent content;
         [SerializeField] UIXRWindow window;
+        [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("presentationVisible")] bool windowVisible = true;
+        public bool WindowVisible => windowVisible;
+        public void SetWindowVisible(bool visible)
+        {
+            windowVisible = visible;
+            if (window != null) window.gameObject.SetActive(visible);
+            if (visible) GetComponent<SeyraFollowTarget>()?.Snap();
+        }
+        public void SetGrabEnabled(bool enabled)
+        {
+            if (window?.GrabFrame != null) window.GrabFrame.gameObject.SetActive(enabled);
+        }
         [SerializeField] RectTransform surface;
         [SerializeField] TMP_Text heading, body;
         [SerializeField] ScrollRect scroll;

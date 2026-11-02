@@ -128,8 +128,8 @@ namespace Seyra.SceneTools
             switch (tool)
             {
                 case "ui_get": return Inspect(panel.gameObject);
-                case "ui_close": panel.SetPresentationVisible(false); return Inspect(panel.gameObject);
-                case "ui_open": panel.SetPresentationVisible(true); return Inspect(panel.gameObject);
+                case "ui_close": panel.SetWindowVisible(false); return Inspect(panel.gameObject);
+                case "ui_open": panel.SetWindowVisible(true); return Inspect(panel.gameObject);
                 case "ui_remove": return ExecuteLifecycle("delete_object", args);
                 default: throw new ArgumentException("Unknown presentation tool.");
             }
