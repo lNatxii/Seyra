@@ -196,7 +196,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
             alt: `Photo of the surroundings with labelled objects: ${detections.map(item => item.label).join(', ')}`.slice(0, 200),
             source: 'Camera photo, segmented by SAM 3.1' },
           body: answer,
-          ...(hasBox ? { check: { label: 'Show boxes', completed: true } } : {}),
+          ...(hasBox ? { check: { label: 'Show boxes', completed: false } } : {}),
         },
       }));
       if (!created?.success || typeof created.data.entityId !== 'string') return respondSegment('failed');

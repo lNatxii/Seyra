@@ -158,7 +158,7 @@ test('segment binds box and point groups while keeping unboxed marks at the root
   const result = decode(await service.segment({ question: 'What am I looking at?' }));
   assert.equal(result.data.segmentation, 'ok');
   assert.deepEqual(calls.slice(3).map(call => call.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_bind']);
-  assert.deepEqual(calls.find(call => call.name === 'ui_present').args.presentation.check, { label: 'Show boxes', completed: true });
+  assert.deepEqual(calls.find(call => call.name === 'ui_present').args.presentation.check, { label: 'Show boxes', completed: false });
   const build = calls.find(call => call.name === 'scene_build').args;
   const node = key => build.nodes.find(item => item.key === key);
   for (const key of ['boxes', 'points']) {

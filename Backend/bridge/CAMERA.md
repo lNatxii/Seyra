@@ -288,8 +288,9 @@ After image delivery and before card creation, camera_locate receives up to
 24 mask samples per detection (or a 3 x 3 grid in the central 50% of its box
 without a mask), together with its SAM box. Failure or a non-ready result
 still creates the card without spatial marks. Only a valid localized region
-with a valid 3D box enables `check: { label: "Show boxes", completed: true }`
-on the card. No boxes means no check.
+with a valid 3D box enables `check: { label: "Show boxes", completed: false }`
+on the card. Points at the mask median are shown by default; turning on
+Show boxes displays the boxes instead. No boxes means no check.
 
 After card creation and placement, localized regions produce one scene_build
 composition without placement. When any box exists, two empty groups,
