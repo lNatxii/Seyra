@@ -99,8 +99,12 @@ namespace Seyra.SceneTools
             public static ObjectState Capture(GameObject go)
             {
                 var t=go.transform;var record=go.GetComponent<GeneratedObject>();
+                Vector3 position=t.localPosition,scale=t.localScale;Quaternion rotation=t.localRotation;
+                var interactive=go.GetComponent<SeyraInteractive>();
+                if(interactive!=null && interactive.TrySavedPose(out var savedPosition,out var savedRotation,out var savedScale))
+                {position=savedPosition;rotation=savedRotation;scale=savedScale;}
                 return new ObjectState{Object=go,Parent=t.parent,Sibling=t.GetSiblingIndex(),Name=go.name,Tag=go.tag,Layer=go.layer,
-                    Position=t.localPosition,Rotation=t.localRotation,Scale=t.localScale,Active=go.activeSelf,
+                    Position=position,Rotation=rotation,Scale=scale,Active=go.activeSelf,
                     EntityId=record!=null?record.EntityId:null,Kind=record!=null?record.Kind:null,Shape=record!=null?record.PrimitiveType:null,GroupId=record!=null?record.RequestGroupId:null,
                     Placement=UnityEngine.Object.FindObjectsByType<Seyra.Spatial.SpatialPlacementService>(FindObjectsSortMode.None).FirstOrDefault(s=>s.gameObject.scene==go.scene)?.Placement(t),
                     Layout=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification,Components=ComponentConfiguration(go),Style=go.GetComponent<ManagedAppearance>()?.Style,Color=go.GetComponent<ManagedAppearance>()?.Color??Color.white,AppearanceSignature=go.GetComponent<ManagedAppearance>()?.Signature,

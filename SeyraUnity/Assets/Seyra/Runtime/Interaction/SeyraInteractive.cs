@@ -20,16 +20,26 @@ namespace Seyra.SceneTools
         Vector3 savedPosition, savedScale, selectionPoint;
         Quaternion savedRotation;
         float selectedAt;
-        bool selectionMoved;
+        bool selectionMoved, returning;
+        float returnStarted;
+        Vector3 returnPosition, returnScale;
+        Quaternion returnRotation;
         public InteractionSpec Specification => specification?.Copy();
         public ManagedPanel Detail => detail;
         public BoxCollider SelectionBox { get; private set; }
         public RayInteractable Ray { get; private set; }
-        public bool IsHeld => false; // Grabbing and returning are implemented in step 7.
+        public bool IsHeld { get; private set; }
+        public bool TrySavedPose(out Vector3 position, out Quaternion rotation, out Vector3 scale)
+        {
+            position = savedPosition; rotation = savedRotation; scale = savedScale;
+            return IsHeld && specification != null && specification.ReturnOnRelease;
+        }
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] static void Reset() => active.Clear();
         void OnEnable() => active.Add(this);
         void OnDisable()
         {
+            if (IsHeld && specification?.ReturnOnRelease == true) RestoreSavedPose();
+            IsHeld = returning = false;
             active.Remove(this);
             hovering.Clear(); selecting.Clear();
             if (highlight != null) highlight.SetActive(false);
@@ -37,7 +47,6 @@ namespace Seyra.SceneTools
         public void Configure(InteractionSpec spec, IEnumerable<Vector3> geometryPoints, ManagedPanel detailPanel = null)
         {
             if (spec == null || geometryPoints == null) throw new ArgumentException("Interaction configuration and geometry are required.");
-            if (spec.Grabbable) throw new RoomToolException("INTERACTION_UNSUPPORTED", "Grabbing is not available in this implementation stage.");
             var local = new Bounds(); bool found = false;
             foreach (var world in geometryPoints)
             {
@@ -50,6 +59,8 @@ namespace Seyra.SceneTools
             if (Mathf.Abs(scale.x) < .000001f || Mathf.Abs(scale.y) < .000001f || Mathf.Abs(scale.z) < .000001f)
                 throw new RoomToolException("INTERACTION_UNSUPPORTED", "Interaction requires non-zero world scale.");
             local.size = Vector3.Max(local.size, new Vector3(.08f / Mathf.Abs(scale.x), .08f / Mathf.Abs(scale.y), .08f / Mathf.Abs(scale.z)));
+            if (IsHeld && specification?.ReturnOnRelease == true) RestoreSavedPose();
+            IsHeld = returning = false;
             RemoveRig(); hovering.Clear(); selecting.Clear();
             specification = spec.Copy(); detail = detailPanel;
             var host = new GameObject("__SeyraInteraction"); host.SetActive(false);
@@ -61,6 +72,14 @@ namespace Seyra.SceneTools
                 SelectionBox.center = local.center; SelectionBox.size = local.size;
                 var surface = host.AddComponent<ColliderSurface>(); surface.InjectAllColliderSurface(SelectionBox);
                 Ray = host.AddComponent<RayInteractable>(); Ray.InjectAllRayInteractable(surface);
+                if (spec.Grabbable)
+                {
+                    var grab = host.AddComponent<Grabbable>();
+                    var movement = host.AddComponent<GrabFreeTransformer>();
+                    grab.InjectOptionalOneGrabTransformer(movement); grab.InjectOptionalTwoGrabTransformer(movement);
+                    grab.InjectOptionalTargetTransform(transform); grab.InjectOptionalThrowWhenUnselected(false);
+                    Ray.InjectOptionalPointableElement(grab);
+                }
                 var mesh = GetComponent<MeshFilter>()?.sharedMesh;
                 if (mesh != null)
                 {
@@ -109,7 +128,9 @@ namespace Seyra.SceneTools
                 case PointerEventType.Select:
                     if (selecting.Count == 0)
                     {
-                        savedPosition = transform.localPosition; savedRotation = transform.localRotation; savedScale = transform.localScale;
+                        // Regrabbing during return keeps the original destination and exact scale.
+                        if (!returning) { savedPosition = transform.localPosition; savedRotation = transform.localRotation; savedScale = transform.localScale; }
+                        returning = false; IsHeld = specification.Grabbable;
                         selectionPoint = evt.Pose.position; selectedAt = Time.unscaledTime; selectionMoved = false;
                     }
                     else selectionMoved = true;
@@ -121,13 +142,55 @@ namespace Seyra.SceneTools
                     if (!selecting.Remove(evt.Identifier)) break;
                     if (selecting.Count == 0 && !selectionMoved && Time.unscaledTime - selectedAt < .35f && Vector3.Distance(selectionPoint, evt.Pose.position) < .03f)
                     {
-                        transform.localPosition = savedPosition; transform.localRotation = savedRotation; transform.localScale = savedScale;
+                        RestoreSavedPose(); IsHeld = false;
                         if (detail != null) SetDetailVisible(!detail.WindowVisible);
                     }
+                    else if (selecting.Count == 0) EndDrag();
                     break;
-                case PointerEventType.Cancel: selecting.Remove(evt.Identifier); selectionMoved = true; break;
+                case PointerEventType.Cancel:
+                    if (selecting.Remove(evt.Identifier) && selecting.Count == 0) EndDrag();
+                    selectionMoved = true; break;
             }
             if (highlight != null) highlight.SetActive(hovering.Count > 0);
+        }
+        void RestoreSavedPose()
+        {
+            transform.localPosition = savedPosition; transform.localRotation = savedRotation; transform.localScale = savedScale;
+        }
+        void EndDrag()
+        {
+            if (!specification.Grabbable) return;
+            if (!specification.ReturnOnRelease)
+            {
+                IsHeld = false; GetComponent<SeyraMotion>()?.Rebase(); return;
+            }
+            returning = true; IsHeld = true; returnStarted = Time.unscaledTime;
+            returnPosition = transform.localPosition; returnRotation = transform.localRotation; returnScale = transform.localScale;
+        }
+        void LateUpdate()
+        {
+            if (!returning) return;
+            var position = savedPosition; var rotation = savedRotation;
+            var motion = GetComponent<SeyraMotion>();
+            if (motion != null)
+            {
+                motion.PoseAtCurrentPhase(out var animatedPosition, out var animatedRotation);
+                if ((motion.Channels & DrivenChannels.Position) != 0) position = animatedPosition;
+                if ((motion.Channels & DrivenChannels.Rotation) != 0) rotation = animatedRotation;
+            }
+            float progress = Mathf.Clamp01((Time.unscaledTime - returnStarted) / .4f);
+            float smooth = progress * progress * (3 - 2 * progress);
+            if (progress >= 1)
+            {
+                transform.localPosition = position; transform.localRotation = rotation; transform.localScale = savedScale;
+                returning = IsHeld = false;
+            }
+            else
+            {
+                transform.localPosition = Vector3.LerpUnclamped(returnPosition, position, smooth);
+                transform.localRotation = Quaternion.SlerpUnclamped(returnRotation, rotation, smooth);
+                transform.localScale = Vector3.LerpUnclamped(returnScale, savedScale, smooth);
+            }
         }
         void RemoveRig()
         {

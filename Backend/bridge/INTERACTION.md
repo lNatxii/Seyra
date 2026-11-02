@@ -32,3 +32,12 @@ undo and rollback restore configuration and detail content together.
 Implementation stage: saving interactive content remains explicitly blocked until
 format v8 is implemented in step 8; ordinary content continues using v7. Physical
 hand/controller input and Quest behavior remain pending validation.
+
+With `grabbable: true`, ray input uses Grabbable and GrabFreeTransformer on the
+auxiliary child, targets the managed object, and requires no Rigidbody. Releasing
+after a drag returns in 0.4 seconds by default, restoring exact local scale and
+the saved pose (or the motion pose at its frozen phase, relative to the current
+pivot). Motion on the object and its ancestors stays held through the return.
+With returnOnRelease=false, the released pose stays and own motion is rebased;
+this external pose change can produce HISTORY_CONFLICT on undo. During a grab
+with return enabled, history captures the saved pose rather than the dragged pose.
