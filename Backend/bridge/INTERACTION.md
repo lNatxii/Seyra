@@ -22,6 +22,12 @@ without inheriting its scale or rotation. Hover and local detail visibility do
 not record history. Close hides a detail; Listen and content updates retain their
 normal behavior. Detail windows cannot be grabbed.
 
+Without grabbing, a matching Select/Unselect toggles the detail regardless of
+duration or hit-point movement, without restoring the target's previous pose.
+Cancel never toggles. With grabbing, a tap is shorter than 0.35 seconds with
+less than 3 cm of hit-point displacement; identity poses from lost ray hits on
+Move/Unselect do not count as displacement.
+
 Errors: `INTERACTION_UNSUPPORTED`, `INTERACTION_NESTED`, `INTERACTION_LIMIT`,
 `INTERACTION_DETAIL_OWNED`. Direct delete_object, ui_remove and set_parent on a
 detail are owned operations and rejected. Position/rotation changes use existing

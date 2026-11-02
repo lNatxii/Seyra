@@ -68,6 +68,19 @@ public static class InteractionChecks
 
             string pivot = Create("Pivot", 0);
             Ok("motion_set", new JObject { ["entityId"] = first, ["motion"] = new JObject { ["kind"] = "orbit", ["pivotId"] = pivot, ["speed"] = 30 } });
+            var movingStart = one.transform.position;
+            Send(one, PointerEventType.Hover, movingStart); Send(one, PointerEventType.Select, movingStart);
+            motionSystem.Step(.1f); var movingPose = one.transform.localPosition;
+            Send(one, PointerEventType.Move, movingStart + Vector3.right);
+            Send(one, PointerEventType.Unselect, movingStart + Vector3.right);
+            Check(one.Detail.WindowVisible && one.transform.localPosition.Equals(movingPose), "Non-grabbable moving selection must open at a displaced hit without restoring stale pose.");
+            Send(one, PointerEventType.Unhover, movingStart + Vector3.right); Tap(one);
+            movingStart = one.transform.position;
+            Send(one, PointerEventType.Hover, movingStart); Send(one, PointerEventType.Select, movingStart);
+            motionSystem.Step(.1f); movingPose = one.transform.localPosition;
+            Send(one, PointerEventType.Unselect, Vector3.zero);
+            Check(one.Detail.WindowVisible && one.transform.localPosition.Equals(movingPose), "Non-grabbable selection must open on Pose.identity without restoring stale pose.");
+            Send(one, PointerEventType.Unhover, Vector3.zero); Tap(one);
             Tap(one); var originalSize = one.Detail.transform.lossyScale;
             motionSystem.Step(.5f); one.Detail.GetComponent<SeyraFollowTarget>().Snap(); var beforeFollow = one.Detail.transform.position;
             motionSystem.Step(.5f); one.Detail.GetComponent<SeyraFollowTarget>().Snap();
@@ -79,6 +92,11 @@ public static class InteractionChecks
             Check(one.Detail.transform.lossyScale.Equals(originalSize), "Detail scale must not inherit target ancestry."); cases++;
 
             Set(first, true); one = Find(first).GetComponent<SeyraInteractive>(); await Task.Delay(150);
+            var tapStart = one.transform.position;
+            Send(one, PointerEventType.Hover, tapStart); Send(one, PointerEventType.Select, tapStart);
+            Send(one, PointerEventType.Move, Vector3.zero); Send(one, PointerEventType.Unselect, Vector3.zero);
+            Check(one.Detail.WindowVisible && !one.IsHeld && Vector3.Distance(one.transform.position, tapStart) < .0001f, "Grabbable tap must ignore identity Move/Unselect and open the detail.");
+            Send(one, PointerEventType.Unhover, Vector3.zero);
             var position = one.transform.localPosition; var rotation = one.transform.localRotation; var scale = one.transform.localScale;
             var start = one.transform.position; Send(one, PointerEventType.Hover, start); Send(one, PointerEventType.Select, start); Send(one, PointerEventType.Move, start + Vector3.right * .2f);
             Check(one.IsHeld && Vector3.Distance(one.transform.position, start) > .1f, "SDK grabbing must move the target: held=" + one.IsHeld + ", distance=" + Vector3.Distance(one.transform.position, start) + ", element=" + one.Ray.PointableElement + ", grabTarget=" + one.GetComponentInChildren<Grabbable>()?.Transform);

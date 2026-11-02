@@ -136,11 +136,17 @@ namespace Seyra.SceneTools
                     else selectionMoved = true;
                     selecting.Add(evt.Identifier); break;
                 case PointerEventType.Move:
-                    if (selecting.Contains(evt.Identifier) && Vector3.Distance(selectionPoint, evt.Pose.position) >= .03f) selectionMoved = true;
+                    if (specification.Grabbable && !evt.Pose.Equals(Pose.identity) && selecting.Contains(evt.Identifier) && Vector3.Distance(selectionPoint, evt.Pose.position) >= .03f) selectionMoved = true;
                     break;
                 case PointerEventType.Unselect:
                     if (!selecting.Remove(evt.Identifier)) break;
-                    if (selecting.Count == 0 && !selectionMoved && Time.unscaledTime - selectedAt < .35f && Vector3.Distance(selectionPoint, evt.Pose.position) < .03f)
+                    if (!specification.Grabbable)
+                    {
+                        // Ray hit points can follow a moving target or disappear; selection is enough without a grab.
+                        if (detail != null) SetDetailVisible(!detail.WindowVisible);
+                    }
+                    else if (selecting.Count == 0 && !selectionMoved && Time.unscaledTime - selectedAt < .35f &&
+                        (evt.Pose.Equals(Pose.identity) || Vector3.Distance(selectionPoint, evt.Pose.position) < .03f))
                     {
                         RestoreSavedPose(); IsHeld = false;
                         if (detail != null) SetDetailVisible(!detail.WindowVisible);
