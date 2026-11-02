@@ -23,6 +23,11 @@ test('interaction schemas accept details and reject unsupported fields', () => {
 const schema = name => tools.find(t => t.name === name).schema;
 const transform = { position: { x: 0, y: 0, z: 0 } };
 const empty = key => ({ key, name: key, type: 'empty', transform });
+test('scene batches accept interaction only on primitives and containers', () => {
+  assert.equal(schema('scene_build').safeParse({ name: 'Interactive', nodes: [{ ...empty('part'), type: 'primitive', primitiveType: 'sphere', interaction: {} }] }).success, true);
+  assert.equal(schema('scene_build').safeParse({ name: 'Nested', nodes: [{ ...empty('parent'), interaction: {} }, { ...empty('child'), parentKey: 'parent', interaction: {} }] }).success, false);
+  assert.equal(schema('scene_edit').safeParse({ operations: [{ tool: 'interaction_set', arguments: { entityId: 'go_target', interactive: true } }] }).success, true);
+});
 test('scene_build motion contracts validate pivots, ranges and position channels', () => {
   const build = schema('scene_build');
   const args = motions => ({ name: 'Animated model', nodes: [

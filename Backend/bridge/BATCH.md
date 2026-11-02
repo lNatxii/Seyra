@@ -66,7 +66,7 @@ the history group even after the automatic request closes.
 
 Arguments: `operations`, an ordered array of 1..64 `{ tool, arguments }` objects.
 Allowed tools: `set_transform`, `set_appearance`, `rename_object`, `update_panel`, `update_line`,
-`set_parent`, `delete_object`, `place_relative`, `motion_set`, `motion_remove`.
+`set_parent`, `delete_object`, `place_relative`, `motion_set`, `motion_remove`, `interaction_set`.
 `motion_control` is excluded because it does not record history. `pivotKey` is
 not accepted in scene_edit; use confirmed pivotId or pivotPoint.
 Each arguments schema is the same
@@ -104,3 +104,16 @@ Point: {key,name,type:"point",targetKey? OR targetId?,direction?,radius?,appeara
 Line: {key,name,type:"line",parentKey?,line:{points:[{key} OR {entityId} OR {position}],color?,width?}}. 2..16 endpoints, exactly one endpoint field. Keys can identify any non-line node, including later points. No transform or relativeTo. Neither points nor lines can be parentKey or relativeTo targets.
 
 Creation order: validate nodes, create containers/primitives/panels with appearance, apply relativeTo, create points, create lines, apply motions with resolved pivots, apply placement using the swept envelope. Motion phases start at zero; no Step runs during the call. The whole call remains atomic and undoable once. Lines do not contribute bounds. See [LINES.md](LINES.md) for defaults, errors, lifecycle and persistence. scene_edit accepts update_line using its full replacement contract; creations remain excluded.
+
+## Interactive nodes (feature 10a)
+
+Only empty and primitive nodes accept optional `interaction`, the fields of
+[interaction_set](INTERACTION.md) without entityId or interactive. Configuration
+runs after placement, so the selection box accounts for the final scale. Details
+do not consume nodes; capacity preflight reserves 64 additional objects per
+declared detail. Interactive ancestry is rejected before creation. Runtime target,
+nesting, geometry, interaction and presentation limits still apply atomically.
+The result adds `details`, mapping node keys with a detail to its entityId.
+scene_edit accepts interaction_set using the registered standalone schema.
+Interactive content cannot yet be saved: the temporary persistence block remains
+until format v8 is implemented. Other content continues using v7.
