@@ -24,19 +24,20 @@ Capacidades implementadas que deben reutilizarse. El recorrido principal (chat, 
 | Herramientas | Circuito MCP único con bridge, validación y confirmación de Unity; errores estructurados; catálogo sin esquemas recursivos. | — |
 | Contenido | Primitivas con apariencia, paneles, trece presentaciones sin imágenes web (retiradas en 26c y 26d), layouts de tarjetas, `scene_build`, `scene_edit` y movimiento paramétrico. | Probar en Quest 3 líneas y puntos (29), tarjetas marcables (27), movimiento (24) y botón «Close» (32a). |
 | Espacio | Habitación MRUK, colocación en pared, mesa o aire con legibilidad por panel (22f), mesa sin rechazos por comodidad (34), acople y seguimiento del chat. | Probar 34 y 28 en Quest 3. |
-| Persistencia | Slots v8 con primitivas, apariencia, paneles, presentaciones, layouts, líneas, movimiento e interacción. | Controles para el usuario (09) y anclajes entre sesiones (16). |
+| Persistencia | Slots v8 con primitivas, apariencia, paneles, presentaciones, layouts, líneas, movimiento e interacción. | — |
 
 El historial y la papelera duran el runtime. Guardar/cargar contenido no equivale a persistir una conversación ni a recuperar posiciones físicas entre sesiones. Los componentes tienen IDs de runtime; los IDs de objetos generados se conservan mediante guardado/carga explícitos.
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. Las siguientes features son 36 y 35; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. Las siguientes features son 35 y 37. Descartadas por el usuario el 2 de noviembre: 09, 13, 16, 21, 26b y 32b. 15c se da por cubierta con 15a, 15b y 15d.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
-| Siguiente | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Diseño listo. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real, casi sin tocar Unity. Empieza tras cerrar 15d, que comparte `camera.ts`. |
+| 1a | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real. |
 | Siguiente | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
+| Después | 37. Modelos generados que se pueden agarrar y mover | 80 | Diseño listo. Pedida por el usuario: planetas o cubos que se cogen y se dejan donde se quiera, siempre desde el padre. Más trabajo que 35, que solo toca el prompt. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -50,13 +51,12 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 5 | 24. Movimiento paramétrico | 70 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Maquetas vivas muy vistosas. |
 | 6 | 19. Imágenes generadas con Muse Image | 68 | Implementada; solo falta probarla (casos «No», calidad, latencia y Quest 3) y revisarla. |
 | 7 | 28. Contenido dentro de la habitación | 66 | Completed · Revisada; pruebas con Muse y en Quest 3 pendientes. Evita paneles detrás de las paredes. |
-| 8 | 32. Descarte de paneles y contenido agarrable | 65 | Quitar contenido sin pedirlo al chat. 32a (botón) revisada, con la prueba en Quest pendiente; 32b (papelera 3D) aplazada por decisión del usuario. |
+| 8 | 32a. Botón «Close» en paneles y presentaciones | 65 | Completed · Revisada; prueba en Quest pendiente. 32b (papelera 3D) descartada. |
 | 8b | 33. Escuchar paneles y presentaciones | 63 | Completed · Revisada; audio real y Quest pendientes de prueba. |
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Completed · Revisada; prueba en Quest 3 pendiente. Toque, ficha que sigue al objeto y agarre con vuelta. |
-| 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. Aplazada por decisión del usuario. |
-| 13 | 13, 14b, 15c, 16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 12 | 14b, 20 | 22–25 | Sin diseñar; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -232,6 +232,8 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 ### 09. Contenido generado utilizable sin comandos técnicos
 
+**Estado:** Descartada por el usuario (2 de noviembre de 2026): poco vistosa para la demo.
+
 **Entrega:** lista de contenedores de peticiones y controles básicos para seleccionar contenido, deshacer la última operación/petición, recuperar eliminaciones y guardar/cargar slots.
 
 **Aceptación:** el usuario puede identificar qué creó cada petición y recuperar un trabajo guardado tras reiniciar; la UI usa los mismos servicios de dominio que las herramientas. La carga explica que sustituye el contenido generado actual. No se pierde contenido no soportado silenciosamente.
@@ -324,7 +326,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 **Estado:** Completed · imágenes web retiradas (30 de octubre de 2026). 26c y 26d quitan la búsqueda, `og:image`, `imageSearch`, `imageUrl` y el resolver, por las normas del hackathon; `mediaCard` y `RemoteMediaStore` siguen. Los cambios 11.3/11.4 se cierran sin revisión final de código. [Implementación y revisión](Progress/Completed/26-web-image-cards.md).
 
-**Estado 26b:** Future · pausada (30 de octubre de 2026). Pexels ha pausado la emisión de claves. Las herramientas solo aceptan imágenes del catálogo registrado; el prompt no usa imágenes web, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
+**Estado 26b:** Descartada por el usuario (2 de noviembre de 2026). Pexels había pausado la emisión de claves. Las herramientas solo aceptan imágenes del catálogo registrado; el prompt no usa imágenes web, para cumplir la norma del hackathon sobre assets sin derechos. [Diseño](Progress/Future/26b-pexels-stock-images.md).
 
 **Estado 26c:** Completed · Revisada (30 de octubre de 2026). Retiradas la extracción de imágenes HTML y las fuentes web del schema; conservados buscador interno, miniatura de YouTube y transportes. Suite del bridge 33/33. Prueba manual pendiente. [Implementación](Progress/Completed/26c-remove-web-image-sources.md).
 
@@ -380,7 +382,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 **Estado 32a:** Completed · Revisada (1 de noviembre de 2026). Close descarta paneles y presentaciones mediante delete_object, con icono cancel; PanelChecks 240, PresentationChecks 251, CardCheckChecks 35 y backend 42/42 aprobados. Validación visual y con Muse en Quest pendiente. [Implementación y revisión](Progress/Completed/32a-panel-close-button.md).
 
-**Estado 32b:** Future · esbozo. Ya se puede diseñar: 28 y 32a están cerradas. [Esbozo](Progress/Future/32b-floor-trash-bin.md).
+**Estado 32b:** Descartada por el usuario (2 de noviembre de 2026). [Esbozo](Progress/Future/32b-floor-trash-bin.md).
 
 **Entrega:** el usuario retira paneles y presentaciones directamente, sin pedirlo al chat, en dos pasos:
 
@@ -437,6 +439,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 13. Anotaciones físicas colocadas por el usuario
 
+**Estado:** Descartada por el usuario (2 de noviembre de 2026).
+
 **Entrega:** permitir que el usuario marque una superficie o posición y coloque una etiqueta/panel asociado a una observación. Usar una fuente espacial explícita disponible en el proyecto o una colocación manual confirmada.
 
 **Aceptación:** la anotación mantiene su posición durante la sesión al mover la cabeza; puede seleccionarse, editarse y eliminarse; indica cómo se obtuvo su posición. Una detección 2D sin profundidad no se transforma en una posición física inventada.
@@ -467,7 +471,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 15d:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario; deshacer sin confirmar. [Diseño](Progress/Completed/15d-object-mark-labels-and-toggle.md).
 
-**Estado 15c:** sin diseñar.
+**Estado 15c:** Cubierta por 15a, 15b y 15d según el usuario (2 de noviembre de 2026). No se implementa aparte.
 
 **Entrega 15a:** en el momento de la foto se guarda la pose de la cámara y una rejilla de 40 × 30 rayos contra el entorno con `EnvironmentRaycastManager`. La profundidad queda así alineada con la foto, sin un valor por cada píxel, porque el SDK no da un mapa de esa resolución. Tras SAM, hasta 24 puntos de la máscara de cada objeto se convierten en una posición 3D, y se crea un punto de color, una etiqueta y una línea sobre el objeto real. La tarjeta 2D de 14a se conserva.
 
@@ -484,6 +488,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Dependencias:** 15a depende de 11, 12, 14a, 25 y 29. 15b depende de 15a. 15c depende de 13, 14b y 15a. El seguimiento de objetos móviles queda fuera de esta versión.
 
 ### 16. Continuidad del contenido anclado entre sesiones
+
+**Estado:** Descartada por el usuario (2 de noviembre de 2026).
 
 **Entrega:** guardar y recuperar anotaciones con identidad de contenido y referencias a anclajes espaciales compatibles. Mostrar estado de localización y permitir recolocar o retirar lo que no pueda recuperarse.
 
@@ -502,6 +508,16 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Aceptación:** la tarjeta conserva la escena en lo esencial y cambia lo pedido; «make it darker» afina sin obturador; un fallo deja «Image unavailable» sin romper el chat; Seyra no describe un resultado que no ha visto ni promete que algo cabe; `camera_look` y `camera_segment` siguen igual.
 
 **Dependencias:** 11–12, 19 y 22. Tras cerrar 15d. Sin superposición sobre el objeto real ni 3D.
+
+### 37. Modelos generados que se pueden agarrar y mover
+
+**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/37-movable-generated-models.md).
+
+**Entrega:** todo lo creado con `scene_build` se puede coger y mover como un conjunto desde su objeto padre, con la mano o con el rayo, y queda flotando donde se suelta. El padre lleva un `Rigidbody` kinemático sin gravedad en su hijo auxiliar. Las piezas nunca se agarran por separado, aunque pueden seguir abriendo su ficha. Lo situado por la segmentación no es movible (`movable: false`).
+
+**Aceptación:** los planetas de la mesa y unos cubos se mueven enteros, con las órbitas funcionando; tocar un planeta abre su ficha y arrastrarlo mueve todo el sistema; las marcas de segmentación no se mueven; `undo` devuelve el modelo a su sitio sin `HISTORY_CONFLICT`; guardar y cargar conservan la posición.
+
+**Dependencias:** 10a, 24, 25 y 15d. Parte de una rama que incluya 36. Sin colisiones ni gravedad.
 
 ## P2 — Experiencia multimodal y continuidad
 
@@ -558,6 +574,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Dependencias:** 02, 10 y 12. No sustituye la persistencia de contenido. Antes de esta entrega se mantiene solo el contexto mínimo necesario para cada turno.
 
 ### 21. Reabrir espacios de trabajo
+
+**Estado:** Descartada por el usuario (2 de noviembre de 2026).
 
 **Entrega:** agrupar un slot de contenido, una referencia de conversación y su resumen, con fecha y nombre; permitir reabrirlos desde el menú. Manejar de forma explícita conversaciones o recursos que ya no estén disponibles.
 
