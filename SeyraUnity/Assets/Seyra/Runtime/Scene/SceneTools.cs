@@ -156,7 +156,7 @@ namespace Seyra.SceneTools
             while(stack.Count>0)
             {
                 var (t,depth)=stack.Pop();
-                if(t==trash || IsDeleted(t.gameObject))continue;
+                if(t==trash || IsDeleted(t.gameObject) || t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
                 if(!inactive && !t.gameObject.activeInHierarchy) continue;
                 result.Add((t.gameObject,Node(t.gameObject,depth)));
                 if(result.Count>50000) throw new InvalidOperationException("More than 50000 nodes; narrow the query with rootId. A truncated hierarchy will not be returned.");

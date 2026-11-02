@@ -40,7 +40,7 @@ namespace Seyra.SceneTools
             {
                 if(c==null){result.Add("missing");continue;}
                 if(c is ManagedLine || c is LineRenderer && go.GetComponent<ManagedLine>()!=null)continue;
-                if(c is SeyraMotion || c is Seyra.Spatial.SeyraLayoutGroup || c is Seyra.Spatial.SeyraBillboard || c is Seyra.UI.SeyraLazyFollow)continue;
+                if(c is SeyraInteractive || c is SeyraFollowTarget || c is SeyraMotion || c is Seyra.Spatial.SeyraLayoutGroup || c is Seyra.Spatial.SeyraBillboard || c is Seyra.UI.SeyraLazyFollow)continue;
                 var value=new JObject{["type"]=c.GetType().FullName,["instance"]=c.GetInstanceID(),["enabled"]=Enabled(c)};
                 if(c is MeshFilter filter)value["mesh"]=filter.sharedMesh!=null?filter.sharedMesh.GetInstanceID():0;
                 if(c is Renderer renderer)
@@ -84,12 +84,15 @@ namespace Seyra.SceneTools
         static JToken PersistentLayout(GameObject go) { var spec=go.GetComponent<Seyra.Spatial.SeyraLayoutGroup>()?.Specification; if(spec==null)return JValue.CreateNull(); spec.Remove("targets"); (spec["params"] as JObject)?.Remove("physicalId"); return spec; }
         JObject PersistNode(Transform t)
         {
+            // Until step 8 introduces v8, do not silently discard behavior in a v7 slot.
+            if(t.GetComponent<SeyraInteractive>()!=null || t.GetComponent<SeyraFollowTarget>()!=null)
+                throw new InvalidOperationException("Interactive content requires persistence format v8, which is not available in this implementation stage.");
             var record=t.GetComponent<GeneratedObject>();
             if(record==null)throw new InvalidOperationException("Cannot save "+t.name+": the object is not managed by Seyra.");
             var allowed=record.Kind=="primitive"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(MeshFilter),typeof(MeshRenderer),typeof(ManagedAppearance),typeof(BoxCollider),typeof(SphereCollider),typeof(CapsuleCollider),typeof(MeshCollider)}:
                 record.Kind=="line"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(LineRenderer),typeof(ManagedLine)}:
                 record.Kind=="panel"||record.Kind=="presentation"?new[]{typeof(Transform),typeof(GeneratedObject),typeof(ManagedPanel)}:new[]{typeof(Transform),typeof(GeneratedObject)};
-            if(t.GetComponents<Component>().Any(c=>c==null||!allowed.Contains(c.GetType()) && !(c is SeyraMotion) && !(c is Seyra.Spatial.SeyraLayoutGroup) && !(c is Seyra.Spatial.SeyraBillboard) && !(c is Seyra.UI.SeyraLazyFollow)) || ComponentConfiguration(t.gameObject)!=record.OriginalComponents)
+            if(t.GetComponents<Component>().Any(c=>c==null||!allowed.Contains(c.GetType()) && !(c is SeyraInteractive) && !(c is SeyraFollowTarget) && !(c is SeyraMotion) && !(c is Seyra.Spatial.SeyraLayoutGroup) && !(c is Seyra.Spatial.SeyraBillboard) && !(c is Seyra.UI.SeyraLazyFollow)) || ComponentConfiguration(t.gameObject)!=record.OriginalComponents)
                 throw new InvalidOperationException("Cannot save "+t.name+": modified components, mesh, material or native parameters are not supported by format v7. The file was not overwritten.");
             var appearance=t.GetComponent<ManagedAppearance>();
             if(record.Kind=="primitive" && (appearance==null || !appearance.IsIntact()))throw new InvalidOperationException("Cannot save externally modified appearance.");

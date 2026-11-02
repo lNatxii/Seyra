@@ -38,6 +38,9 @@ namespace Seyra.Spatial
             var points=new List<Vector3>();
             foreach(var t in root.GetComponentsInChildren<Transform>(true))
             {
+                if(t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
+                var follow=t.GetComponentInParent<SeyraFollowTarget>(true);
+                if(follow!=null && follow.transform!=root)continue;
                 if(activeOnly&&!t.gameObject.activeInHierarchy)continue;
                 var panel=t.GetComponentInParent<ManagedPanel>(true);
                 if(panel!=null)
@@ -76,6 +79,7 @@ namespace Seyra.Spatial
             var result=new List<SpatialBox>();
             foreach(var root in roots)
             {
+                if(root.GetComponentInParent<SeyraFollowTarget>(true)!=null || root.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
                 if(!root.gameObject.activeInHierarchy||root==exclude||exclude!=null&&(root.IsChildOf(exclude)||exclude.IsChildOf(root))||root==excludeOther||excludeOther!=null&&(root.IsChildOf(excludeOther)||excludeOther.IsChildOf(root)))continue;
                 if(roots.Any(parent=>parent!=root&&parent!=null&&root.IsChildOf(parent)))continue;
                 var panel=root.GetComponent<ManagedPanel>();

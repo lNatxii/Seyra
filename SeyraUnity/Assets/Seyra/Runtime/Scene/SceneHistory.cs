@@ -55,7 +55,7 @@ namespace Seyra.SceneTools
             var stack=new Stack<Transform>();stack.Push(generated);
             while(stack.Count>0)
             {
-                var t=stack.Pop();if(t==trash)continue;
+                var t=stack.Pop();if(t==trash || t.GetComponent<SeyraInteractionRig>()!=null)continue;
                 yield return t;
                 if(t.GetComponent<ManagedPanel>()!=null)continue;
                 for(int i=t.childCount-1;i>=0;i--)stack.Push(t.GetChild(i));

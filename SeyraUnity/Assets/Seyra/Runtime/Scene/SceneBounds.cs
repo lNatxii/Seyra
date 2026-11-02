@@ -11,7 +11,7 @@ namespace Seyra.SceneTools
         // Structural visual envelope: includes inactive/disabled geometry, excludes trash.
         // Transform all corners with the full matrix; lossyScale cannot encode hierarchy shear.
         Bounds WorldBounds(GameObject root)=>SpatialGeometry.Project(GeometryPoints(root,false),Quaternion.identity);
-        List<Vector3> GeometryPoints(GameObject root,bool swept=false)
+        internal List<Vector3> GeometryPoints(GameObject root,bool swept=false)
         {
             var points=new List<Vector3>();
             bool found=false;
@@ -26,6 +26,9 @@ namespace Seyra.SceneTools
             }
             foreach(var t in root.GetComponentsInChildren<Transform>(true))
             {
+                if(t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
+                var follow=t.GetComponentInParent<SeyraFollowTarget>(true);
+                if(follow!=null && follow.gameObject!=root)continue;
                 if(IsDeleted(t.gameObject) || t.GetComponent<ManagedLine>()!=null)continue;
                 var panel=t.GetComponentInParent<ManagedPanel>(true);
                 if(panel!=null)
@@ -58,6 +61,9 @@ namespace Seyra.SceneTools
             {
                 foreach(var motion in root.GetComponentsInChildren<SeyraMotion>(true))
                 {
+                    if(motion.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
+                    var follow=motion.GetComponentInParent<SeyraFollowTarget>(true);
+                    if(follow!=null && follow.gameObject!=root)continue;
                     // Each recursive call sweeps descendants, excluding its own root motion.
                     // This processes each nested motion once and terminates at leaf geometry.
                     if(motion.gameObject==root || !motion.HasMotion || IsDeleted(motion.gameObject))continue;
