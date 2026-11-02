@@ -1,8 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { askObjects, segmentAll, type Detection } from './segmentation.js';
-import { renderSegmentation } from './segmentation-image.js';
+import { askObjects, samplePoints, segmentAll, type Detection } from './segmentation.js';
+import { palette, renderSegmentation } from './segmentation-image.js';
 
 export type ToolResult = { isError?: boolean; content: { type: 'text'; text: string }[] };
 export interface CameraServiceDependencies {
@@ -146,10 +146,19 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
     try { ({ answer, objects } = await askObjects(data.jpegBase64, question, { fetch: fetchVision, env })); }
     catch { return failure('VISION_FAILED', 'The photo was taken but could not be analysed.'); }
     let detections: Detection[] = [];
+    const vector = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() });
+    const regionSchema = z.object({ position: vector, rotation: vector });
+    const positions: ({ x: number; y: number; z: number } | null)[] = [];
+    let labels: { rootId: string; located: number; total: number } | null = null;
+    const paletteColor = (index: number) => {
+      const hex = palette[index % palette.length]!;
+      return { r: parseInt(hex.slice(1, 3), 16) / 255, g: parseInt(hex.slice(3, 5), 16) / 255,
+        b: parseInt(hex.slice(5, 7), 16) / 255, a: 1 };
+    };
     const respondSegment = (segmentation: 'ok' | 'empty' | 'failed', panel: { entityId: string; placed: boolean } | null = null) =>
       respond({ success: true, data: {
         answer, captureId: data.captureId, width: data.width, height: data.height, segmentation,
-        objects: detections.map(({ label, confidence, box }) => ({ label, confidence, box })), panel,
+        objects: detections.map(({ label, confidence, box }, index) => ({ label, confidence, box, position: positions[index] ?? null })), panel, labels,
       } });
     if (objects.length === 0) return respondSegment('empty');
     const elapsed = Math.max(now() - started, Date.now() - wallStarted);
@@ -184,6 +193,36 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         const placement = outcome(await invoke('spatial_place', { entityId, destination: 'air', allowAirFallback: true, minScale: 1 }));
         placed = placement?.success === true && placement.data.applied === true;
       } catch { /* Do not retry an unconfirmed placement. */ }
+      try {
+        const located = outcome(await invoke('camera_locate', {
+          captureId: data.captureId, regions: detections.map(detection => ({ points: samplePoints(detection) })),
+        }));
+        if (located?.success && located.data.state === 'ready' && Array.isArray(located.data.regions)) {
+          const regions = located.data.regions;
+          const nodes = detections.flatMap((detection, index) => {
+            const parsed = regionSchema.safeParse(regions[index]);
+            if (!parsed.success) return [];
+            const { position, rotation } = parsed.data;
+            positions[index] = position;
+            const color = paletteColor(index);
+            return [
+              { key: `dot_${index}`, name: `${detection.label} point`, type: 'primitive', primitiveType: 'sphere',
+                transform: { position, scale: { x: 0.03, y: 0.03, z: 0.03 } },
+                appearance: { style: 'unlit', color } },
+              { key: `label_${index}`, name: `${detection.label} label`, type: 'panel',
+                transform: { position: { ...position, y: position.y + 0.1 }, rotation },
+                panel: { version: 1, kind: 'label', title: '', text: detection.label, width: 0.2, height: 0.05, fontSize: 24 } },
+              { key: `line_${index}`, name: `${detection.label} line`, type: 'line',
+                line: { points: [{ key: `dot_${index}` }, { key: `label_${index}` }], color, width: 0.003 } },
+            ];
+          });
+          if (nodes.length > 0) {
+            const built = outcome(await invoke('scene_build', { name: 'Object labels', nodes }));
+            if (built?.success && typeof built.data.rootId === 'string')
+              labels = { rootId: built.data.rootId, located: nodes.length / 3, total: detections.length };
+          }
+        }
+      } catch { /* Localization and labels must never invalidate the photo card. Do not retry. */ }
       return respondSegment('ok', { entityId, placed });
     } catch { return respondSegment('failed'); }
   }

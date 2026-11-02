@@ -3,6 +3,8 @@ import test from 'node:test';
 import sharp from 'sharp';
 import { createCameraService } from '../dist/camera.js';
 import { renderSegmentation } from '../dist/segmentation-image.js';
+import { samplePoints } from '../dist/segmentation.js';
+import { tools } from '../dist/tools.js';
 
 const answer = 'A mug and a notebook are visible.';
 const toolResult = data => ({ content: [{ type: 'text', text: JSON.stringify({ success: true, data }) }] });
@@ -15,7 +17,8 @@ const makeJpeg = () => sharp({ create: { width: 800, height: 600, channels: 3, b
 // Fixed lossless mask from @meta-sam/parser's public README quick start.
 const samText = "<0f>0<|box;x1=211;y1=228;x2=270;y2=254;w=800;h=600;c=0.9|><|mask;x=0;y=0;c=0.9;data=27,60,~!!!!M!0c[0o91w?q1!pIH4pPRVp2B3'7`e.ioeAf6-k/#Xd8%dX9x(|>";
 
-async function setup({ objects = ['ceramic mug', 'open notebook'], invalidMuse = false, samFails = false } = {}) {
+async function setup({ objects = ['ceramic mug', 'open notebook'], invalidMuse = false, samFails = false,
+  locate = { state: 'no_depth', regions: [] } } = {}) {
   const jpeg = await makeJpeg();
   const jpegBase64 = jpeg.toString('base64');
   const calls = [];
@@ -30,6 +33,8 @@ async function setup({ objects = ['ceramic mug', 'open notebook'], invalidMuse =
         case 'media_deliver': return toolResult({ refreshed: 1 });
         case 'ui_present': return toolResult({ entityId: 'segmentation-card' });
         case 'spatial_place': return toolResult({ applied: true });
+        case 'camera_locate': return toolResult(locate);
+        case 'scene_build': return toolResult({ rootId: 'object-labels' });
         default: assert.fail(`Unexpected invocation: ${name}`);
       }
     },
@@ -56,7 +61,7 @@ test('segment creates a card for two names in delivery, creation and placement o
   assert.deepEqual(parsed.data.panel, { entityId: 'segmentation-card', placed: true });
   assert.equal(requests.filter(item => item.model === 'sam-3.1').length, 2);
   assert.deepEqual(calls.map(item => item.name), [
-    'camera_capture_start', 'camera_capture_result', 'media_deliver', 'ui_present', 'spatial_place',
+    'camera_capture_start', 'camera_capture_result', 'media_deliver', 'ui_present', 'spatial_place', 'camera_locate',
   ]);
   const delivered = calls.find(item => item.name === 'media_deliver').args.media[0];
   assert.ok(delivered.data.length > 0);
@@ -65,6 +70,51 @@ test('segment creates a card for two names in delivery, creation and placement o
   assert.equal(serialized.includes(jpegBase64), false);
   assert.equal(serialized.includes(delivered.data), false);
   assert.equal(/base64|raster/i.test(serialized), false);
+});
+
+test('samplePoints stays within a known mask and box with at most 24 samples', () => {
+  const raster = Uint8Array.from({ length: 400 }, (_, index) => index % 20 >= 4 && index % 20 < 16 ? 1 : 0);
+  const detection = { label: 'mug', confidence: 0.9, box: { x1: 100, y1: 50, x2: 300, y2: 250 },
+    raster, rasterWidth: 20, rasterHeight: 20 };
+  const points = samplePoints(detection);
+  assert.ok(points.length > 0 && points.length <= 24);
+  for (const point of points) {
+    assert.ok(point.x >= 100 && point.x < 300 && point.y >= 50 && point.y < 250);
+    const column = Math.floor((point.x - 100) / 10);
+    const row = Math.floor((point.y - 50) / 10);
+    assert.equal(raster[row * 20 + column], 1);
+  }
+});
+
+test('segment locates objects after card placement and builds labels in detection colours', async () => {
+  const position = { x: 0.1, y: 0.8, z: 1.2 };
+  const rotation = { x: 10, y: 180, z: 0 };
+  const { service, calls } = await setup({ locate: { state: 'ready', regions: [null, { position, rotation, points: [position] }] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  assert.deepEqual(calls.slice(3).map(item => item.name), ['ui_present', 'spatial_place', 'camera_locate', 'scene_build']);
+  assert.equal(result.data.objects[0].position, null);
+  assert.deepEqual(result.data.objects[1].position, position);
+  assert.deepEqual(result.data.labels, { rootId: 'object-labels', located: 1, total: 2 });
+  assert.equal(JSON.stringify(result).includes('points'), false);
+  const build = calls.find(item => item.name === 'scene_build').args;
+  assert.equal(Object.hasOwn(build, 'placement'), false);
+  assert.equal(build.nodes.length, 3);
+  assert.equal(build.nodes[0].primitiveType, 'sphere');
+  assert.equal(build.nodes[0].key, 'dot_1');
+  assert.deepEqual(build.nodes[0].appearance.color, { r: 45 / 255, g: 212 / 255, b: 191 / 255, a: 1 });
+  assert.deepEqual(build.nodes[2].line.color, build.nodes[0].appearance.color);
+  assert.deepEqual(build.nodes[1].transform.rotation, rotation);
+  tools.find(item => item.name === 'scene_build').schema.parse(build);
+});
+
+test('segment preserves the card without labels when camera_locate has no depth', async () => {
+  const { service, calls } = await setup();
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  assert.equal(result.data.segmentation, 'ok');
+  assert.deepEqual(result.data.panel, { entityId: 'segmentation-card', placed: true });
+  assert.equal(result.data.labels, null);
+  assert.ok(result.data.objects.every(item => item.position === null));
+  assert.equal(calls.some(item => item.name === 'scene_build'), false);
 });
 
 test('segment returns empty without SAM or a card when Muse finds no objects', async () => {
