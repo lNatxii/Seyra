@@ -84,6 +84,7 @@ crashlytics-build.properties
 
 # Local design and progress tracking (not part of the repository)
 /Progress/
+/ROADMAP.md
 
 # AI agent instructions (local only)
 AGENTS.md
