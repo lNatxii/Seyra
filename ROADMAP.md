@@ -30,11 +30,12 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 15d; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. Las siguientes features son 36 y 35; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| Siguiente | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Diseño listo. Corrige lo observado al probar 15b: etiquetas ilegibles sobre fondos claros, sin línea y sin elección de marca. |
+| 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
+| Siguiente | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Diseño listo. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real, casi sin tocar Unity. Empieza tras cerrar 15d, que comparte `camera.ts`. |
 | Después | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
@@ -464,7 +465,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 15b:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario, poco precisa y sin error medido. [Diseño](Progress/Completed/15b-translucent-object-boxes.md).
 
-**Estado 15d:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/15d-object-mark-labels-and-toggle.md).
+**Estado 15d:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario; deshacer sin confirmar. [Diseño](Progress/Completed/15d-object-mark-labels-and-toggle.md).
 
 **Estado 15c:** sin diseñar.
 
@@ -491,6 +492,16 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Dependencias:** 13 y 15. Persistencia local inicialmente; sin compartir anclajes entre usuarios o dispositivos.
 
 **Cierre P1:** capturar el entorno, preguntar sobre un objeto, seleccionar una región segmentada, colocar una explicación espacial y continuar la conversación seleccionando esa anotación. Recuperar el contenido anclado tras reiniciar cuando se localice el entorno.
+
+### 36. Rediseñar lo que el usuario ve con Muse Image
+
+**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/36-camera-image-edit.md).
+
+**Entrega:** herramienta `camera_edit`: toma una foto de lo que mira el usuario, la edita con Muse Image (`/v1/images/edits`) y muestra el resultado en una tarjeta que aparece al momento y recibe la imagen después. Se puede afinar el último resultado sin otra foto. Casos: «paint my living room blue», «redesign that cabinet for a home office», «create a piece of furniture for that gap».
+
+**Aceptación:** la tarjeta conserva la escena en lo esencial y cambia lo pedido; «make it darker» afina sin obturador; un fallo deja «Image unavailable» sin romper el chat; Seyra no describe un resultado que no ha visto ni promete que algo cabe; `camera_look` y `camera_segment` siguen igual.
+
+**Dependencias:** 11–12, 19 y 22. Tras cerrar 15d. Sin superposición sobre el objeto real ni 3D.
 
 ## P2 — Experiencia multimodal y continuidad
 
