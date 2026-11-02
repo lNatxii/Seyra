@@ -136,6 +136,14 @@ namespace Seyra.Cameras
                 active = MRUK.Instance?.IsWorldLockActive;
                 if (!depthReady || raycaster == null || !raycaster.isActiveAndEnabled) return;
                 var grid = new CaptureDepthGrid();
+                var min = access.ViewportPointToRay(new Vector2(0, 0), Pose.identity).direction;
+                var max = access.ViewportPointToRay(new Vector2(1, 1), Pose.identity).direction;
+                grid.HasCameraModel = min.z > 0f && max.z > 0f;
+                if (grid.HasCameraModel)
+                {
+                    grid.TanMin = new Vector2(min.x, min.y) / min.z;
+                    grid.TanMax = new Vector2(max.x, max.y) / max.z;
+                }
                 for (int row = 0; row < CaptureDepthGrid.Rows; row++)
                 for (int column = 0; column < CaptureDepthGrid.Columns; column++)
                 {

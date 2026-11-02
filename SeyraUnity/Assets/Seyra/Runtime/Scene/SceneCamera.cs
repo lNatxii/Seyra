@@ -49,10 +49,20 @@ namespace Seyra.SceneTools
             var regions = args["regions"] as JArray ?? throw new ArgumentException("regions must be an array.");
             if (regions.Count > 8) throw new ArgumentException("At most 8 regions are allowed.");
             var pixels = new List<List<Vector2>>(regions.Count);
+            var boxes = new List<Vector4?>(regions.Count);
             foreach (var token in regions)
             {
                 var region = token as JObject ?? throw new ArgumentException("Each region must be an object.");
-                Keys(region, new[] { "points" });
+                Keys(region, new[] { "points" }, new[] { "box" });
+                Vector4? bounds = null;
+                if (region["box"] != null)
+                {
+                    var box = region["box"] as JObject ?? throw new ArgumentException("box must be an object.");
+                    Keys(box, new[] { "x1", "y1", "x2", "y2" });
+                    float Coordinate(string key) => LineContent.Number(box[key], -float.MaxValue, float.MaxValue);
+                    bounds = new Vector4(Coordinate("x1"), Coordinate("y1"), Coordinate("x2"), Coordinate("y2"));
+                }
+                boxes.Add(bounds);
                 var points = region["points"] as JArray ?? throw new ArgumentException("points must be an array.");
                 if (points.Count > 32) throw new ArgumentException("At most 32 points per region are allowed.");
                 var samples = new List<Vector2>(points.Count);
@@ -72,8 +82,9 @@ namespace Seyra.SceneTools
             var photo = cameraCapture.FindRecent(captureId);
             if (photo?.Depth == null) return new JObject { ["state"] = "no_depth", ["regions"] = located };
             Invertible(generated);
-            foreach (var region in pixels)
+            for (int regionIndex = 0; regionIndex < pixels.Count; regionIndex++)
             {
+                var region = pixels[regionIndex];
                 var samples = new List<Vector3>(region.Count);
                 foreach (var pixel in region)
                     if (photo.Depth.TryGet(pixel.x, pixel.y, photo.Width, photo.Height, out var point)) samples.Add(point);
@@ -85,7 +96,23 @@ namespace Seyra.SceneTools
                 var rotation = Quaternion.LookRotation(position - photo.CameraPose.position, Vector3.up);
                 var points = new JArray();
                 foreach (var point in samples) points.Add(Vector(generated.InverseTransformPoint(point)));
+                JToken objectBox = JValue.CreateNull();
+                var bounds = boxes[regionIndex];
+                if (bounds.HasValue && CaptureObjectBox.TryEstimate(photo.Depth, photo.CameraPose,
+                    photo.Width, photo.Height, bounds.Value.x, bounds.Value.y, bounds.Value.z, bounds.Value.w,
+                    position, out var estimated))
+                {
+                    var scale = generated.lossyScale;
+                    objectBox = new JObject {
+                        ["center"] = Vector(generated.InverseTransformPoint(estimated.Center)),
+                        ["rotation"] = Vector((Quaternion.Inverse(generated.rotation) * estimated.Rotation).eulerAngles),
+                        ["size"] = Vector(new Vector3(estimated.Size.x / scale.x,
+                            estimated.Size.y / scale.y, estimated.Size.z / scale.z))
+                    };
+                    Debug.Log($"[Seyra] Object box: {estimated.Size.x:F2} x {estimated.Size.y:F2} x {estimated.Size.z:F2} m at {estimated.Distance:F2} m; pitch {estimated.PitchDegrees:F0}");
+                }
                 located.Add(new JObject {
+                    ["box"] = objectBox,
                     ["position"] = Vector(generated.InverseTransformPoint(position)),
                     ["rotation"] = Vector((Quaternion.Inverse(generated.rotation) * rotation).eulerAngles),
                     ["valid"] = samples.Count, ["requested"] = region.Count, ["points"] = points

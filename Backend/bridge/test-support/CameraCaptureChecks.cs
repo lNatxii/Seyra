@@ -31,6 +31,22 @@ public static class CameraCaptureChecks
                 new Vector3(1000, 1000, 1000) }, 3, out var median) && median == new Vector3(2, 3, 4),
                 "The per-axis median must ignore an extreme sample.");
 
+            var cameraModel = new CaptureDepthGrid {
+                TanMin = new Vector2(-1, -1), TanMax = new Vector2(1, 1), HasCameraModel = true
+            };
+            Check(CaptureObjectBox.TryEstimate(cameraModel, Pose.identity, 1000, 1000,
+                400, 400, 600, 600, new Vector3(0, 0, 2), out var box) &&
+                Vector3.Distance(box.Size, new Vector3(0.84f, 0.84f, 0.30f)) < 0.001f &&
+                Vector3.Distance(box.Center, new Vector3(0, 0, 2.15f)) < 0.001f,
+                "The camera model must estimate the expected front-facing object box.");
+            Check(CaptureObjectBox.TryEstimate(cameraModel, Pose.identity, 1000, 1000,
+                400, 0, 600, 100, new Vector3(0, 0, 2), out var upperBox) && upperBox.Center.y > 0,
+                "A box at the top of the photo must have a positive world y center.");
+            cameraModel.HasCameraModel = false;
+            Check(!CaptureObjectBox.TryEstimate(cameraModel, Pose.identity, 1000, 1000,
+                400, 400, 600, 600, new Vector3(0, 0, 2), out _),
+                "Object box estimation must fail without a camera model.");
+
             var denied = new FakeSource { Permission = false };
             service.SetFrameSource(denied);
             service.Capture();
@@ -90,7 +106,7 @@ public static class CameraCaptureChecks
             Check(taken != null && service.LastTakenId == taken.Id, "LastTakenId must identify the transferred photo.");
             service.Clear();
             Check(service.LastTakenId == null, "Clear must reset LastTakenId.");
-            return "CameraCaptureChecks: 8 cases passed.";
+            return "CameraCaptureChecks: 9 cases passed.";
         }
         finally { UnityEngine.Object.Destroy(root); }
     }
