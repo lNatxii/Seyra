@@ -369,3 +369,29 @@ is a budget plan, not a measured or enforced three-second composition/mutation
 deadline; invoke uses the existing transport timeouts. camera_look retains its
 13 s vision timeout. Canceling a turn can still allow an initiated segment
 call to finish and create a card.
+
+## Camera image edits
+
+`camera_edit` (`seyra_camera_edit`) accepts a strict object with `instruction` (trimmed, 3..500 characters), `title` (trimmed, 1..60 characters, English) and optional `previousEditId` (`^edit_[0-9a-f]{12}$`). Annotations: readOnlyHint false, destructiveHint false, idempotentHint false.
+
+Edits what the user is looking at with an image model and shows the result on a card. Without previousEditId it takes one photo: the user hears a shutter and sees the photo. With previousEditId it refines that earlier result without a new photo. Call it only when the user asks to see a real thing changed, redesigned or added. instruction must be complete and self-contained, in English: the image model sees only the image and this text. Name the object and where it is in the photo. The image arrives on the card after this tool returns. Returns text. Do not retry automatically after a failure.
+
+Success: `{ success: true, data: { editId, captureId, panel: { entityId, placed }, image } }`. `captureId` is null for refinement; `image` is `queued` or `skipped`. A skipped image leaves the confirmed card unavailable.
+
+Policy and image budget are checked before capture. The card is confirmed with `ui_present` and `pendingMedia`, then placed with `destination: 'air', allowAirFallback: true, minScale: 1`, before queueing. Failed placement returns placed false and generation continues. Unconfirmed cards never call Meta.
+
+| Code | Meaning |
+| --- | --- |
+| EDIT_REJECTED | Blocked instruction; no photo. Message: This change cannot be generated. Ask for it without brands, people or copyrighted works. |
+| EDIT_LIMIT | Shared image budget exhausted; no photo |
+| EDIT_BUSY | Previous edit still generating; no photo |
+| EDIT_EXPIRED | ID is not the latest successful edit, it failed, or the bridge restarted; no photo |
+| EDIT_CARD_FAILED | Unity did not confirm the card; no Meta request |
+
+Existing capture errors remain unchanged. Missing image configuration returns IMAGE_NOT_CONFIGURED.
+
+The backend posts JSON to `https://api.meta.ai/v1/images/edits`: model muse-image-1.0, the fixed preservation prompt, images with a JPEG data URL, n 1, capture width x height when numeric, response_format b64_json, output_format jpeg, reasoning_strength low, and all three tool_enablement flags false. No store field: this endpoint does not support it. The generation deadline is 60 seconds, with one 429 retry and one 503 retry after 2 seconds, each counted against the shared budget. Policy rejections are not retried.
+
+The capture-resolution photo goes to Meta; provider retention is unknown. The original photo and latest successful edit (inside 1280 x 1280, JPEG quality 85) exist only in bridge memory, never in logs or OpenCode; the conversational model receives text only. Starting a new queued edit clears the previous result; failure leaves no refinement result. Only one edit generates at a time, released before delivery.
+
+The card result (inside 512 x 512, JPEG quality 82, at most 1 MiB) is saved in `Media/<hex>.jpg`. It shows the user's home and is not deleted when its card is deleted. Undo/Close does not cancel generation. Delivery after card deletion is allowed; saving/loading preserves imageRef and never regenerates the image. No slot format changes.

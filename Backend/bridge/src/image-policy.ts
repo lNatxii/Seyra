@@ -8,8 +8,8 @@ export const IMAGE_LIMIT_EXCEEDED = 'IMAGE_LIMIT_EXCEEDED';
 const rejectedMessage = 'This subject cannot have a generated image. Use a text panel or a card without an image.';
 
 export class ImagePolicyError extends Error {
-  constructor(public readonly code: typeof IMAGE_SUBJECT_REJECTED | typeof IMAGE_LIMIT_EXCEEDED) {
-    super(code === IMAGE_SUBJECT_REJECTED ? rejectedMessage : 'At most 12 generated images per call.');
+  constructor(public readonly code: typeof IMAGE_SUBJECT_REJECTED | typeof IMAGE_LIMIT_EXCEEDED | 'EDIT_REJECTED') {
+    super(code === 'EDIT_REJECTED' ? 'This change cannot be generated. Ask for it without brands, people or copyrighted works.' : code === IMAGE_SUBJECT_REJECTED ? rejectedMessage : 'At most 12 generated images per call.');
     this.name = 'ImagePolicyError';
   }
 }
@@ -68,4 +68,15 @@ export function generatedImageId(value: GeneratedImage): string {
 export function generatedImagePrompt(value: GeneratedImage): string {
   const image = validateGeneratedImage(value);
   return `A plain generic example of ${image.subject}. Clean, simple illustration, clearly not a photograph. One centered subject on a plain light background. No text, letters, numbers, logos, brand marks, labels, packaging designs, watermarks, people or fictional characters.`;
+}
+
+export function validateEditInstruction(instruction: string): void {
+  if (blockedPatterns.some(({ pattern }) => pattern.test(normalizeSubject(instruction))))
+    throw new ImagePolicyError('EDIT_REJECTED');
+}
+export function editedImageId(source: string, instruction: string): string {
+  return 'gen:' + createHash('sha256').update(IMAGE_MODEL + '|edit|' + source + '|' + normalizeSubject(instruction)).digest('hex').slice(0, 32);
+}
+export function editedImagePrompt(instruction: string): string {
+  return `Edit this photo of a real place. Apply only this change: ${instruction}. Keep everything else exactly as it is: same viewpoint, framing, room, objects and lighting. The result must look like a realistic photo of the same place. Do not add text, letters, logos, brand marks, people or fictional characters. Do not change any person in the photo.`;
 }

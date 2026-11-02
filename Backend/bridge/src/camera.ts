@@ -2,6 +2,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { askObjects, samplePoints, segmentAll, type Detection } from './segmentation.js';
+import { ImagePolicyError, validateEditInstruction, editedImageId } from './image-policy.js';
+import type { createImageService } from './images.js';
 import { palette, renderSegmentation } from './segmentation-image.js';
 
 export type ToolResult = { isError?: boolean; content: { type: 'text'; text: string }[] };
@@ -11,6 +13,7 @@ export interface CameraServiceDependencies {
   env?: NodeJS.ProcessEnv;
   now?: () => number;
   pollMs?: number;
+  images?: ReturnType<typeof createImageService>;
 }
 
 export const cameraTool = {
@@ -24,6 +27,13 @@ export const cameraSegmentTool = {
   description: "Takes one photo of what the user is looking at, answers a question about it, finds the objects in it and places a panel showing the photo with each object coloured, boxed and labelled. The user hears a shutter and sees the photo. Call it only when the user's latest message asks what they are looking at or what is around them. question must be complete and self-contained: the vision model sees only the photo and this text, not the conversation. Returns text. Shows the real world only, never virtual content. Do not retry automatically after a failure.",
   schema: cameraTool.schema,
 };
+export const cameraEditTool = {
+  name: 'camera_edit', readOnly: false,
+  description: "Edits what the user is looking at with an image model and shows the result on a card. Without previousEditId it takes one photo: the user hears a shutter and sees the photo. With previousEditId it refines that earlier result without a new photo. Call it only when the user asks to see a real thing changed, redesigned or added. instruction must be complete and self-contained, in English: the image model sees only the image and this text. Name the object and where it is in the photo. The image arrives on the card after this tool returns. Returns text. Do not retry automatically after a failure.",
+  schema: z.object({ instruction: z.string().trim().min(3).max(500), title: z.string().trim().min(1).max(60),
+    previousEditId: z.string().regex(/^edit_[0-9a-f]{12}$/).optional() }).strict(),
+};
+
 type Capture = { jpegBase64: string; captureId: unknown; width: unknown; height: unknown };
 
 const instructions = 'You answer a question about a photo of the real surroundings of a mixed-reality user. Report what is visible first. Mark anything you infer as a guess. Do not state exact measurements, safety judgements or identities as facts. Never identify a real person from their appearance. If the photo is too dark, blurred or does not show what is asked, say what is missing. Answer in English in at most 120 words.';
@@ -40,6 +50,7 @@ function outcome(result: ToolResult): Outcome | undefined {
 }
 
 export function createCameraService(dependencies: CameraServiceDependencies): {
+  edit(args: z.infer<typeof cameraEditTool.schema>): Promise<ToolResult>;
   look(args: { question: string }): Promise<ToolResult>;
   segment(args: { question: string }): Promise<ToolResult>;
 } {
@@ -49,6 +60,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
   const now = dependencies.now ?? Date.now;
   const pollMs = dependencies.pollMs ?? 250;
   let busy = false;
+  let editing = false;
   let recent: number[] = [];
 
   async function run(args: { question: string }, segmented: boolean): Promise<ToolResult> {
@@ -264,5 +276,63 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
       return respondSegment('ok', { entityId, placed });
     } catch { return respondSegment('failed'); }
   }
-  return { look: args => run(args, false), segment: args => run(args, true) };
+  async function edit(input: z.infer<typeof cameraEditTool.schema>): Promise<ToolResult> {
+    const args = cameraEditTool.schema.parse(input);
+    try { validateEditInstruction(args.instruction); }
+    catch (error) {
+      if (error instanceof ImagePolicyError) return failure(error.code, error.message);
+      throw error;
+    }
+    const images = dependencies.images;
+    if (!images) return failure('IMAGE_NOT_CONFIGURED', 'Image editing is not configured.');
+    if (editing) return failure('EDIT_BUSY', 'The previous picture is still being made.');
+    const availability = images.canEdit();
+    if (availability !== 'ok') return failure(availability, availability === 'EDIT_BUSY'
+      ? 'The previous picture is still being made.' : availability === 'EDIT_LIMIT'
+        ? 'Too many images. Ask the user to wait.' : 'Image editing is not configured.');
+    if (busy) return failure('CAMERA_BUSY', 'A photo is already being taken.');
+    busy = true; editing = true;
+    try {
+      let data: { jpegBase64: string; width: unknown; height: unknown };
+      let captureId: unknown = null;
+      if (args.previousEditId) {
+        const previous = images.latestEdit(args.previousEditId);
+        if (!previous) return failure('EDIT_EXPIRED', 'The previous edit is no longer available. A new photo is needed.');
+        data = previous;
+      } else {
+        recent = recent.filter(time => time > now() - 600_000);
+        if (recent.length >= 20) return failure('CAMERA_LIMIT', 'Too many photos. Ask the user to wait.');
+        recent.push(now());
+        const captured = await capture();
+        if ('content' in captured) return captured;
+        data = captured; captureId = captured.captureId;
+      }
+      const imageRef = editedImageId(String(args.previousEditId ?? captureId), args.instruction);
+      const editId = 'edit_' + imageRef.slice(4, 16);
+      let created: Outcome | undefined;
+      try {
+        created = outcome(await invoke('ui_present', {
+          name: 'Image edit', parentId: 'Generated',
+          position: { x: 0, y: 1.4, z: 1 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 },
+          width: 0.7, height: 1, pendingMedia: [imageRef],
+          presentation: {
+            id: `edit-${editId}`, type: 'mediaCard', title: args.title,
+            image: { imageRef, title: args.title, alt: args.instruction.slice(0, 200), source: 'AI edit of your photo' },
+            body: 'AI-generated picture of the change. It is not a real view, and sizes may not be accurate.',
+          },
+        }));
+      } catch { /* Unconfirmed cards must never trigger an edit. */ }
+      if (!created?.success || typeof created.data.entityId !== 'string')
+        return failure('EDIT_CARD_FAILED', 'The image card could not be confirmed.');
+      const entityId = created.data.entityId;
+      let placed = false;
+      try {
+        const placement = outcome(await invoke('spatial_place', { entityId, destination: 'air', allowAirFallback: true, minScale: 1 }));
+        placed = placement?.success === true && placement.data.applied === true;
+      } catch { /* Keep the confirmed card even if placement fails. */ }
+      const image = images.enqueueEdit({ id: imageRef, editId, instruction: args.instruction, ...data });
+      return respond({ success: true, data: { editId, captureId, panel: { entityId, placed }, image } });
+    } finally { busy = false; editing = false; }
+  }
+  return { edit, look: args => run(args, false), segment: args => run(args, true) };
 }

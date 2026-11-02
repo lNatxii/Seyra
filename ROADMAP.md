@@ -36,7 +36,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | --- | --- | --- | --- |
 | 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
 | Siguiente | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Diseño listo. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real, casi sin tocar Unity. Empieza tras cerrar 15d, que comparte `camera.ts`. |
-| Después | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
+| Siguiente | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -495,7 +495,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 36. Rediseñar lo que el usuario ve con Muse Image
 
-**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/36-camera-image-edit.md).
+**Estado:** Completed · Revisada (2 de noviembre de 2026). Bridge 59/59, C# compilado y edición con afinado correctos con la API real y Unity simulado. Pendientes Muse y Quest 3. [Implementación y revisión](Progress/Completed/36-camera-image-edit.md).
 
 **Entrega:** herramienta `camera_edit`: toma una foto de lo que mira el usuario, la edita con Muse Image (`/v1/images/edits`) y muestra el resultado en una tarjeta que aparece al momento y recibe la imagen después. Se puede afinar el último resultado sin otra foto. Casos: «paint my living room blue», «redesign that cabinet for a home office», «create a piece of furniture for that gap».
 

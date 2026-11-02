@@ -182,3 +182,7 @@ validation remains pending.
 `@meta-sam/parser` 0.1.0 uses the SAM License. Include a copy of that license
 when redistributing the package or its derivatives; the installed copy is
 `bridge/node_modules/@meta-sam/parser/LICENSE`.
+
+### Camera image edits
+
+`seyra_camera_edit` takes a requested photo edit or refines the latest result with previousEditId, placing a loading mediaCard before asynchronous Muse Image editing. Uses the existing META_API_KEY and shared image budget; no OpenCode configuration change. See [the contract and retention details](bridge/CAMERA.md#camera-image-edits) and [media delivery](bridge/MEDIA.md#edited-camera-images). Provider photo retention is unknown. Rebuild the bridge and restart the backend and OpenCode after deployment. An updated APK is needed only for the camera_edit activity text.

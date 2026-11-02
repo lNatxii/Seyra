@@ -163,3 +163,7 @@ slot to another device does not transfer its cached JPEGs.
 See [presentations](PRESENTATIONS.md) and [layouts](LAYOUTS.md). After deployment,
 restart both the backend and OpenCode. The Images system prompt is still pending
 with the user and has not been modified for feature 19.
+
+## Edited camera images
+
+Camera edits share the generation queue (three slots), request budgets and idempotent media delivery. See [CAMERA.md](CAMERA.md#camera-image-edits) for the complete camera_edit contract and retention. Cards use pendingMedia and source `AI edit of your photo`; results are visualisations, not measurements. The latest 1280 px result stays only in memory for refinement; the 512 px card result persists in Media even after card deletion. Failures use media_deliver failed IDs and the existing Image unavailable state.

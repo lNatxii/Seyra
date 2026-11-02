@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { setTimeout as delay } from 'node:timers/promises';
-import { IMAGE_MODEL, ImagePolicyError, generatedImageId, generatedImagePrompt, validateGeneratedImages, type GeneratedImage } from './image-policy.js';
+import { IMAGE_MODEL, ImagePolicyError, editedImagePrompt, generatedImageId, generatedImagePrompt, validateGeneratedImages, type GeneratedImage } from './image-policy.js';
 import type { MediaEntry } from './media.js';
 
 type Outcome = { success: true; data: Record<string, unknown> } |
@@ -12,7 +12,9 @@ export interface ImageServiceDependencies {
   env?: NodeJS.ProcessEnv;
   now?: () => number;
 }
-type Job = { id: string; image: GeneratedImage; releaseReservation: () => void };
+type EditJob = { id: string; editId: string; instruction: string; jpegBase64: string; width: unknown; height: unknown };
+type LatestEdit = { editId: string; jpegBase64: string; width: number; height: number };
+type Job = { id: string; releaseReservation: () => void } & ({ image: GeneratedImage; edit?: never } | { edit: EditJob; image?: never });
 const respond = (outcome: Outcome): ImageToolResult => ({ isError: !outcome.success, content: [{ type: 'text', text: JSON.stringify(outcome) }] });
 const failure = (code: string, message: string): ImageToolResult => respond({ success: false, error: { code, message } });
 function outcome(result: ImageToolResult): Outcome | undefined {
@@ -37,6 +39,8 @@ export function createImageService(dependencies: ImageServiceDependencies) {
   const windowLimit = limit('SEYRA_IMAGE_WINDOW_LIMIT', 30, Number.MAX_SAFE_INTEGER);
   const sessionLimit = limit('SEYRA_IMAGE_SESSION_LIMIT', 100, 100);
   let sent = 0, reserved = 0, active = 0;
+  let editBusy = false;
+  let latest: LatestEdit | undefined;
   let recent: number[] = [];
   const queue: Job[] = [];
   // Keep IDs deduplicated through generation AND delivery, including failure delivery.
@@ -93,25 +97,40 @@ export function createImageService(dependencies: ImageServiceDependencies) {
     } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
   }
   async function generate(job: Job, signal: AbortSignal): Promise<MediaEntry> {
+    let retried429 = false, retried503 = false;
     for (let attempt = 0; ; attempt++) {
       signal.throwIfAborted();
       if (attempt === 0) job.releaseReservation();
       if (!countSend()) throw new Error('Image budget exhausted.');
-      const response = await fetchImage('https://api.meta.ai/v1/images/generations', {
+      const edit = job.edit;
+      const response = await fetchImage(edit ? 'https://api.meta.ai/v1/images/edits' : 'https://api.meta.ai/v1/images/generations', {
         method: 'POST', signal,
         headers: { Authorization: `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: IMAGE_MODEL, prompt: generatedImagePrompt(job.image), n: 1, size: '1024x1024',
+          model: IMAGE_MODEL, prompt: edit ? editedImagePrompt(edit.instruction) : generatedImagePrompt(job.image!), n: 1,
+          ...(edit ? {
+            images: [{ image_url: 'data:image/jpeg;base64,' + edit.jpegBase64 }],
+            ...(typeof edit.width === 'number' && Number.isFinite(edit.width) && edit.width > 0 &&
+              typeof edit.height === 'number' && Number.isFinite(edit.height) && edit.height > 0
+              ? { size: edit.width + 'x' + edit.height } : {}),
+          } : { size: '1024x1024' }),
           response_format: 'b64_json', output_format: 'jpeg', reasoning_strength: 'low',
           tool_enablement: { enable_image_search: false, enable_web_search: false, enable_shell: false },
         }),
       });
-      if (response.status === 429 && attempt === 0) {
+      if (response.status === 429 && (job.edit ? !retried429 : attempt === 0)) {
+        retried429 = true;
         const header = response.headers.get('retry-after');
         const seconds = header === null ? 1 : Number(header);
         const wait = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(header!) - now();
         await response.body?.cancel().catch(() => {});
         await delay(Math.max(0, Math.min(2000, Number.isFinite(wait) ? wait : 1000)), undefined, { signal });
+        continue;
+      }
+      if (job.edit && response.status === 503 && !retried503) {
+        retried503 = true;
+        await response.body?.cancel().catch(() => {});
+        await delay(2000, undefined, { signal });
         continue;
       }
       if (!response.ok) { await response.body?.cancel().catch(() => {}); throw new Error('Image API failed.'); }
@@ -123,6 +142,13 @@ export function createImageService(dependencies: ImageServiceDependencies) {
         .jpeg({ quality: 82 }).toBuffer({ resolveWithObject: true });
       signal.throwIfAborted();
       if (converted.data.length > 1024 * 1024) throw new Error('Converted image too large.');
+      if (job.edit) {
+        const refinement = await sharp(Buffer.from(encoded, 'base64'), { limitInputPixels: 40_000_000, animated: false })
+          .rotate().resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true });
+        signal.throwIfAborted();
+        latest = { editId: job.edit.editId, jpegBase64: refinement.data.toString('base64'), width: refinement.info.width, height: refinement.info.height };
+      }
       return { id: job.id, mime: 'image/jpeg', width: converted.info.width, height: converted.info.height, data: converted.data.toString('base64') };
     }
   }
@@ -134,8 +160,8 @@ export function createImageService(dependencies: ImageServiceDependencies) {
     });
     let args: { media?: MediaEntry[]; failed?: string[] };
     try { args = { media: [await Promise.race([generate(job, controller.signal), timeout])] }; }
-    catch { args = { failed: [job.id] }; }
-    finally { clearTimeout(timer); job.releaseReservation(); }
+    catch { if (job.edit) latest = undefined; args = { failed: [job.id] }; }
+    finally { clearTimeout(timer); job.releaseReservation(); if (job.edit) editBusy = false; }
     // Deliveries must not hold one of the three generation slots.
     track(deliver(args).finally(() => inFlight.delete(job.id)));
   }
@@ -199,6 +225,29 @@ export function createImageService(dependencies: ImageServiceDependencies) {
   }
   return {
     execute,
+    canEdit(): 'ok' | 'EDIT_BUSY' | 'EDIT_LIMIT' | 'IMAGE_NOT_CONFIGURED' {
+      if (editBusy) return 'EDIT_BUSY';
+      if (!env.META_API_KEY?.trim()) return 'IMAGE_NOT_CONFIGURED';
+      return available() ? 'ok' : 'EDIT_LIMIT';
+    },
+    latestEdit(editId: string): { jpegBase64: string; width: number; height: number } | undefined {
+      if (!latest || latest.editId !== editId) return undefined;
+      const { jpegBase64, width, height } = latest;
+      return { jpegBase64, width, height };
+    },
+    enqueueEdit(edit: EditJob): 'queued' | 'skipped' {
+      latest = undefined;
+      if (editBusy || !env.META_API_KEY?.trim() || !available()) {
+        track(deliver({ failed: [edit.id] }));
+        return 'skipped';
+      }
+      editBusy = true;
+      reserved++; inFlight.add(edit.id);
+      let reservation = true;
+      queue.push({ id: edit.id, edit, releaseReservation: () => { if (reservation) { reservation = false; reserved--; } } });
+      pump();
+      return 'queued';
+    },
     /** Wait for mocked background work in checks; production returns tool results immediately. */
     async whenIdle(): Promise<void> { while (background.size) await Promise.allSettled([...background]); },
   };
