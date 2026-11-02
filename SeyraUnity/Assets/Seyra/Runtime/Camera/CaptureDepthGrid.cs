@@ -12,6 +12,17 @@ namespace Seyra.Cameras
         public readonly Vector3[] Points = new Vector3[Columns * Rows];
         public readonly bool[] Valid = new bool[Columns * Rows];
         public int Hits;
+        public Vector2 TanMin, TanMax;
+        public bool HasCameraModel;
+
+        // World direction through a photo pixel measured from the top left, not normalized.
+        public Vector3 PixelDirection(float pixelX, float pixelY, int width, int height, Pose pose)
+        {
+            float x = pixelX / width;
+            float y = ImageRowsFromTop ? 1f - pixelY / height : pixelY / height;
+            return pose.rotation * new Vector3(Mathf.Lerp(TanMin.x, TanMax.x, x),
+                Mathf.Lerp(TanMin.y, TanMax.y, y), 1f);
+        }
 
         public static Vector2 CellViewport(int column, int row) =>
             new Vector2((column + 0.5f) / Columns, (row + 0.5f) / Rows);

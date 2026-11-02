@@ -9,7 +9,8 @@ standalone question and one photo, without the conversation.
 ## Runtime operations
 
 These operations are internal to the Unity bridge and are not MCP tools. All
-capture operations take `{}`; `camera_locate` takes the arguments below. They
+capture operations take `{}`; `camera_locate` and `camera_marks_bind` take the
+arguments below. They
 are classified as queries, bypassing mutation history and the
 `completed` response cache so JPEG bytes are not retained there.
 
@@ -18,6 +19,7 @@ are classified as queries, bypassing mutation history and the
 | `camera_capture_start` | `{state:"started"}`, `{state:"busy"}` or `{state:"unavailable"}` |
 | `camera_capture_result` | `{state:"pending"}`, `{state:"unavailable"}`, `{state:"failed",message}` or `{state:"ready",captureId,width,height,jpegBase64}` |
 | `camera_capture_cancel` | `{state:"idle"}` or `{state:"unavailable"}` if no service exists |
+| `camera_marks_bind` | `{state:"bound"}` or `{state:"unavailable"}` |
 | `camera_locate` | `{state:"ready",regions:[...]}`, `{state:"unavailable",regions:[]}` or `{state:"no_depth",regions:[]}` |
 
 Unity locates and caches the active `CameraCaptureService`. Start calls Capture
@@ -33,7 +35,8 @@ and creates no scene content. Input:
 
 ```json
 { "captureId": "cap_a1b2c3d4e5f6", "regions": [
-  { "points": [{ "x": 100, "y": 200 }, { "x": 110, "y": 210 }, { "x": 120, "y": 220 }] }
+  { "points": [{ "x": 100, "y": 200 }, { "x": 110, "y": 210 }, { "x": 120, "y": 220 }],
+    "box": { "x1": 90, "y1": 190, "x2": 130, "y2": 230 } }
 ] }
 ```
 
@@ -41,7 +44,10 @@ and creates no scene content. Input:
 region are accepted. Empty arrays are allowed. Each point requires finite
 numeric `x` and `y`, in source-photo pixels measured from the top left.
 Pixels outside `[0,width)` / `[0,height)` and cells without depth are ignored.
-Invalid argument shapes or limits use the normal Unity error envelope.
+Each region also accepts an optional `box` with finite numeric `x1`, `y1`,
+`x2` and `y2` in source-photo pixels, using half-open bounds. Omit it when
+no box is requested. Invalid argument shapes or limits use the normal Unity
+error envelope.
 
 Example result data (inside the normal success envelope):
 
@@ -49,6 +55,9 @@ Example result data (inside the normal success envelope):
 { "state": "ready", "regions": [
   { "position": { "x": 0.1, "y": 0.8, "z": 1.2 },
     "rotation": { "x": 10, "y": 180, "z": 0 },
+    "box": { "center": { "x": 0.1, "y": 0.8, "z": 1.3 },
+             "rotation": { "x": 0, "y": 180, "z": 0 },
+             "size": { "x": 0.09, "y": 0.11, "z": 0.09 } },
     "valid": 3, "requested": 3,
     "points": [{ "x": 0.1, "y": 0.8, "z": 1.2 },
                { "x": 0.11, "y": 0.81, "z": 1.21 },
@@ -64,14 +73,51 @@ with `generated.InverseTransformPoint`. Returned `points` are the valid samples
 in the same local coordinates, not the depth grid. `rotation` contains local
 Euler angles in degrees relative to `generated`, derived from
 `Quaternion.LookRotation(worldPosition - CameraPose.position, Vector3.up)`.
-These coordinates can be used directly by `scene_build` without placement.
+Each localized region also returns `box`, or `null` if it was not requested
+or estimation failed. Its `center` is converted with
+`generated.InverseTransformPoint`, `rotation` contains local Euler angles in
+degrees relative to `generated`, and `size` is the world size divided component
+by component by `generated.lossyScale`. These coordinates can be used directly
+by `scene_build` without placement.
+
+Box width and apparent height come from the SAM box corner rays at the median
+distance, using the camera model retained at capture time. Depth is estimated
+as the width clamped to 3–30 cm; it is not a measured hidden surface. Height is
+corrected for camera pitch. The box stays upright and faces the capture camera
+horizontally; its orientation does not measure the object's orientation. Sizes
+are rough estimates and must not be stated as object measurements.
 
 `unavailable` means no camera service exists. `no_depth` means the capture was
 not found or has no depth grid; both return `regions: []`. The optional grid
 is 40 × 30 with a six-metre ray limit. Depth is an estimate from capture time:
 it does not track objects, and thin, shiny or transparent objects can lack
-usable samples. Image Y mapping and visible label orientation still require
-the full headset validation in feature 15a, step 6.
+usable samples. Feature 15a was reviewed and reported working on Quest 3 by
+the user; its position error was not measured. Feature 15b was also reviewed and reported working on Quest 3 by the user,
+with low precision and no measured error. Chip appearance and the live toggle
+still require feature 15d headset validation.
+
+### camera_marks_bind
+
+This internal Unity operation is not an MCP tool or a scene batch operation.
+Input uses confirmed entity IDs:
+
+```json
+{ "cardId": "<card-id>", "rootId": "<composition-root-id>",
+  "boxesId": "<boxes-group-id>", "pointsId": "<points-group-id>" }
+```
+
+Only these four fields are accepted. It resolves the IDs and adds or reuses
+`ObjectMarkSwitch` on `rootId`. Result data is `{ "state": "bound" }`.
+Unknown IDs, a card without ManagedPanel/a presentation view, or a missing
+`checked` value return `{ "state": "unavailable" }` without a lookup exception.
+Invalid argument shapes use the normal Unity error envelope.
+
+Although it installs a runtime binding, it is classified as a query: it creates
+no history operation and bypasses the completed-response cache. Binding applies
+the current check immediately; LateUpdate applies subsequent changes from
+`PresentationView.Values["checked"]`. The string `"true"` activates boxes and
+hides points; `"false"` does the reverse. Missing card/view/check leaves the
+last mode unchanged. The binding is not reconstructed on load.
 
 ## Vision request and result
 
@@ -126,10 +172,12 @@ OpenCode receives text only, never photo bytes or base64; its session history
 can retain the question, answer and textual tool results. Unity retains at most
 eight recent capture records without JPEG bytes, including their optional depth
 grids. The grid lives only in headset memory and is released with its recent
-record; it is never saved or sent off the headset. Only calculated positions
-(the region median and valid sample positions, plus label rotation and counts)
-leave the headset for depth localization. `camera_segment` does not forward the
-sample points to OpenCode. Muse Spark and SAM 3.1 receive the
+record; it is never saved or sent off the headset. The capture-time camera
+model also stays on the headset. Calculated region medians, valid sample
+positions, label rotations, counts and optional box centers, rotations and
+sizes leave the headset for depth localization. `camera_segment` does not
+forward sample points or 3D box sizes to OpenCode; `objects[].box` remains the
+2D source-photo box. Muse Spark and SAM 3.1 receive the
 photo through the Meta Model API with `store: false`. This describes the request
 and makes no claim about the provider's internal retention.
 
@@ -143,7 +191,9 @@ annotations are `readOnlyHint: false`, `destructiveHint: false` and
 `{ question: string }`: trimmed, non-empty and at most 1000 characters. The
 question must be complete and standalone. Capture shows the same shutter and
 three-second popup as look. The card is a flat picture; when depth is available,
-the tool also creates points, labels and lines at located objects in the room.
+the tool also creates spatial marks with chip labels and connecting lines. A
+card toggle switches objects with valid 3D boxes between cubes and points;
+located objects without boxes always use points.
 
 Both tools share one in-process lock and the rolling limit of 20 capture
 attempts per ten minutes. The lock lasts through the entire call, including
@@ -225,27 +275,76 @@ A failure after Muse preserves answer and any detections already available.
 confirmed or returned applied false; it remains at its initial pose.
 
 The bridge renders a JPEG of at most 512 px, with coloured masks, boxes and
-labels, and at most 1 MiB. It calls `media_deliver` first, then `ui_present`
-with a mediaCard and an imageRef (never a media field), then `spatial_place`
+labels, and at most 1 MiB. It calls `media_deliver` first, then `camera_locate`
+before `ui_present`, so the card can include a toggle only when useful.
+`ui_present` uses a mediaCard and an imageRef (never a media field), then `spatial_place`
 with destination air, allowAirFallback true and minScale 1. Each invoke must
 confirm success. Delivery/creation failures yield failed; placement failures
 yield placed false. No mutation is retried. Closing, grabbing, listening,
 undo and saving reuse the card's existing behavior. Creation and placement are
 two undo operations. Logs never include base64, keys or provider response bodies.
 
-After card creation and the placement attempt, the bridge calls `camera_locate`
-with up to 24 mask samples per detection (or a 3 × 3 grid in the central 50%
-of its box without a mask). Valid regions produce one `scene_build` composition:
-a 3 cm sphere, a label 10 cm above it and a connecting line per object. Their
-colours use the same original detection index as the image. No placement or
-retries are applied to this composition. Missing depth, localization failures
-and label creation failures preserve the card and its segmentation result.
+After image delivery and before card creation, camera_locate receives up to
+24 mask samples per detection (or a 3 x 3 grid in the central 50% of its box
+without a mask), together with its SAM box. Failure or a non-ready result
+still creates the card without spatial marks. Only a valid localized region
+with a valid 3D box enables `check: { label: "Show boxes", completed: false }`
+on the card. Points at the mask median are shown by default; turning on
+Show boxes displays the boxes instead. No boxes means no check.
+
+After card creation and placement, localized regions produce one scene_build
+composition without placement. When any box exists, two empty groups,
+`boxes` and `points`, are created at the local origin. Each detection with a box creates:
+
+- In boxes, a cube at box.center, with box.rotation, scale box.size and
+  colored_translucent alpha 0.25, plus a 3 mm line from the center of its
+  top face (box.center.y + box.size.y / 2) to the label perimeter. The starting
+  endpoint uses `{ position }`.
+- In points, a 3 cm unlit sphere at the region median position, plus a 3 mm
+  line from the sphere to the same label perimeter.
+- Directly under the composition root, one shared `chip: true` label 10 cm above
+  the box top (box.center.y + box.size.y / 2 + 0.1). Switching mode does not
+  move or duplicate it.
+
+A localized region without a valid box creates its sphere, chip label and line
+directly under the composition root, outside both groups, so it stays visible
+in either mode. Its label is 10 cm above the point. Without boxes, no groups
+or binding are created. An unlocalized region creates no nodes. All labels use
+`kind: "label"`, empty title, height 0.05, fontSize 22 and width
+`min(0.4, max(0.16, 0.05 + label.length * 0.013))`. They initially use the
+region rotation; the chip's horizontal SeyraBillboard then faces the head
+(see [panels](PANELS.md)).
+
+After confirmed scene_build, with boxes present and group IDs returned in
+data.nodes, the bridge calls camera_marks_bind with the card ID, data.rootId
+and those group IDs. The sequence is camera_locate, ui_present, spatial_place,
+scene_build, camera_marks_bind. Binding failure preserves the successful card
+and composition result; without a working binding, both groups can remain
+visible and the toggle has no effect. The card can also retain its toggle if
+composition creation fails. No operation is retried.
+
+labels.located counts localized detections, not nodes; objects[].position remains
+the region median even in box mode. Colours keep the original detection index
+used in the image. Missing depth, localization failures and label creation
+failures preserve the card and its segmentation result.
 
 The label composition is one additional undo operation, so the first undo
-removes its points, labels and lines together. Labels have no Close button;
+removes its cubes, points, labels and lines together. Labels have no Close button;
 deletion uses the existing chat operations. They can be saved as normal scene
 content, but have no persistent spatial anchors: after restart they can be
-misaligned. Moving a physical object does not move its label.
+misaligned. Moving the head after capture does not reposition these marks;
+moving a physical object does not move its box or label. Chip rotation follows
+the head, but mark positions remain fixed. Cubes have the native
+primitive collider.
+
+Changing Show boxes is local, without a chat turn or history entry;
+camera_marks_bind adds no undo step. Closing the card leaves marks in their
+last mode. Saving retains group activeSelf states and the card's check, and
+loading reconstructs chip visuals, but omits the ObjectMarkSwitch binding.
+After loading, marks retain their saved mode and the toggle stops controlling
+them until a new photo creates and binds a new composition. This does not
+rebind previously loaded marks. card_checks includes this card with label
+Show boxes, so it can appear in queries about completed or remaining tasks.
 
 ### Errors and timing
 

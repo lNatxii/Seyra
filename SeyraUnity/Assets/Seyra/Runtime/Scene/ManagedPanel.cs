@@ -3,6 +3,7 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 using Seyra.UI.Library;
 using Seyra.UI.Presentations;
+using Seyra.Spatial;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -36,6 +37,10 @@ namespace Seyra.SceneTools
         [SerializeField] PanelListenControl listen;
         [SerializeField] string structure;
         [SerializeField] TMP_FontAsset font;
+        UIPrefabCatalog labelCatalog;
+        RectTransform chipBackground;
+        TextAlignmentOptions labelAlignment;
+        Vector4 labelMargin;
         [SerializeField] Vector3 surfacePosition;
         [SerializeField] Quaternion surfaceRotation;
         internal Action<GameObject> DiscardHandler { get; set; }
@@ -82,17 +87,59 @@ namespace Seyra.SceneTools
                 view.transform.SetParent(transform, false); view.transform.localScale = Vector3.one * .001f;
                 view.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
                 surface = (RectTransform)view.transform;
+                labelCatalog = catalog;
+                if (data.chip) CreateChipBackground();
                 var factory = view.AddComponent<UIFactory>(); factory.Configure(catalog, surface);
                 body = factory.InstantiateText(data.text, options: new UITextOptions { Ink = UIInkRole.OnAction });
-                var outline = body.gameObject.AddComponent<Outline>();
-                outline.effectColor = catalog.DefaultTheme.Ink(UIInkRole.Text);
-                outline.effectDistance = Vector2.one * catalog.DefaultTheme.borderThickness;
+                labelAlignment = body.alignment;
+                labelMargin = body.margin;
                 body.overflowMode = TextOverflowModes.Ellipsis;
             }
             body.richText = false; body.textWrappingMode = TextWrappingModes.Normal;
             // Explicit typography is part of this content contract, independent of theme refreshes.
             body.GetComponent<UIStyle>().enabled = false;
             Apply(data);
+        }
+
+        void CreateChipBackground()
+        {
+            var background = new GameObject("ChipBackground", typeof(RectTransform), typeof(Image));
+            chipBackground = (RectTransform)background.transform;
+            chipBackground.SetParent(surface, false);
+            chipBackground.SetAsFirstSibling();
+            chipBackground.anchorMin = Vector2.zero; chipBackground.anchorMax = Vector2.one;
+            chipBackground.offsetMin = chipBackground.offsetMax = Vector2.zero;
+            var image = background.GetComponent<Image>();
+            var color = labelCatalog.DefaultTheme.Ink(UIInkRole.Text); color.a = .92f;
+            image.color = color; image.raycastTarget = false;
+        }
+
+        void ApplyLabelStyle(PanelContent data)
+        {
+            var outline = body.GetComponent<Outline>();
+            var billboard = GetComponent<SeyraBillboard>();
+            if (data.chip)
+            {
+                if (chipBackground == null) CreateChipBackground();
+                if (outline != null) DestroyImmediate(outline);
+                body.margin = Vector4.one * 8;
+                body.alignment = TextAlignmentOptions.Center;
+                if (billboard == null) billboard = gameObject.AddComponent<SeyraBillboard>();
+                billboard.Snap();
+            }
+            else
+            {
+                if (chipBackground != null)
+                {
+                    if (billboard != null) DestroyImmediate(billboard);
+                    DestroyImmediate(chipBackground.gameObject);
+                }
+                if (outline == null) outline = body.gameObject.AddComponent<Outline>();
+                outline.effectColor = labelCatalog.DefaultTheme.Ink(UIInkRole.Text);
+                outline.effectDistance = Vector2.one * labelCatalog.DefaultTheme.borderThickness;
+                body.margin = labelMargin;
+                body.alignment = labelAlignment;
+            }
         }
 
         public void Apply(PanelContent data)
@@ -117,7 +164,11 @@ namespace Seyra.SceneTools
                 heading.text = data.title;
                 window.Factory.InstanceOf(heading).gameObject.SetActive(data.title.Length != 0);
             }
-            else surface.sizeDelta = data.CanvasSize;
+            else
+            {
+                surface.sizeDelta = data.CanvasSize;
+                ApplyLabelStyle(data);
+            }
             body.text = data.text; body.fontSize = (float)data.fontSize;
             if (listen != null) listen.ContentMayHaveChanged();
             Canvas.ForceUpdateCanvases();

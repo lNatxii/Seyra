@@ -34,7 +34,8 @@ async function setup({ objects = ['ceramic mug', 'open notebook'], invalidMuse =
         case 'ui_present': return toolResult({ entityId: 'segmentation-card' });
         case 'spatial_place': return toolResult({ applied: true });
         case 'camera_locate': return toolResult(locate);
-        case 'scene_build': return toolResult({ rootId: 'object-labels' });
+        case 'scene_build': return toolResult({ rootId: 'object-labels', nodes: Object.fromEntries(args.nodes.map(node => [node.key, `entity-${node.key}`])) });
+        case 'camera_marks_bind': return toolResult({ state: 'bound' });
         default: assert.fail(`Unexpected invocation: ${name}`);
       }
     },
@@ -61,7 +62,7 @@ test('segment creates a card for two names in delivery, creation and placement o
   assert.deepEqual(parsed.data.panel, { entityId: 'segmentation-card', placed: true });
   assert.equal(requests.filter(item => item.model === 'sam-3.1').length, 2);
   assert.deepEqual(calls.map(item => item.name), [
-    'camera_capture_start', 'camera_capture_result', 'media_deliver', 'ui_present', 'spatial_place', 'camera_locate',
+    'camera_capture_start', 'camera_capture_result', 'media_deliver', 'camera_locate', 'ui_present', 'spatial_place',
   ]);
   const delivered = calls.find(item => item.name === 'media_deliver').args.media[0];
   assert.ok(delivered.data.length > 0);
@@ -86,12 +87,12 @@ test('samplePoints stays within a known mask and box with at most 24 samples', (
   }
 });
 
-test('segment locates objects after card placement and builds labels in detection colours', async () => {
+test('segment locates objects before card creation and builds labels in detection colours', async () => {
   const position = { x: 0.1, y: 0.8, z: 1.2 };
   const rotation = { x: 10, y: 180, z: 0 };
   const { service, calls } = await setup({ locate: { state: 'ready', regions: [null, { position, rotation, points: [position] }] } });
   const result = decode(await service.segment({ question: 'What am I looking at?' }));
-  assert.deepEqual(calls.slice(3).map(item => item.name), ['ui_present', 'spatial_place', 'camera_locate', 'scene_build']);
+  assert.deepEqual(calls.slice(3).map(item => item.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build']);
   assert.equal(result.data.objects[0].position, null);
   assert.deepEqual(result.data.objects[1].position, position);
   assert.deepEqual(result.data.labels, { rootId: 'object-labels', located: 1, total: 2 });
@@ -104,6 +105,38 @@ test('segment locates objects after card placement and builds labels in detectio
   assert.deepEqual(build.nodes[0].appearance.color, { r: 45 / 255, g: 212 / 255, b: 191 / 255, a: 1 });
   assert.deepEqual(build.nodes[2].line.color, build.nodes[0].appearance.color);
   assert.deepEqual(build.nodes[1].transform.rotation, rotation);
+  assert.equal(build.nodes[1].panel.chip, true);
+  assert.equal(build.nodes[1].panel.fontSize, 22);
+  assert.equal(build.nodes[1].panel.width, 0.05 + 'open notebook'.length * 0.013);
+  tools.find(item => item.name === 'scene_build').schema.parse(build);
+});
+
+test('segment builds a translucent box and falls back to a point while counting located detections', async () => {
+  const position = { x: 0.1, y: 0.8, z: 1.2 };
+  const rotation = { x: 10, y: 180, z: 0 };
+  const box = { center: { x: 0.1, y: 0.85, z: 1.3 }, rotation: { x: 0, y: 180, z: 0 },
+    size: { x: 0.09, y: 0.11, z: 0.09 } };
+  const { service, calls } = await setup({ locate: { state: 'ready', regions: [
+    { position, rotation, box }, { position, rotation },
+  ] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  const regions = calls.find(item => item.name === 'camera_locate').args.regions;
+  assert.deepEqual(regions.map(region => region.box), result.data.objects.map(item => item.box));
+  assert.ok(regions.every(region => region.points.length > 0));
+  assert.deepEqual(result.data.labels, { rootId: 'object-labels', located: 2, total: 2 });
+  assert.ok(result.data.objects.every(item => JSON.stringify(item.position) === JSON.stringify(position)));
+  const build = calls.find(item => item.name === 'scene_build').args;
+  const node = key => build.nodes.find(item => item.key === key);
+  assert.equal(build.nodes.length, 10);
+  assert.deepEqual(node('box_0').transform, { position: box.center, rotation: box.rotation, scale: box.size });
+  assert.equal(node('box_0').appearance.color.a, 0.25);
+  assert.equal(node('dot_1').primitiveType, 'sphere');
+  assert.equal(node('label_0').panel.chip, true);
+  assert.equal(node('label_0').panel.fontSize, 22);
+  assert.equal(node('label_0').panel.width, 0.05 + 'ceramic mug'.length * 0.013);
+  assert.deepEqual(node('label_0').transform, { position: { ...box.center, y: box.center.y + box.size.y / 2 + 0.1 }, rotation });
+  assert.deepEqual(node('boxline_0').line.points, [{ position: { ...box.center, y: box.center.y + box.size.y / 2 } }, { key: 'label_0' }]);
+  assert.deepEqual(node('line_0').line.color, node('boxline_0').line.color);
   tools.find(item => item.name === 'scene_build').schema.parse(build);
 });
 
@@ -115,6 +148,43 @@ test('segment preserves the card without labels when camera_locate has no depth'
   assert.equal(result.data.labels, null);
   assert.ok(result.data.objects.every(item => item.position === null));
   assert.equal(calls.some(item => item.name === 'scene_build'), false);
+});
+
+test('segment binds box and point groups while keeping unboxed marks at the root', async () => {
+  const position = { x: 0.1, y: 0.8, z: 1.2 };
+  const rotation = { x: 0, y: 180, z: 0 };
+  const box = { center: position, rotation, size: { x: 0.1, y: 0.2, z: 0.1 } };
+  const { service, calls } = await setup({ locate: { state: 'ready', regions: [{ position, rotation, box }, { position, rotation }] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  assert.equal(result.data.segmentation, 'ok');
+  assert.deepEqual(calls.slice(3).map(call => call.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_bind']);
+  assert.deepEqual(calls.find(call => call.name === 'ui_present').args.presentation.check, { label: 'Show boxes', completed: false });
+  const build = calls.find(call => call.name === 'scene_build').args;
+  const node = key => build.nodes.find(item => item.key === key);
+  for (const key of ['boxes', 'points']) {
+    assert.equal(node(key).type, 'empty');
+    assert.equal(Object.hasOwn(node(key), 'parentKey'), false);
+    assert.deepEqual(node(key).transform.position, { x: 0, y: 0, z: 0 });
+  }
+  for (const key of ['box_0', 'boxline_0']) assert.equal(node(key).parentKey, 'boxes');
+  for (const key of ['dot_0', 'line_0']) assert.equal(node(key).parentKey, 'points');
+  for (const key of ['label_0', 'dot_1', 'label_1', 'line_1']) assert.equal(Object.hasOwn(node(key), 'parentKey'), false);
+  assert.equal(node('label_1').panel.chip, true);
+  assert.equal(Object.hasOwn(build, 'placement'), false);
+  tools.find(item => item.name === 'scene_build').schema.parse(build);
+  assert.deepEqual(calls.find(call => call.name === 'camera_marks_bind').args, {
+    cardId: 'segmentation-card', rootId: 'object-labels', boxesId: 'entity-boxes', pointsId: 'entity-points',
+  });
+});
+
+test('segment omits the toggle and mark operations with no_depth', async () => {
+  const { service, calls } = await setup({ locate: { state: 'no_depth', regions: [] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  assert.equal(result.data.segmentation, 'ok');
+  assert.deepEqual(result.data.panel, { entityId: 'segmentation-card', placed: true });
+  assert.equal(Object.hasOwn(calls.find(call => call.name === 'ui_present').args.presentation, 'check'), false);
+  assert.equal(calls.some(call => call.name === 'scene_build'), false);
+  assert.equal(calls.some(call => call.name === 'camera_marks_bind'), false);
 });
 
 test('segment returns empty without SAM or a card when Muse finds no objects', async () => {

@@ -30,11 +30,14 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 15b; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. Las siguientes features son 36 y 35; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| Siguiente | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Diseño listo. Sustituye el punto por una caja que envuelve el objeto; el fondo es una estimación. Riesgo: solo se valida en el visor. |
+| 1a | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Completed · Revisada; correcta en Quest 3 según el usuario. Por defecto, puntos en la mediana de la máscara; las cajas son la opción secundaria. |
+| Siguiente | 36. Rediseñar lo que el usuario ve con Muse Image | 84 | Diseño listo. Muy vistosa para la demo: combina cámara, Muse Spark y Muse Image sobre el espacio real, casi sin tocar Unity. Empieza tras cerrar 15d, que comparte `camera.ts`. |
+| Después | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
+| 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
@@ -295,6 +298,16 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 **Dependencias:** 22, 22f y 25.
 
+
+### 35. Limpiar la vista al cambiar de tema
+
+**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/35-clear-view-on-topic-change.md).
+
+**Entrega:** al pasar a un tema sin relación, Seyra retira lo que creó para el tema anterior, también en paredes y mesas, y lo dice en una frase. Es un cambio del system prompt, sin herramientas nuevas. El borrado es recuperable.
+
+**Aceptación:** una pregunta lateral respondida en el chat no borra nada; profundizar o comparar sigue igual; lo que el usuario pidió conservar se conserva; un deshacer lo devuelve todo.
+
+**Dependencias:** 22, 25, 27 y 32. Para las marcas de foto, 15a y 15d.
 ### 24. Movimiento paramétrico de contenido generado
 
 **Estado:** Completed · Revisada (1 de noviembre de 2026), en `main`. Persistencia v7. MotionChecks 95, SpatialPlacementChecks 50, bridge 33 y C# aprobados. Pendientes Muse y Quest 3. [Implementación y revisión](Progress/Completed/24-parametric-motion.md).
@@ -450,7 +463,9 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 15a:** Completed · Revisada (2 de noviembre de 2026). Rejilla medida en Quest 3: unos 1190 de 1200 aciertos en 14–18 ms. Recorrido correcto según el usuario; error en centímetros sin medir. [Diseño](Progress/Completed/15a-segmented-objects-3d-position.md).
 
-**Estado 15b:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/15b-translucent-object-boxes.md).
+**Estado 15b:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario, poco precisa y sin error medido. [Diseño](Progress/Completed/15b-translucent-object-boxes.md).
+
+**Estado 15d:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario; deshacer sin confirmar. [Diseño](Progress/Completed/15d-object-mark-labels-and-toggle.md).
 
 **Estado 15c:** sin diseñar.
 
@@ -459,6 +474,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Aceptación 15a:** a menos de 2 m, cada objeto localizado tiene su punto sobre él o a pocos centímetros; mover la cabeza después de la foto no cambia las posiciones; un objeto sin profundidad válida no tiene punto y Seyra no afirma que lo tenga; sin permiso o sin soporte el resultado es igual que en 14a; un deshacer retira todas las etiquetas. La tolerancia se fija con la primera medida.
 
 **Entrega 15b:** una caja translúcida del color del objeto, con su etiqueta encima, en lugar del punto y la línea. Ancho y alto salen de las esquinas de la caja de SAM, cortadas a la distancia medida por 15a. La cara oculta no se ve, así que el fondo es una estimación. La caja es vertical y mira a la cámara.
+
+**Entrega 15d:** etiquetas con fondo oscuro, orientadas hacia el usuario y con una línea hasta la marca. Un conmutador en la tarjeta alterna entre cajas y puntos, sin turno de chat.
 
 **Entrega 15c:** proponer una posición para una anotación usando la región seleccionada (14b), y pedir colocación manual cuando falte información espacial.
 
@@ -475,6 +492,16 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Dependencias:** 13 y 15. Persistencia local inicialmente; sin compartir anclajes entre usuarios o dispositivos.
 
 **Cierre P1:** capturar el entorno, preguntar sobre un objeto, seleccionar una región segmentada, colocar una explicación espacial y continuar la conversación seleccionando esa anotación. Recuperar el contenido anclado tras reiniciar cuando se localice el entorno.
+
+### 36. Rediseñar lo que el usuario ve con Muse Image
+
+**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/36-camera-image-edit.md).
+
+**Entrega:** herramienta `camera_edit`: toma una foto de lo que mira el usuario, la edita con Muse Image (`/v1/images/edits`) y muestra el resultado en una tarjeta que aparece al momento y recibe la imagen después. Se puede afinar el último resultado sin otra foto. Casos: «paint my living room blue», «redesign that cabinet for a home office», «create a piece of furniture for that gap».
+
+**Aceptación:** la tarjeta conserva la escena en lo esencial y cambia lo pedido; «make it darker» afina sin obturador; un fallo deja «Image unavailable» sin romper el chat; Seyra no describe un resultado que no ha visto ni promete que algo cabe; `camera_look` y `camera_segment` siguen igual.
+
+**Dependencias:** 11–12, 19 y 22. Tras cerrar 15d. Sin superposición sobre el objeto real ni 3D.
 
 ## P2 — Experiencia multimodal y continuidad
 
