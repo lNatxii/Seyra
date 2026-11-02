@@ -181,12 +181,13 @@ namespace Seyra.UI
             if (string.IsNullOrEmpty(trimmed)) return false;
             spokenReplies?.Stop();
             RefreshSendButtonState();
-            _ = session.SendPromptAsync(trimmed);
+            _ = session.SendPromptAsync(trimmed, ObjectMarkSelection.CurrentContext);
             return true;
         }
 
         void Awake()
         {
+            ObjectMarkSelection.CurrentChanged += RefreshSelectionRow;
             if (spokenReplies != null) spokenReplies.transform.SetParent(transform.parent, false);
             if (spokenReplies != null) spokenReplies.ContentPlaybackBlocked = () => IsDictating;
             if (voiceToggleButton != null) voiceToggleButton.onClick.AddListener(OnMuteVoiceClicked);
@@ -211,6 +212,7 @@ namespace Seyra.UI
 
         void OnEnable()
         {
+            RefreshSelectionRow();
             if (session == null)
             {
                 session = new OpenCodeConversationSession();
@@ -226,6 +228,7 @@ namespace Seyra.UI
 
         void OnDestroy()
         {
+            ObjectMarkSelection.CurrentChanged -= RefreshSelectionRow;
             if (spokenReplies != null) spokenReplies.Changed -= RefreshSpokenReplyControls;
             UnbindSessionEvents();
             session?.Dispose();
@@ -324,8 +327,22 @@ namespace Seyra.UI
 
         void MoveActivityToEnd()
         {
+            if (renderedRows.TryGetValue("selection", out var selection) && selection != null)
+                selection.transform.SetAsLastSibling();
             if (renderedRows.TryGetValue("activity", out var row) && row != null)
                 row.transform.SetAsLastSibling();
+        }
+
+        void RefreshSelectionRow()
+        {
+            var label = ObjectMarkSelection.CurrentLabel;
+            if (label == null) RemoveRow("selection");
+            else RenderOrUpdateRow(new ChatMessageItem {
+                Key = "selection", Role = "Selection",
+                Text = label + " is selected. Seyra will take it into account if your message is related. Select it again to clear."
+            });
+            MoveActivityToEnd();
+            ScrollToBottom();
         }
 
         void OnActivityChanged(string text)
@@ -426,6 +443,7 @@ namespace Seyra.UI
                 }
             }
             OnActivityChanged(session?.CurrentActivity);
+            RefreshSelectionRow();
             ScrollToBottom();
         }
 
@@ -539,7 +557,7 @@ namespace Seyra.UI
 
             if (roleText != null) roleText.text = item.Role;
             if (bodyText != null) bodyText.text = item.Text;
-            if (item.Key == "activity" && bodyText != null)
+            if ((item.Key == "activity" || item.Key == "selection") && bodyText != null)
             {
                 var style = bodyText.GetComponent<UIStyle>();
                 if (style == null) style = bodyText.gameObject.AddComponent<UIStyle>();

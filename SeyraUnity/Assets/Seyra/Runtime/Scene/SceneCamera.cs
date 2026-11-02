@@ -14,6 +14,7 @@ namespace Seyra.SceneTools
         {
             if (tool == "camera_locate") return LocateCameraRegions(args);
             if (tool == "camera_marks_bind") return BindCameraMarks(args);
+            if (tool == "camera_marks_selectable") return BindSelectableCameraMarks(args);
             Keys(args, Array.Empty<string>());
             if (cameraCapture == null) cameraCapture = UnityEngine.Object.FindAnyObjectByType<CameraCaptureService>();
             if (cameraCapture == null) return new JObject { ["state"] = "unavailable" };
@@ -65,6 +66,71 @@ namespace Seyra.SceneTools
             if (markSwitch == null) markSwitch = root.AddComponent<ObjectMarkSwitch>();
             markSwitch.Bind(card, boxes, points);
             return new JObject { ["state"] = "bound" };
+        }
+
+        JObject BindSelectableCameraMarks(JObject args)
+        {
+            Keys(args, new[] { "rootId", "captureId", "width", "height", "objects" });
+            var objects = args["objects"] as JArray ?? throw new ArgumentException("objects must be an array.");
+            if (objects.Count == 0) return new JObject { ["state"] = "unavailable" };
+            if (objects.Count > 8) throw new ArgumentException("At most 8 objects are allowed.");
+            var captureId = Text(args, "captureId");
+            LineContent.Number(args["width"], 1, int.MaxValue);
+            LineContent.Number(args["height"], 1, int.MaxValue);
+            GameObject root;
+            var labels = new List<GameObject>();
+            var boxes = new List<GameObject>();
+            var contexts = new List<string>();
+            var names = new List<string>();
+            try
+            {
+                root = Find(args["rootId"]);
+                foreach (var token in objects)
+                {
+                    var item = token as JObject ?? throw new ArgumentException("Each object must be an object.");
+                    Keys(item, new[] { "label", "labelId", "position", "box" }, new[] { "boxId" });
+                    var labelObject = Find(item["labelId"]);
+                    var boxObject = item["boxId"] == null ? null : Find(item["boxId"]);
+                    var panel = labelObject.GetComponent<ManagedPanel>();
+                    var meshFilter = boxObject == null ? null : boxObject.GetComponent<MeshFilter>();
+                    if (panel == null || panel.Surface == null ||
+                        boxObject != null && (meshFilter == null || meshFilter.sharedMesh == null))
+                        return new JObject { ["state"] = "unavailable" };
+                    var name = Text(item, "label");
+                    ReadVector(item["position"]);
+                    var box = item["box"] as JObject ?? throw new ArgumentException("box must be an object.");
+                    Keys(box, new[] { "x1", "y1", "x2", "y2" });
+                    foreach (var coordinate in box.Properties()) LineContent.Number(coordinate.Value, -float.MaxValue, float.MaxValue);
+                    names.Add(name); labels.Add(labelObject); boxes.Add(boxObject);
+                    contexts.Add(new JObject {
+                        ["label"] = name, ["rootId"] = args["rootId"].DeepClone(), ["captureId"] = captureId,
+                        ["width"] = args["width"].DeepClone(), ["height"] = args["height"].DeepClone(),
+                        ["box"] = box.DeepClone(), ["position"] = item["position"].DeepClone()
+                    }.ToString(Newtonsoft.Json.Formatting.None));
+                }
+            }
+            catch (ArgumentException) { return new JObject { ["state"] = "unavailable" }; }
+            var selection = root.GetComponent<ObjectMarkSelection>();
+            if (selection == null) selection = root.AddComponent<ObjectMarkSelection>();
+            // Detach old handlers before reconfiguring targets on a repeated bind.
+            selection.Bind(Array.Empty<ObjectMarkSelection.Entry>());
+            var entries = new List<ObjectMarkSelection.Entry>();
+            for (int i = 0; i < labels.Count; i++)
+            {
+                var labelTarget = labels[i].GetComponent<ObjectMarkTarget>();
+                if (labelTarget == null) labelTarget = labels[i].AddComponent<ObjectMarkTarget>();
+                labelTarget.Configure(true);
+                ObjectMarkTarget boxTarget = null;
+                if (boxes[i] != null)
+                {
+                    boxTarget = boxes[i].GetComponent<ObjectMarkTarget>();
+                    if (boxTarget == null) boxTarget = boxes[i].AddComponent<ObjectMarkTarget>();
+                    boxTarget.Configure(false);
+                }
+                entries.Add(new ObjectMarkSelection.Entry { Label = names[i], Context = contexts[i], LabelTarget = labelTarget, BoxTarget = boxTarget });
+            }
+            selection.Bind(entries);
+            return new JObject { ["state"] = "bound", ["objects"] = entries.Count };
         }
 
         JObject LocateCameraRegions(JObject args)

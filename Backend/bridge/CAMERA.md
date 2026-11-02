@@ -9,7 +9,7 @@ standalone question and one photo, without the conversation.
 ## Runtime operations
 
 These operations are internal to the Unity bridge and are not MCP tools. All
-capture operations take `{}`; `camera_locate` and `camera_marks_bind` take the
+capture operations take `{}`; `camera_locate`, `camera_marks_bind` and `camera_marks_selectable` take the
 arguments below. They
 are classified as queries, bypassing mutation history and the
 `completed` response cache so JPEG bytes are not retained there.
@@ -19,6 +19,7 @@ are classified as queries, bypassing mutation history and the
 | `camera_capture_start` | `{state:"started"}`, `{state:"busy"}` or `{state:"unavailable"}` |
 | `camera_capture_result` | `{state:"pending"}`, `{state:"unavailable"}`, `{state:"failed",message}` or `{state:"ready",captureId,width,height,jpegBase64}` |
 | `camera_capture_cancel` | `{state:"idle"}` or `{state:"unavailable"}` if no service exists |
+| `camera_marks_selectable` | `{state:"bound",objects:n}` or `{state:"unavailable"}` |
 | `camera_marks_bind` | `{state:"bound"}` or `{state:"unavailable"}` |
 | `camera_locate` | `{state:"ready",regions:[...]}`, `{state:"unavailable",regions:[]}` or `{state:"no_depth",regions:[]}` |
 
@@ -318,7 +319,7 @@ region rotation; the chip's horizontal SeyraBillboard then faces the head
 After confirmed scene_build, with boxes present and group IDs returned in
 data.nodes, the bridge calls camera_marks_bind with the card ID, data.rootId
 and those group IDs. The sequence is camera_locate, ui_present, spatial_place,
-scene_build, camera_marks_bind. Binding failure preserves the successful card
+scene_build, camera_marks_bind (when boxes exist), camera_marks_selectable. Binding failure preserves the successful card
 and composition result; without a working binding, both groups can remain
 visible and the toggle has no effect. The card can also retain its toggle if
 composition creation fails. No operation is retried.
@@ -395,3 +396,47 @@ The backend posts JSON to `https://api.meta.ai/v1/images/edits`: model muse-imag
 The capture-resolution photo goes to Meta; provider retention is unknown. The original photo and latest successful edit (inside 1280 x 1280, JPEG quality 85) exist only in bridge memory, never in logs or OpenCode; the conversational model receives text only. Starting a new queued edit clears the previous result; failure leaves no refinement result. Only one edit generates at a time, released before delivery.
 
 The card result (inside 512 x 512, JPEG quality 82, at most 1 MiB) is saved in `Media/<hex>.jpg`. It shows the user's home and is not deleted when its card is deleted. Undo/Close does not cancel generation. Delivery after card deletion is allowed; saving/loading preserves imageRef and never regenerates the image. No slot format changes.
+
+### camera_marks_selectable
+
+This internal query is neither an MCP tool nor a scene batch operation. It adds
+no history entry and does not change the camera_segment result. The bridge calls
+it once after scene_build and camera_marks_bind (when boxes exist), including
+only detections with a confirmed label ID and localized position. Without depth
+there are no marks and no selectable binding. Failures preserve the card and marks;
+no operation is retried.
+
+Input (at most eight objects; boxId is optional):
+
+```json
+{
+  "rootId": "go_root", "captureId": "cap_photo", "width": 800, "height": 600,
+  "objects": [
+    { "label": "mug", "labelId": "go_label", "boxId": "go_box",
+      "position": { "x": 0, "y": 1, "z": 1 },
+      "box": { "x1": 0, "y1": 0, "x2": 10, "y2": 10 } }
+  ]
+}
+```
+
+Success returns {"state":"bound","objects":n}. Unknown IDs, an empty objects
+array, a label without a panel surface, or a box without a mesh return
+{"state":"unavailable"}. Other invalid shapes use the normal error envelope.
+The root owns ObjectMarkSelection; label and box marks own ObjectMarkTarget.
+Only the box is pickable in box mode; in point mode the label is pickable.
+Objects without boxes always use their label. Tapping again clears selection;
+tapping another object replaces it, including selections from another photo.
+Hover highlights the active mark. Selected boxes darken and selected labels
+have a white outline. Mode changes preserve the selected object.
+
+The main chat displays a local Selection row and sends each subsequent message
+as `[selected-object] {json}\ntext`. The one-line JSON contains label, rootId,
+captureId, width, height, box and position; the last two are copied from the
+binding input. The chat strips this prefix when rendering user messages, including
+history. Selection remains after sending. The model uses it only for related
+messages, and vision/image model questions must name the object explicitly.
+
+Disabling or deleting the selected composition (including undo/trash) clears
+selection. Saving ignores targets, selection and their interaction rigs; loading
+does not restore selectable bindings. A new photo does not clear an older
+selection while its composition remains active.

@@ -35,6 +35,7 @@ async function setup({ objects = ['ceramic mug', 'open notebook'], invalidMuse =
         case 'spatial_place': return toolResult({ applied: true });
         case 'camera_locate': return toolResult(locate);
         case 'scene_build': return toolResult({ rootId: 'object-labels', nodes: Object.fromEntries(args.nodes.map(node => [node.key, `entity-${node.key}`])) });
+        case 'camera_marks_selectable': return toolResult({ state: 'bound', objects: args.objects.length });
         case 'camera_marks_bind': return toolResult({ state: 'bound' });
         default: assert.fail(`Unexpected invocation: ${name}`);
       }
@@ -92,7 +93,7 @@ test('segment locates objects before card creation and builds labels in detectio
   const rotation = { x: 10, y: 180, z: 0 };
   const { service, calls } = await setup({ locate: { state: 'ready', regions: [null, { position, rotation, points: [position] }] } });
   const result = decode(await service.segment({ question: 'What am I looking at?' }));
-  assert.deepEqual(calls.slice(3).map(item => item.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build']);
+  assert.deepEqual(calls.slice(3).map(item => item.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_selectable']);
   assert.equal(result.data.objects[0].position, null);
   assert.deepEqual(result.data.objects[1].position, position);
   assert.deepEqual(result.data.labels, { rootId: 'object-labels', located: 1, total: 2 });
@@ -157,7 +158,7 @@ test('segment binds box and point groups while keeping unboxed marks at the root
   const { service, calls } = await setup({ locate: { state: 'ready', regions: [{ position, rotation, box }, { position, rotation }] } });
   const result = decode(await service.segment({ question: 'What am I looking at?' }));
   assert.equal(result.data.segmentation, 'ok');
-  assert.deepEqual(calls.slice(3).map(call => call.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_bind']);
+  assert.deepEqual(calls.slice(3).map(call => call.name), ['camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_bind', 'camera_marks_selectable']);
   assert.deepEqual(calls.find(call => call.name === 'ui_present').args.presentation.check, { label: 'Show boxes', completed: false });
   const build = calls.find(call => call.name === 'scene_build').args;
   const node = key => build.nodes.find(item => item.key === key);
@@ -185,6 +186,7 @@ test('segment omits the toggle and mark operations with no_depth', async () => {
   assert.equal(Object.hasOwn(calls.find(call => call.name === 'ui_present').args.presentation, 'check'), false);
   assert.equal(calls.some(call => call.name === 'scene_build'), false);
   assert.equal(calls.some(call => call.name === 'camera_marks_bind'), false);
+  assert.equal(calls.some(call => call.name === 'camera_marks_selectable'), false);
 });
 
 test('segment returns empty without SAM or a card when Muse finds no objects', async () => {
@@ -232,4 +234,26 @@ test('renderSegmentation produces a bounded JPEG with a box and no mask when ras
   assert.ok(pixel(256, 192).every(value => value > 245), 'The box interior remains white without a mask.');
   const edge = pixel(64, 192);
   assert.ok(edge[0] > edge[1] + 40 && edge[0] > edge[2] + 40, 'The box has a red outline.');
+});
+
+test('segment binds exact selectable contexts for boxed and unboxed detections', async () => {
+  const position = { x: 0.1, y: 0.8, z: 1.2 };
+  const rotation = { x: 0, y: 180, z: 0 };
+  const box = { center: position, rotation, size: { x: 0.1, y: 0.2, z: 0.1 } };
+  const { service, calls } = await setup({ locate: { state: 'ready', regions: [
+    { position, rotation, box }, { position, rotation },
+  ] } });
+  const result = decode(await service.segment({ question: 'What am I looking at?' }));
+  assert.deepEqual(calls.slice(3).map(call => call.name), [
+    'camera_locate', 'ui_present', 'spatial_place', 'scene_build', 'camera_marks_bind', 'camera_marks_selectable',
+  ]);
+  const args = calls.find(call => call.name === 'camera_marks_selectable').args;
+  assert.deepEqual(args, {
+    rootId: 'object-labels', captureId: 'cap_a1b2c3d4e5f6', width: 800, height: 600,
+    objects: [
+      { label: 'ceramic mug', labelId: 'entity-label_0', boxId: 'entity-box_0', position, box: result.data.objects[0].box },
+      { label: 'open notebook', labelId: 'entity-label_1', position, box: result.data.objects[1].box },
+    ],
+  });
+  assert.equal(Object.hasOwn(args.objects[1], 'boxId'), false);
 });

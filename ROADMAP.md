@@ -56,7 +56,8 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 9 | 11–12. Captura y preguntas visuales | 64 | Completed · Revisada; por voz con `seyra_camera_look`. Captura confirmada en Quest 3; falta probar el recorrido completo. |
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Completed · Revisada; prueba en Quest 3 pendiente. Toque, ficha que sigue al objeto y agarre con vuelta. |
-| 12 | 14b, 20 | 22–25 | Sin diseñar; fuera del alcance del hackathon. |
+| 12 | 14b | 25 | Completed · Revisada; prueba con Muse y en Quest 3 pendiente. |
+| 13 | 20 | 22 | Sin diseñar; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -451,7 +452,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 14a:** Completed · Revisada (2 de noviembre de 2026). Bridge 49/49, muestra con API real y elección de herramienta 7/7 comprobados por Claude; primera prueba del usuario en Quest 3 correcta; el resto de la lista de la sección 9 sigue pendiente. [Implementación, validación y limitaciones](Progress/Completed/14a-sam-segmentation-panel.md).
 
-**Estado 14b:** sin diseñar.
+**Estado 14b:** Completed · Revisada (2 de noviembre de 2026); Muse y Quest 3 pendientes. [Implementación, validación y limitaciones](Progress/Completed/14b-select-object-marks.md).
 
 **Entrega 14a (temporal):** «What am I looking at?» toma la foto y Muse Spark responde y nombra hasta seis objetos, porque SAM 3.1 necesita una frase por petición y no etiqueta por sí mismo. SAM devuelve cajas y máscaras. El bridge pinta la imagen con colores, cajas y etiquetas, y la deja en el espacio en una `mediaCard`. No se relaciona con el espacio 3D.
 

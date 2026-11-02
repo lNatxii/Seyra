@@ -269,6 +269,15 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
               const ids = built.data.nodes as Record<string, unknown> | undefined;
               if (hasBox && typeof ids?.boxes === 'string' && typeof ids?.points === 'string')
                 await invoke('camera_marks_bind', { cardId: entityId, rootId: built.data.rootId, boxesId: ids.boxes, pointsId: ids.points });
+              const objects = detections.flatMap((detection, index) => {
+                const labelId = ids?.[`label_${index}`];
+                if (typeof labelId !== 'string' || !positions[index]) return [];
+                const boxId = ids?.[`box_${index}`];
+                return [{ label: detection.label, labelId, ...(typeof boxId === 'string' ? { boxId } : {}),
+                  position: positions[index], box: detection.box }];
+              });
+              if (objects.length > 0) await invoke('camera_marks_selectable', {
+                rootId: built.data.rootId, captureId: data.captureId, width: data.width, height: data.height, objects });
             }
           }
         }

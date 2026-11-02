@@ -278,14 +278,14 @@ namespace Seyra.Chat
             catch (OperationCanceledException) { }
         }
 
-        public async Task SendPromptAsync(string text)
+        public async Task SendPromptAsync(string text, string context = null)
         {
             text = text?.Trim() ?? "";
             if (!connected || connecting || HasTurn || submissionInFlight || text.Length == 0) return;
             if (lifetime == null) return;
             var token = lifetime.Token;
             submissionInFlight = true;
-            pendingText = text;
+            pendingText = ChatHiddenContext.Compose(context, text);
             pendingEchoKey = "pending-" + Guid.NewGuid().ToString("N");
             cancelRequested = interruptAttempted = interruptAcknowledged = terminalConfirmed = unknownToolOutcome = false;
             activeUserCreated = 0;
@@ -305,7 +305,7 @@ namespace Seyra.Chat
                     return;
                 }
                 // Never retry admission: the server may execute tools even if its response is lost.
-                var admission = await http.RequestAsync("POST", SessionPath + "/prompt", new JObject { ["text"] = text }, token);
+                var admission = await http.RequestAsync("POST", SessionPath + "/prompt", new JObject { ["text"] = pendingText }, token);
                 activeUserId = (string)admission["data"]?["id"];
                 activeUserCreated = (long?)admission["data"]?["time"]?["created"] ?? 0;
                 if (string.IsNullOrEmpty(activeUserId))
@@ -636,7 +636,7 @@ namespace Seyra.Chat
                     if (string.IsNullOrEmpty(id)) continue;
                     if ((string)message["type"] == "user")
                     {
-                        UpsertMessage("user-" + id, "You", (string)message["text"] ?? "");
+                        UpsertMessage("user-" + id, "You", ChatHiddenContext.Strip((string)message["text"] ?? ""));
                     }
                     if ((string)message["type"] != "assistant") continue;
                     var parts = (message["content"] as JArray ?? new JArray()).OfType<JObject>().ToArray();
