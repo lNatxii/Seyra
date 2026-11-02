@@ -1,5 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
+import { askObjects, segmentAll, type Detection } from './segmentation.js';
+import { renderSegmentation } from './segmentation-image.js';
 
 export type ToolResult = { isError?: boolean; content: { type: 'text'; text: string }[] };
 export interface CameraServiceDependencies {
@@ -16,6 +19,13 @@ export const cameraTool = {
   schema: z.object({ question: z.string().trim().min(1).max(1000) }).strict(),
 };
 
+export const cameraSegmentTool = {
+  name: 'camera_segment', readOnly: false,
+  description: "Takes one photo of what the user is looking at, answers a question about it, finds the objects in it and places a panel showing the photo with each object coloured, boxed and labelled. The user hears a shutter and sees the photo. Call it only when the user's latest message asks what they are looking at or what is around them. question must be complete and self-contained: the vision model sees only the photo and this text, not the conversation. Returns text. Shows the real world only, never virtual content. Do not retry automatically after a failure.",
+  schema: cameraTool.schema,
+};
+type Capture = { jpegBase64: string; captureId: unknown; width: unknown; height: unknown };
+
 const instructions = 'You answer a question about a photo of the real surroundings of a mixed-reality user. Report what is visible first. Mark anything you infer as a guess. Do not state exact measurements, safety judgements or identities as facts. Never identify a real person from their appearance. If the photo is too dark, blurred or does not show what is asked, say what is missing. Answer in English in at most 120 words.';
 const respond = (outcome: object, isError = false): ToolResult => ({ isError, content: [{ type: 'text', text: JSON.stringify(outcome) }] });
 const failure = (code: string, message: string) => respond({ success: false, error: { code, message } }, true);
@@ -31,6 +41,7 @@ function outcome(result: ToolResult): Outcome | undefined {
 
 export function createCameraService(dependencies: CameraServiceDependencies): {
   look(args: { question: string }): Promise<ToolResult>;
+  segment(args: { question: string }): Promise<ToolResult>;
 } {
   const { invoke } = dependencies;
   const fetchVision = dependencies.fetch ?? globalThis.fetch;
@@ -40,13 +51,23 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
   let busy = false;
   let recent: number[] = [];
 
-  async function look(args: { question: string }): Promise<ToolResult> {
+  async function run(args: { question: string }, segmented: boolean): Promise<ToolResult> {
+    const started = now();
+    const wallStarted = Date.now();
     if (!env.META_API_KEY) return failure('CAMERA_NOT_CONFIGURED', 'Vision is not configured.');
     recent = recent.filter(time => time > now() - 600_000);
     if (busy) return failure('CAMERA_BUSY', 'A photo is already being taken.');
     if (recent.length >= 20) return failure('CAMERA_LIMIT', 'Too many photos. Ask the user to wait.');
     busy = true;
     recent.push(now());
+    try {
+      const captured = await capture();
+      if ('content' in captured) return captured;
+      return segmented ? await segmentCaptured(captured, args.question, started, wallStarted) : await lookCaptured(captured, args.question);
+    } finally { busy = false; }
+  }
+
+  async function capture(): Promise<Capture | ToolResult> {
     const deadline = now() + 10_000;
     const wallDeadline = Date.now() + 10_000;
     const remaining = () => Math.min(deadline - now(), wallDeadline - Date.now());
@@ -79,42 +100,93 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         if (data.state !== 'ready') continue;
         if (typeof data.jpegBase64 !== 'string' || !data.jpegBase64.length)
           return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
-        try {
-          const response = await fetchVision('https://api.meta.ai/v1/responses', {
-            method: 'POST', signal: AbortSignal.timeout(13_000),
-            headers: { Authorization: `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'muse-spark-1.3', store: false, max_output_tokens: 2000, reasoning: { effort: 'low' },
-              instructions,
-              input: [{ role: 'user', content: [
-                { type: 'input_text', text: args.question },
-                { type: 'input_image', image_url: `data:image/jpeg;base64,${data.jpegBase64}` },
-              ] }],
-            }),
-          });
-          if (!response.ok) {
-            await response.body?.cancel().catch(() => {});
-            return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
-          }
-          const body = await response.json();
-          const answer = body.status === 'completed' && Array.isArray(body.output)
-            ? body.output.filter((item: any) => item?.type === 'message' && Array.isArray(item.content))
-              .flatMap((item: any) => item.content)
-              .filter((item: any) => item?.type === 'output_text' && typeof item.text === 'string')
-              .map((item: any) => item.text).join('\n').trim()
-            : '';
-          if (!answer) return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
-          return respond({ success: true, data: { answer, captureId: data.captureId, width: data.width, height: data.height } });
-        } catch {
-          return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
-        }
+        return { jpegBase64: data.jpegBase64, captureId: data.captureId, width: data.width, height: data.height };
       }
     } catch (error) {
       if (error !== captureTimeout) throw error;
       // Cancellation gets the remaining margin, never a second full Unity timeout.
       try { await boundedInvoke('camera_capture_cancel', 1000); } catch { /* Do not retry cancellation. */ }
       return failure('CAMERA_TIMEOUT', 'The camera did not answer in time. If a permission prompt appeared, ask the user to accept it and ask again.');
-    } finally { busy = false; }
+    }
   }
-  return { look };
+  async function lookCaptured(data: Capture, question: string): Promise<ToolResult> {
+    try {
+      const response = await fetchVision('https://api.meta.ai/v1/responses', {
+        method: 'POST', signal: AbortSignal.timeout(13_000),
+        headers: { Authorization: `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'muse-spark-1.3', store: false, max_output_tokens: 2000, reasoning: { effort: 'low' },
+          instructions,
+          input: [{ role: 'user', content: [
+            { type: 'input_text', text: question },
+            { type: 'input_image', image_url: `data:image/jpeg;base64,${data.jpegBase64}` },
+          ] }],
+        }),
+      });
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
+        return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
+      }
+      const body = await response.json();
+      const answer = body.status === 'completed' && Array.isArray(body.output)
+        ? body.output.filter((item: any) => item?.type === 'message' && Array.isArray(item.content))
+          .flatMap((item: any) => item.content)
+          .filter((item: any) => item?.type === 'output_text' && typeof item.text === 'string')
+          .map((item: any) => item.text).join('\n').trim()
+        : '';
+      if (!answer) return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
+      return respond({ success: true, data: { answer, captureId: data.captureId, width: data.width, height: data.height } });
+    } catch {
+      return failure('VISION_FAILED', 'The photo was taken but could not be analysed.');
+    }
+  }
+  async function segmentCaptured(data: Capture, question: string, started: number, wallStarted: number): Promise<ToolResult> {
+    let answer: string;
+    let objects: string[];
+    try { ({ answer, objects } = await askObjects(data.jpegBase64, question, { fetch: fetchVision, env })); }
+    catch { return failure('VISION_FAILED', 'The photo was taken but could not be analysed.'); }
+    let detections: Detection[] = [];
+    const respondSegment = (segmentation: 'ok' | 'empty' | 'failed', panel: { entityId: string; placed: boolean } | null = null) =>
+      respond({ success: true, data: {
+        answer, captureId: data.captureId, width: data.width, height: data.height, segmentation,
+        objects: detections.map(({ label, confidence, box }) => ({ label, confidence, box })), panel,
+      } });
+    if (objects.length === 0) return respondSegment('empty');
+    const elapsed = Math.max(now() - started, Date.now() - wallStarted);
+    const timeoutMs = Math.min(8000, 21000 - elapsed);
+    if (timeoutMs <= 0) return respondSegment('failed');
+    try {
+      const result = await segmentAll(data.jpegBase64, objects, { fetch: fetchVision, env }, timeoutMs);
+      detections = result.detections;
+      if (result.segmentation !== 'ok') return respondSegment(result.segmentation);
+      const output = await renderSegmentation(Buffer.from(data.jpegBase64, 'base64'), detections);
+      const imageRef = `gen:${createHash('sha256').update(output.jpeg).digest('hex').slice(0, 32)}`;
+      const delivered = outcome(await invoke('media_deliver', { media: [{
+        id: imageRef, mime: 'image/jpeg', width: output.width, height: output.height, data: output.jpeg.toString('base64'),
+      }] }));
+      if (!delivered?.success) return respondSegment('failed');
+      const created = outcome(await invoke('ui_present', {
+        name: 'Segmentation', parentId: 'Generated',
+        position: { x: 0, y: 1.4, z: 1 }, rotation: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 },
+        width: 0.7, height: 1,
+        presentation: {
+          id: `segmentation-${data.captureId}`, type: 'mediaCard', title: 'What I can see',
+          image: { imageRef, title: 'Segmented photo',
+            alt: `Photo of the surroundings with labelled objects: ${detections.map(item => item.label).join(', ')}`.slice(0, 200),
+            source: 'Camera photo, segmented by SAM 3.1' },
+          body: answer,
+          facts: detections.map(item => ({ label: item.label, value: `${Math.round(item.confidence * 100)}%` })),
+        },
+      }));
+      if (!created?.success || typeof created.data.entityId !== 'string') return respondSegment('failed');
+      const entityId = created.data.entityId;
+      let placed = false;
+      try {
+        const placement = outcome(await invoke('spatial_place', { entityId, destination: 'air', allowAirFallback: true, minScale: 1 }));
+        placed = placement?.success === true && placement.data.applied === true;
+      } catch { /* Do not retry an unconfirmed placement. */ }
+      return respondSegment('ok', { entityId, placed });
+    } catch { return respondSegment('failed'); }
+  }
+  return { look: args => run(args, false), segment: args => run(args, true) };
 }
