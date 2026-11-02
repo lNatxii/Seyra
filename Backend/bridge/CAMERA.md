@@ -33,7 +33,8 @@ and creates no scene content. Input:
 
 ```json
 { "captureId": "cap_a1b2c3d4e5f6", "regions": [
-  { "points": [{ "x": 100, "y": 200 }, { "x": 110, "y": 210 }, { "x": 120, "y": 220 }] }
+  { "points": [{ "x": 100, "y": 200 }, { "x": 110, "y": 210 }, { "x": 120, "y": 220 }],
+    "box": { "x1": 90, "y1": 190, "x2": 130, "y2": 230 } }
 ] }
 ```
 
@@ -41,7 +42,10 @@ and creates no scene content. Input:
 region are accepted. Empty arrays are allowed. Each point requires finite
 numeric `x` and `y`, in source-photo pixels measured from the top left.
 Pixels outside `[0,width)` / `[0,height)` and cells without depth are ignored.
-Invalid argument shapes or limits use the normal Unity error envelope.
+Each region also accepts an optional `box` with finite numeric `x1`, `y1`,
+`x2` and `y2` in source-photo pixels, using half-open bounds. Omit it when
+no box is requested. Invalid argument shapes or limits use the normal Unity
+error envelope.
 
 Example result data (inside the normal success envelope):
 
@@ -49,6 +53,9 @@ Example result data (inside the normal success envelope):
 { "state": "ready", "regions": [
   { "position": { "x": 0.1, "y": 0.8, "z": 1.2 },
     "rotation": { "x": 10, "y": 180, "z": 0 },
+    "box": { "center": { "x": 0.1, "y": 0.8, "z": 1.3 },
+             "rotation": { "x": 0, "y": 180, "z": 0 },
+             "size": { "x": 0.09, "y": 0.11, "z": 0.09 } },
     "valid": 3, "requested": 3,
     "points": [{ "x": 0.1, "y": 0.8, "z": 1.2 },
                { "x": 0.11, "y": 0.81, "z": 1.21 },
@@ -64,14 +71,28 @@ with `generated.InverseTransformPoint`. Returned `points` are the valid samples
 in the same local coordinates, not the depth grid. `rotation` contains local
 Euler angles in degrees relative to `generated`, derived from
 `Quaternion.LookRotation(worldPosition - CameraPose.position, Vector3.up)`.
-These coordinates can be used directly by `scene_build` without placement.
+Each localized region also returns `box`, or `null` if it was not requested
+or estimation failed. Its `center` is converted with
+`generated.InverseTransformPoint`, `rotation` contains local Euler angles in
+degrees relative to `generated`, and `size` is the world size divided component
+by component by `generated.lossyScale`. These coordinates can be used directly
+by `scene_build` without placement.
+
+Box width and apparent height come from the SAM box corner rays at the median
+distance, using the camera model retained at capture time. Depth is estimated
+as the width clamped to 3–30 cm; it is not a measured hidden surface. Height is
+corrected for camera pitch. The box stays upright and faces the capture camera
+horizontally; its orientation does not measure the object's orientation. Sizes
+are rough estimates and must not be stated as object measurements.
 
 `unavailable` means no camera service exists. `no_depth` means the capture was
 not found or has no depth grid; both return `regions: []`. The optional grid
 is 40 × 30 with a six-metre ray limit. Depth is an estimate from capture time:
 it does not track objects, and thin, shiny or transparent objects can lack
-usable samples. Image Y mapping and visible label orientation still require
-the full headset validation in feature 15a, step 6.
+usable samples. Feature 15a was reviewed and reported working on Quest 3 by
+the user; its position error was not measured. Box fit, transparency over
+passthrough and visibility from inside still await the feature 15b headset
+validation.
 
 ## Vision request and result
 
@@ -126,10 +147,12 @@ OpenCode receives text only, never photo bytes or base64; its session history
 can retain the question, answer and textual tool results. Unity retains at most
 eight recent capture records without JPEG bytes, including their optional depth
 grids. The grid lives only in headset memory and is released with its recent
-record; it is never saved or sent off the headset. Only calculated positions
-(the region median and valid sample positions, plus label rotation and counts)
-leave the headset for depth localization. `camera_segment` does not forward the
-sample points to OpenCode. Muse Spark and SAM 3.1 receive the
+record; it is never saved or sent off the headset. The capture-time camera
+model also stays on the headset. Calculated region medians, valid sample
+positions, label rotations, counts and optional box centers, rotations and
+sizes leave the headset for depth localization. `camera_segment` does not
+forward sample points or 3D box sizes to OpenCode; `objects[].box` remains the
+2D source-photo box. Muse Spark and SAM 3.1 receive the
 photo through the Meta Model API with `store: false`. This describes the request
 and makes no claim about the provider's internal retention.
 
@@ -143,7 +166,8 @@ annotations are `readOnlyHint: false`, `destructiveHint: false` and
 `{ question: string }`: trimmed, non-empty and at most 1000 characters. The
 question must be complete and standalone. Capture shows the same shutter and
 three-second popup as look. The card is a flat picture; when depth is available,
-the tool also creates points, labels and lines at located objects in the room.
+the tool also creates translucent cubes and labels at located objects in the
+room, falling back to points, labels and lines when no valid 3D box is available.
 
 Both tools share one in-process lock and the rolling limit of 20 capture
 attempts per ten minutes. The lock lasts through the entire call, including
@@ -235,17 +259,28 @@ two undo operations. Logs never include base64, keys or provider response bodies
 
 After card creation and the placement attempt, the bridge calls `camera_locate`
 with up to 24 mask samples per detection (or a 3 × 3 grid in the central 50%
-of its box without a mask). Valid regions produce one `scene_build` composition:
-a 3 cm sphere, a label 10 cm above it and a connecting line per object. Their
+of its box without a mask), together with each detection's SAM `box`. Localized
+regions produce one `scene_build` composition. A valid 3D box creates a cube at
+`box.center`, with `box.rotation` and scale `box.size`, using
+`colored_translucent` with alpha 0.25. Its label is 6 cm above the top
+(`box.center.y + box.size.y / 2 + 0.06`) and uses the region's label rotation,
+not the box rotation. No point or line is created for that detection.
+
+A localized region without a valid box keeps the 15a fallback: a 3 cm sphere,
+a label 10 cm above it and a connecting line. An unlocalized region creates
+no nodes. `labels.located` counts localized detections, not nodes, and
+`objects[].position` remains the region median even when a box is drawn. Their
 colours use the same original detection index as the image. No placement or
 retries are applied to this composition. Missing depth, localization failures
 and label creation failures preserve the card and its segmentation result.
 
 The label composition is one additional undo operation, so the first undo
-removes its points, labels and lines together. Labels have no Close button;
+removes its cubes, points, labels and lines together. Labels have no Close button;
 deletion uses the existing chat operations. They can be saved as normal scene
 content, but have no persistent spatial anchors: after restart they can be
-misaligned. Moving a physical object does not move its label.
+misaligned. Moving the head after capture does not reposition these marks;
+moving a physical object does not move its box or label. Cubes have the native
+primitive collider.
 
 ### Errors and timing
 
