@@ -35,6 +35,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
 | Siguiente | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Diseño listo. Corrige lo observado al probar 15b: etiquetas ilegibles sobre fondos claros, sin línea y sin elección de marca. |
+| Después | 35. Limpiar la vista al cambiar de tema | 72 | Diseño listo. Observado por el usuario: quedan muchos elementos sueltos al cambiar de tema. Solo prompt, y depende del juicio del modelo. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -296,6 +297,16 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 
 **Dependencias:** 22, 22f y 25.
 
+
+### 35. Limpiar la vista al cambiar de tema
+
+**Estado:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/35-clear-view-on-topic-change.md).
+
+**Entrega:** al pasar a un tema sin relación, Seyra retira lo que creó para el tema anterior, también en paredes y mesas, y lo dice en una frase. Es un cambio del system prompt, sin herramientas nuevas. El borrado es recuperable.
+
+**Aceptación:** una pregunta lateral respondida en el chat no borra nada; profundizar o comparar sigue igual; lo que el usuario pidió conservar se conserva; un deshacer lo devuelve todo.
+
+**Dependencias:** 22, 25, 27 y 32. Para las marcas de foto, 15a y 15d.
 ### 24. Movimiento paramétrico de contenido generado
 
 **Estado:** Completed · Revisada (1 de noviembre de 2026), en `main`. Persistencia v7. MotionChecks 95, SpatialPlacementChecks 50, bridge 33 y C# aprobados. Pendientes Muse y Quest 3. [Implementación y revisión](Progress/Completed/24-parametric-motion.md).
