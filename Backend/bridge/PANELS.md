@@ -25,7 +25,8 @@ No separate scene store or backend persistence service is introduced.
 }
 ```
 
-All fields are required; unknown fields are rejected. The usual creation parent,
+All fields shown above are required; `chip` and `check` are optional extensions
+with the restrictions below. Unknown fields are rejected. The usual creation parent,
 request-group routing and local pose contract applies. Creation returns confirmed
 `entityId`, `panel`, `panelIntact`, `operationId` and request provenance.
 
@@ -37,6 +38,7 @@ window and a label, create another entity. It does not patch individual widgets.
 | --- | --- |
 | version | Exactly 1; independent of the scene-file format version |
 | kind | `panel` or `label` |
+| chip | Optional literal `true`, only with `kind: 'label'`; omit for normal labels. `false` is rejected; panels reject it with `Only labels can be chips.` |
 | title | Required string, at most 256 characters; labels require `""` |
 | text | Required non-whitespace string, at most 16000 characters; whitespace is preserved |
 | width | 0.16–2 local meters |
@@ -51,7 +53,11 @@ while content stores double values to retain validated numeric boundaries.
 Panels reuse the library's Meta window, fixed two-line title region, and scrollable
 body. `fontSize` controls body/label typography; the title retains its semantic
 Title role. Labels use a transparent World Space Canvas, light semantic ink and a dark
-outline. Label overflow uses ellipsis inside the requested rectangle. Panels and
+outline. With `chip: true`, a full-size `ChipBackground` uses the theme's dark
+`Ink(UIInkRole.Text)` at alpha 0.92, without raycast targeting. Text is centered
+with 8 Canvas-unit margins and no outline. `SeyraBillboard` snaps toward the
+head and follows with smoothing, rotating only horizontally (yaw), without
+tilting up or down. Label overflow uses ellipsis inside the requested rectangle. Panels and
 labels wrap text; TMP rich text is disabled. No HTML, URLs, arbitrary callbacks,
 component paths or executable code are interpreted.
 
@@ -108,7 +114,10 @@ other kinds. Root `panel` is also `null`.
 
 Internal UI trees, scene cameras, rigs, SDK components and transient interaction
 state are not serialized. On load the semantic panel reconstructs its owned view
-using the configured catalog. Entity IDs, request groups, parent ordering, name,
+using the configured catalog. The version-1 panel contract stores `chip: true`
+and omits it when absent. Loading a chip reconstructs its background and
+`SeyraBillboard` from that contract, rather than serializing those components.
+Entity IDs, request groups, parent ordering, name,
 tag/layer, activeSelf and local pose retain their existing semantics.
 
 The new reader accepts v1 and v2. V1 primitives retain their matte-white migration;
