@@ -30,10 +30,11 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. 15a y 15b están terminadas; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 15d; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
+| Siguiente | 15d. Etiquetas oscuras y conmutador entre puntos y cajas | 76 | Diseño listo. Corrige lo observado al probar 15b: etiquetas ilegibles sobre fondos claros, sin línea y sin elección de marca. |
 | 1a | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Completed · Revisada; correcta en Quest 3 según el usuario, poco precisa y sin error medido. |
 | 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
 | 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
@@ -452,6 +453,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Estado 15b:** Completed · Revisada (2 de noviembre de 2026). Correcta en Quest 3 según el usuario, poco precisa y sin error medido. [Diseño](Progress/Completed/15b-translucent-object-boxes.md).
 
+**Estado 15d:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/15d-object-mark-labels-and-toggle.md).
+
 **Estado 15c:** sin diseñar.
 
 **Entrega 15a:** en el momento de la foto se guarda la pose de la cámara y una rejilla de 40 × 30 rayos contra el entorno con `EnvironmentRaycastManager`. La profundidad queda así alineada con la foto, sin un valor por cada píxel, porque el SDK no da un mapa de esa resolución. Tras SAM, hasta 24 puntos de la máscara de cada objeto se convierten en una posición 3D, y se crea un punto de color, una etiqueta y una línea sobre el objeto real. La tarjeta 2D de 14a se conserva.
@@ -459,6 +462,8 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 **Aceptación 15a:** a menos de 2 m, cada objeto localizado tiene su punto sobre él o a pocos centímetros; mover la cabeza después de la foto no cambia las posiciones; un objeto sin profundidad válida no tiene punto y Seyra no afirma que lo tenga; sin permiso o sin soporte el resultado es igual que en 14a; un deshacer retira todas las etiquetas. La tolerancia se fija con la primera medida.
 
 **Entrega 15b:** una caja translúcida del color del objeto, con su etiqueta encima, en lugar del punto y la línea. Ancho y alto salen de las esquinas de la caja de SAM, cortadas a la distancia medida por 15a. La cara oculta no se ve, así que el fondo es una estimación. La caja es vertical y mira a la cámara.
+
+**Entrega 15d:** etiquetas con fondo oscuro, orientadas hacia el usuario y con una línea hasta la marca. Un conmutador en la tarjeta alterna entre cajas y puntos, sin turno de chat.
 
 **Entrega 15c:** proponer una posición para una anotación usando la región seleccionada (14b), y pedir colocación manual cuando falte información espacial.
 
