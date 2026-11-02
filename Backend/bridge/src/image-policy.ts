@@ -80,3 +80,7 @@ export function editedImageId(source: string, instruction: string): string {
 export function editedImagePrompt(instruction: string): string {
   return `Edit this photo of a real place. Apply only this change: ${instruction}. Keep everything else exactly as it is: same viewpoint, framing, room, objects and lighting. The result must look like a realistic photo of the same place. Do not add text, letters, logos, brand marks, people or fictional characters. Do not change any person in the photo.`;
 }
+
+export function editedOverlayPrompt(instruction: string): string {
+  return editedImagePrompt(instruction) + " Keep this object in exactly the same position and at the same size, so that the new version covers the old one. Keep the same perspective.";
+}

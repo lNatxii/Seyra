@@ -1,8 +1,10 @@
+import sharp from 'sharp';
+import { chooseOriginal, chooseEdited, erodedSamplePoints, composeOverlay, showOverlay } from './camera-overlay.js';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { askObjects, samplePoints, segmentAll, type Detection } from './segmentation.js';
-import { ImagePolicyError, validateEditInstruction, editedImageId } from './image-policy.js';
+import { askObjects, segmentObject, samplePoints, segmentAll, type Detection } from './segmentation.js';
+import { ImagePolicyError, validateEditInstruction, editedImageId, editedOverlayPrompt } from './image-policy.js';
 import type { createImageService } from './images.js';
 import { palette, renderSegmentation } from './segmentation-image.js';
 
@@ -29,8 +31,9 @@ export const cameraSegmentTool = {
 };
 export const cameraEditTool = {
   name: 'camera_edit', readOnly: false,
-  description: "Edits what the user is looking at with an image model and shows the result on a card. Without previousEditId it takes one photo: the user hears a shutter and sees the photo. With previousEditId it refines that earlier result without a new photo. Call it only when the user asks to see a real thing changed, redesigned or added. instruction must be complete and self-contained, in English: the image model sees only the image and this text. Name the object and where it is in the photo. The image arrives on the card after this tool returns. Returns text. Do not retry automatically after a failure.",
+  description: "Edits what the user is looking at with an image model and shows the result on a card. Without previousEditId it takes one photo: the user hears a shutter and sees the photo. With previousEditId it refines that earlier result without a new photo. Call it only when the user asks to see a real thing changed, redesigned or added. instruction must be complete and self-contained, in English: the image model sees only the image and this text. Name the object and where it is in the photo. The image arrives on the card after this tool returns. Pass overlayObject, a short English noun phrase, when the change is to one object the user is looking at. The new version then also appears over the real object. Returns text. Do not retry automatically after a failure.",
   schema: z.object({ instruction: z.string().trim().min(3).max(500), title: z.string().trim().min(1).max(60),
+    overlayObject: z.string().trim().regex(/^[A-Za-z][A-Za-z0-9 '-]{1,59}$/).optional(),
     previousEditId: z.string().regex(/^edit_[0-9a-f]{12}$/).optional() }).strict(),
 };
 
@@ -61,6 +64,9 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
   const pollMs = dependencies.pollMs ?? 250;
   let busy = false;
   let editing = false;
+  type OverlayState = { editId: string; captureId: string; phrase: string; width: number; height: number;
+    original: Promise<Detection | undefined>; jpegBase64: string };
+  let lastOverlay: OverlayState | undefined;
   let recent: number[] = [];
 
   async function run(args: { question: string }, segmented: boolean): Promise<ToolResult> {
@@ -316,6 +322,16 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         if ('content' in captured) return captured;
         data = captured; captureId = captured.captureId;
       }
+      const previousOverlay = args.previousEditId && lastOverlay?.editId === args.previousEditId ? lastOverlay : undefined;
+      let overlay: OverlayState | undefined;
+      if (previousOverlay) overlay = { ...previousOverlay };
+      else if (!args.previousEditId && args.overlayObject && typeof captureId === 'string' &&
+        typeof data.width === 'number' && typeof data.height === 'number') {
+        const width = data.width, height = data.height;
+        overlay = { editId: '', captureId, phrase: args.overlayObject, width, height, jpegBase64: data.jpegBase64,
+          original: segmentObject(data.jpegBase64, args.overlayObject, AbortSignal.timeout(8000), { fetch: fetchVision, env })
+            .then(detections => chooseOriginal(detections, width, height)).catch(() => undefined) };
+      }
       const imageRef = editedImageId(String(args.previousEditId ?? captureId), args.instruction);
       const editId = 'edit_' + imageRef.slice(4, 16);
       let created: Outcome | undefined;
@@ -327,6 +343,7 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
           presentation: {
             id: `edit-${editId}`, type: 'mediaCard', title: args.title,
             image: { imageRef, title: args.title, alt: args.instruction.slice(0, 200), source: 'AI edit of your photo' },
+            ...(overlay ? { check: { label: 'Show original', completed: false } } : {}),
             body: 'AI-generated picture of the change. It is not a real view, and sizes may not be accurate.',
           },
         }));
@@ -339,8 +356,29 @@ export function createCameraService(dependencies: CameraServiceDependencies): {
         const placement = outcome(await invoke('spatial_place', { entityId, destination: 'air', allowAirFallback: true, minScale: 1 }));
         placed = placement?.success === true && placement.data.applied === true;
       } catch { /* Keep the confirmed card even if placement fails. */ }
-      const image = images.enqueueEdit({ id: imageRef, editId, instruction: args.instruction, ...data });
-      return respond({ success: true, data: { editId, captureId, panel: { entityId, placed }, image } });
+      if (overlay) overlay.editId = editId;
+      const state = overlay;
+      const image = images.enqueueEdit({ id: imageRef, editId, instruction: args.instruction, ...data,
+        ...(state ? { prompt: editedOverlayPrompt(args.instruction), afterEdit: async (edited: { jpegBase64: string }) => {
+          try {
+            const original = await state.original;
+            if (!original) return;
+            const points = erodedSamplePoints(original, state.width, state.height);
+            if (points.length < 3) return;
+            const tint = env.SEYRA_OVERLAY_DEBUG === 'tint';
+            const jpeg = Buffer.from(tint ? state.jpegBase64 : edited.jpegBase64, 'base64');
+            const metadata = await sharp(jpeg).metadata();
+            const detections = tint ? [] : await segmentObject(edited.jpegBase64, state.phrase,
+              AbortSignal.timeout(8000), { fetch: fetchVision, env }).catch(() => []);
+            const selected = chooseEdited(original, detections, state.width, state.height, metadata.width!, metadata.height!);
+            const output = await composeOverlay(jpeg, state.width, state.height, original, selected, tint);
+            await showOverlay(invoke, { overlayId: 'overlay_' + state.captureId, cardId: entityId,
+              captureId: state.captureId, points, ...output });
+          } catch { /* Overlay failures never affect the delivered card and are never retried. */ }
+        } } : {}),
+      });
+      lastOverlay = image === 'queued' ? state : undefined;
+      return respond({ success: true, data: { editId, captureId, panel: { entityId, placed }, image, overlay: state && image === 'queued' ? 'queued' : 'none' } });
     } finally { busy = false; editing = false; }
   }
   return { edit, look: args => run(args, false), segment: args => run(args, true) };

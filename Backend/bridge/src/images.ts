@@ -12,7 +12,7 @@ export interface ImageServiceDependencies {
   env?: NodeJS.ProcessEnv;
   now?: () => number;
 }
-type EditJob = { id: string; editId: string; instruction: string; jpegBase64: string; width: unknown; height: unknown };
+type EditJob = { prompt?: string; afterEdit?: (image: LatestEdit) => Promise<void>; id: string; editId: string; instruction: string; jpegBase64: string; width: unknown; height: unknown };
 type LatestEdit = { editId: string; jpegBase64: string; width: number; height: number };
 type Job = { id: string; releaseReservation: () => void } & ({ image: GeneratedImage; edit?: never } | { edit: EditJob; image?: never });
 const respond = (outcome: Outcome): ImageToolResult => ({ isError: !outcome.success, content: [{ type: 'text', text: JSON.stringify(outcome) }] });
@@ -107,7 +107,7 @@ export function createImageService(dependencies: ImageServiceDependencies) {
         method: 'POST', signal,
         headers: { Authorization: `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: IMAGE_MODEL, prompt: edit ? editedImagePrompt(edit.instruction) : generatedImagePrompt(job.image!), n: 1,
+          model: IMAGE_MODEL, prompt: edit ? (edit.prompt ?? editedImagePrompt(edit.instruction)) : generatedImagePrompt(job.image!), n: 1,
           ...(edit ? {
             images: [{ image_url: 'data:image/jpeg;base64,' + edit.jpegBase64 }],
             ...(typeof edit.width === 'number' && Number.isFinite(edit.width) && edit.width > 0 &&
@@ -163,7 +163,10 @@ export function createImageService(dependencies: ImageServiceDependencies) {
     catch { if (job.edit) latest = undefined; args = { failed: [job.id] }; }
     finally { clearTimeout(timer); job.releaseReservation(); if (job.edit) editBusy = false; }
     // Deliveries must not hold one of the three generation slots.
-    track(deliver(args).finally(() => inFlight.delete(job.id)));
+    const completed = job.edit && latest?.editId === job.edit.editId ? latest : undefined;
+    track(deliver(args).then(() => {
+      if (completed && job.edit?.afterEdit) track(Promise.resolve().then(() => job.edit!.afterEdit!(completed)).catch(() => {}));
+    }).finally(() => inFlight.delete(job.id)));
   }
   function pump(): void {
     while (active < 3 && queue.length) {

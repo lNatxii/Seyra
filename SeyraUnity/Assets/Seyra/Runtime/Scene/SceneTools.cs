@@ -22,7 +22,7 @@ namespace Seyra.SceneTools
         readonly Dictionary<int, (Object value, string id)> identities = new Dictionary<int, (Object, string)>();
         readonly Dictionary<string, Object> objects = new Dictionary<string, Object>(StringComparer.Ordinal);
         readonly Dictionary<string, (string signature, string response)> completed = new Dictionary<string, (string, string)>();
-        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "layout_plan", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get", "card_checks", "media_status", "media_deliver", "camera_capture_start", "camera_capture_result", "camera_capture_cancel", "camera_locate", "camera_marks_bind", "camera_marks_selectable" };
+        static readonly HashSet<string> queries = new HashSet<string> { "scene_hierarchy", "scene_find", "scene_get", "scene_bounds", "room_get", "room_objects", "spatial_candidates", "layout_plan", "request_list", "history_list", "content_list", "ui_catalog", "ui_media_list", "ui_list", "ui_get", "card_checks", "media_status", "media_deliver", "camera_capture_start", "camera_capture_result", "camera_capture_cancel", "camera_locate", "camera_marks_bind", "camera_marks_selectable", "camera_overlay_show" };
 
         public SceneToolService(Transform generatedRoot,string persistenceDirectory=null,Seyra.UI.Library.UIPrefabCatalog panelCatalog=null,Seyra.UI.Presentations.UIPresentationCatalog presentationCatalog=null)
         {
@@ -41,6 +41,7 @@ namespace Seyra.SceneTools
         {
             if (disposed) return;
             disposed = true;
+            if (cameraOverlays != null) Object.Destroy(cameraOverlays.gameObject);
             SeyraInteractive.MoveCommitHandler -= CommitInteractiveMove;
             if (remoteMedia != null) remoteMedia.ReleaseOwner();
         }
@@ -158,7 +159,7 @@ namespace Seyra.SceneTools
             while(stack.Count>0)
             {
                 var (t,depth)=stack.Pop();
-                if(t==trash || IsDeleted(t.gameObject) || t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
+                if(t==cameraOverlays || t==trash || IsDeleted(t.gameObject) || t.GetComponentInParent<SeyraInteractionRig>(true)!=null)continue;
                 if(!inactive && !t.gameObject.activeInHierarchy) continue;
                 result.Add((t.gameObject,Node(t.gameObject,depth)));
                 if(result.Count>50000) throw new InvalidOperationException("More than 50000 nodes; narrow the query with rootId. A truncated hierarchy will not be returned.");
@@ -294,7 +295,7 @@ namespace Seyra.SceneTools
             if(tool=="motion_set")return MotionSet(args);
             if(tool=="motion_remove")return MotionRemove(args);
             if(tool=="motion_control")return MotionControl(args);
-            if(tool=="camera_capture_start"||tool=="camera_capture_result"||tool=="camera_capture_cancel"||tool=="camera_locate"||tool=="camera_marks_bind"||tool=="camera_marks_selectable")return ExecuteCamera(tool,args);
+            if(tool=="camera_capture_start"||tool=="camera_capture_result"||tool=="camera_capture_cancel"||tool=="camera_locate"||tool=="camera_marks_bind"||tool=="camera_marks_selectable"||tool=="camera_overlay_show")return ExecuteCamera(tool,args);
             if(tool=="scene_build"||tool=="scene_edit")return ExecuteBatch(tool,args);
             if(tool.StartsWith("layout_",StringComparison.Ordinal))return ExecuteLayout(tool,args);
             if(tool.StartsWith("ui_",StringComparison.Ordinal)||tool=="media_status"||tool=="media_deliver")return ExecutePresentation(tool,args);

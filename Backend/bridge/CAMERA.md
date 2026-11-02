@@ -440,3 +440,75 @@ Disabling or deleting the selected composition (including undo/trash) clears
 selection. Saving ignores targets, selection and their interaction rigs; loading
 does not restore selectable bindings. A new photo does not clear an older
 selection while its composition remains active.
+
+## Object overlay
+
+`camera_edit` accepts optional `overlayObject`: a trimmed English noun phrase matching
+`^[A-Za-z][A-Za-z0-9 '-]{1,59}$`. Use it for one existing object the user is looking
+at, never an entire room or an empty gap. Without it, the feature 36 image request
+and card remain unchanged. The result adds `overlay: "queued" | "none"`;
+`queued` confirms background scheduling, not visibility or alignment.
+
+Overlay cards include `check: { label: "Show original", completed: false }`.
+The original photo is segmented by SAM in parallel with card creation. After the
+edited image has been delivered, a tracked background callback segments that
+image, selects the detection with greatest normalized IoU (minimum 0.2), and
+composes the union of the original and edited masks. Edited SAM failure falls
+back to the original mask. Original SAM failure leaves only the normal card.
+The overlay prompt additionally requests unchanged object position, size and
+perspective. `previousEditId` reuses the retained original capture, mask and phrase
+for the last edit, ignoring a new `overlayObject`. This state is memory-only.
+
+The crop uses photo pixels, exclusive x2/y2, 6 percent margin per side, clipped
+to the photo. A ratio difference above 2 percent rejects it. The softened alpha
+uses `blur(max(2, longestSide * 0.008)).linear(1.8, 0)`. PNGs are at most 1024 px
+on the long side without enlargement and 3 MiB; one 768 px encoding is tried
+if needed. Depth samples come from the original mask eroded by one 40 x 30 grid
+cell. Missing masks or fewer than three interior points skip the overlay.
+
+Internal Unity query `camera_overlay_show` accepts exactly:
+
+```json
+{
+  "overlayId": "overlay_cap_a1b2c3d4e5f6",
+  "cardId": "<runtime-id>",
+  "captureId": "cap_a1b2c3d4e5f6",
+  "rect": { "x1": 300, "y1": 120, "x2": 900, "y2": 860 },
+  "points": [{ "x": 500, "y": 400 }, { "x": 550, "y": 450 }, { "x": 600, "y": 500 }],
+  "pngBase64": "<png>"
+}
+```
+
+`points` has 3 to 32 finite photo coordinates. Invalid shapes return the normal
+Unity argument error. States are `unavailable` (camera/card/PNG unavailable),
+`no_depth` (missing capture/model or insufficient samples), `too_large`,
+`too_small`, or `shown`. A shown result contains `overlayId`, `plane`
+(`fitted` or `frontal`), `size: { x, y }` in metres, `distance`, `samples`,
+and `inliers`. Unity logs only these geometric measurements.
+
+The plane uses deterministic 64-triple RANSAC at 2.5 cm tolerance, at least
+60 percent inliers and at most 60 degrees to the camera. Near-horizontal normals
+(within 8 degrees) snap to vertical surfaces. Otherwise the fallback is a frontal
+plane at median axial depth. A 17 x 17 mesh intersects photo rays with that plane;
+sides outside 0.05 to 4 metres or nearly parallel rays are rejected.
+
+Overlays live under `CameraOverlays`, beside `Generated`, outside persistence,
+history, trash and scene queries. They have no collider. Matching IDs replace
+resources; at most four are retained, evicting the oldest. The card's checked
+value fades the overlay out over 0.25 seconds. Inactive cards hide it and restoring
+them shows it again. Destroying a card releases its overlay resources. Loading a
+slot does not restore overlays; a saved check can consequently have no effect.
+
+`SEYRA_OVERLAY_DEBUG=tint` uses the original photo with a 35 percent magenta tint
+and the original mask for the overlay. The normal edited card still runs through
+the image service. This calibration mode needs SAM and real headset depth but
+avoids Muse Image for the overlay crop.
+
+Overlay failures never fail or alter the card and never trigger a retry. Runtime
+PNGs stay in memory and are not delivered to OpenCode, logged or written to disk.
+The explicit sample script is the exception: with `META_API_KEY`, run
+`node Backend/bridge/scripts/overlay-sample.mjs <photo-path> <object-phrase> <instruction>`
+after the bridge build. Quote phrases and instructions. It makes one image edit
+and up to two SAM requests without retries, and writes `Progress/Evidence/38-*-overlay.png`
+and `38-*-composite.png` for the user's gate 1 evaluation. It has not been run
+against the real API as part of this implementation.

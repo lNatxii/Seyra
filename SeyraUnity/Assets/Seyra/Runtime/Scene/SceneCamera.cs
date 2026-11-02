@@ -9,9 +9,90 @@ namespace Seyra.SceneTools
     public sealed partial class SceneToolService
     {
         CameraCaptureService cameraCapture;
+        Transform cameraOverlays;
+
+        JObject ShowCameraOverlay(JObject args)
+        {
+            Keys(args, new[] { "overlayId", "cardId", "captureId", "rect", "points", "pngBase64" });
+            var id = Text(args, "overlayId");
+            var captureId = Text(args, "captureId");
+            var rect = args["rect"] as JObject ?? throw new ArgumentException("rect must be an object.");
+            Keys(rect, new[] { "x1", "y1", "x2", "y2" });
+            float Coordinate(string key) => LineContent.Number(rect[key], 0, int.MaxValue);
+            var bounds = new Vector4(Coordinate("x1"), Coordinate("y1"), Coordinate("x2"), Coordinate("y2"));
+            if (bounds.z <= bounds.x || bounds.w <= bounds.y) throw new ArgumentException("rect must have positive dimensions.");
+            var points = args["points"] as JArray ?? throw new ArgumentException("points must be an array.");
+            if (points.Count < 3 || points.Count > 32) throw new ArgumentException("points must contain 3 to 32 samples.");
+            var pixels = new List<Vector2>();
+            foreach (var token in points)
+            {
+                var point = token as JObject ?? throw new ArgumentException("Each point must contain x,y.");
+                Keys(point, new[] { "x", "y" });
+                pixels.Add(new Vector2(LineContent.Number(point["x"], -float.MaxValue, float.MaxValue),
+                    LineContent.Number(point["y"], -float.MaxValue, float.MaxValue)));
+            }
+            var encoded = String(args["pngBase64"], 4 * 1024 * 1024);
+            if (encoded.Length > 4 * 1024 * 1024) throw new ArgumentException("PNG exceeds the overlay limit.");
+            ManagedPanel card;
+            try { card = Find(args["cardId"], true).GetComponent<ManagedPanel>(); }
+            catch (ArgumentException) { return new JObject { ["state"] = "unavailable" }; }
+            if (card == null) return new JObject { ["state"] = "unavailable" };
+            if (cameraCapture == null) cameraCapture = UnityEngine.Object.FindAnyObjectByType<CameraCaptureService>();
+            if (cameraCapture == null) return new JObject { ["state"] = "unavailable" };
+            var photo = cameraCapture.FindRecent(captureId);
+            if (photo?.Depth == null) return new JObject { ["state"] = "no_depth" };
+            if (bounds.z > photo.Width || bounds.w > photo.Height) throw new ArgumentException("rect is outside the capture.");
+            if (!CameraOverlayGeometry.TryFitPlane(photo.Depth, photo.CameraPose, photo.Width, photo.Height, pixels, out var plane))
+                return new JObject { ["state"] = "no_depth" };
+            var state = CameraOverlayGeometry.TryBuildMesh(photo.Depth, photo.CameraPose, photo.Width, photo.Height,
+                bounds, plane, out var mesh, out var size, out var distance);
+            if (state != "shown") return new JObject { ["state"] = state };
+            Texture2D texture = null;
+            bool transferred = false;
+            try
+            {
+                byte[] bytes;
+                try { bytes = Convert.FromBase64String(encoded); }
+                catch (FormatException) { return new JObject { ["state"] = "unavailable" }; }
+                if (bytes.Length < 24 || bytes[0] != 137 || bytes[1] != 80 || bytes[2] != 78 || bytes[3] != 71)
+                    return new JObject { ["state"] = "unavailable" };
+                uint PngSize(int offset) => ((uint)bytes[offset] << 24) | ((uint)bytes[offset + 1] << 16) | ((uint)bytes[offset + 2] << 8) | bytes[offset + 3];
+                if (PngSize(16) == 0 || PngSize(20) == 0 || PngSize(16) > 1024 || PngSize(20) > 1024)
+                    return new JObject { ["state"] = "unavailable" };
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!texture.LoadImage(bytes, true)) return new JObject { ["state"] = "unavailable" };
+                texture.wrapMode = TextureWrapMode.Clamp;
+                var shader = Resources.Load<Shader>("Seyra/Camera/CameraOverlay");
+                if (shader == null) return new JObject { ["state"] = "unavailable" };
+                Invertible(generated);
+                if (cameraOverlays == null)
+                {
+                    cameraOverlays = new GameObject("CameraOverlays").transform;
+                    cameraOverlays.SetParent(generated.parent, false);
+                    cameraOverlays.localPosition = generated.localPosition;
+                    cameraOverlays.localRotation = generated.localRotation;
+                    cameraOverlays.localScale = generated.localScale;
+                }
+                var vertices = mesh.vertices;
+                for (int i = 0; i < vertices.Length; i++) vertices[i] = cameraOverlays.InverseTransformPoint(vertices[i]);
+                mesh.vertices = vertices; mesh.RecalculateBounds();
+                CameraOverlay.Show(cameraOverlays, id, card, mesh, texture, shader);
+                transferred = true;
+                Debug.Log($"[Seyra] Overlay: {size.x:F3} x {size.y:F3} m at {distance:F3} m; plane {plane.Plane}; {plane.Inliers}/{plane.Samples}");
+                return new JObject { ["state"] = "shown", ["overlayId"] = id, ["plane"] = plane.Plane,
+                    ["size"] = new JObject { ["x"] = size.x, ["y"] = size.y }, ["distance"] = distance,
+                    ["samples"] = plane.Samples, ["inliers"] = plane.Inliers };
+            }
+            finally
+            {
+                if (!transferred) { UnityEngine.Object.Destroy(mesh); if (texture != null) UnityEngine.Object.Destroy(texture); }
+            }
+        }
+
 
         JObject ExecuteCamera(string tool, JObject args)
         {
+            if (tool == "camera_overlay_show") return ShowCameraOverlay(args);
             if (tool == "camera_locate") return LocateCameraRegions(args);
             if (tool == "camera_marks_bind") return BindCameraMarks(args);
             if (tool == "camera_marks_selectable") return BindSelectableCameraMarks(args);
