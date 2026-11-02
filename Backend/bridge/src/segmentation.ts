@@ -21,6 +21,32 @@ export interface ObjectsAnswer {
   objects: string[];
 }
 
+export function samplePoints(detection: Detection, maxPoints = 24): { x: number; y: number }[] {
+  const limit = Math.max(0, Math.floor(maxPoints));
+  if (limit === 0) return [];
+  const { box, raster, rasterWidth, rasterHeight } = detection;
+  const width = box.x2 - box.x1;
+  const height = box.y2 - box.y1;
+  const candidates: { x: number; y: number }[] = [];
+  if (raster === null) {
+    for (let row = 0; row < 3; row++)
+      for (let column = 0; column < 3; column++)
+        candidates.push({ x: box.x1 + (0.25 + column * 0.25) * width,
+          y: box.y1 + (0.25 + row * 0.25) * height });
+  } else {
+    const active = raster.reduce((count, pixel) => count + (pixel === 1 ? 1 : 0), 0);
+    const stride = Math.max(1, Math.floor(Math.sqrt(active / limit)));
+    for (let row = 0; row < rasterHeight; row += stride)
+      for (let column = 0; column < rasterWidth; column += stride)
+        if (raster[row * rasterWidth + column] === 1)
+          candidates.push({ x: box.x1 + (column + 0.5) * width / rasterWidth,
+            y: box.y1 + (row + 0.5) * height / rasterHeight });
+  }
+  if (candidates.length <= limit) return candidates;
+  return Array.from({ length: limit }, (_, index) =>
+    candidates[Math.floor((index + 0.5) * candidates.length / limit)]!);
+}
+
 export interface SegmentationResult {
   segmentation: 'ok' | 'empty' | 'failed';
   detections: Detection[];

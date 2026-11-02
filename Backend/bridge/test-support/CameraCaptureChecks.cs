@@ -19,6 +19,18 @@ public static class CameraCaptureChecks
         }
         try
         {
+            var grid = new CaptureDepthGrid();
+            int topLeft = (CaptureDepthGrid.Rows - 1) * CaptureDepthGrid.Columns;
+            grid.Valid[topLeft] = true;
+            grid.Points[topLeft] = new Vector3(1, 2, 3);
+            grid.Hits = 1;
+            Check(grid.TryGet(1, 1, 1280, 960, out var point) && point == grid.Points[topLeft],
+                "Top-left photo pixel must map to the top-left viewport cell.");
+            Check(!grid.TryGet(640, 480, 1280, 960, out _), "A cell without a hit must fail.");
+            Check(CaptureDepthGrid.TryMedian(new[] { new Vector3(1, 2, 3), new Vector3(2, 3, 4),
+                new Vector3(1000, 1000, 1000) }, 3, out var median) && median == new Vector3(2, 3, 4),
+                "The per-axis median must ignore an extreme sample.");
+
             var denied = new FakeSource { Permission = false };
             service.SetFrameSource(denied);
             service.Capture();
@@ -78,7 +90,7 @@ public static class CameraCaptureChecks
             Check(taken != null && service.LastTakenId == taken.Id, "LastTakenId must identify the transferred photo.");
             service.Clear();
             Check(service.LastTakenId == null, "Clear must reset LastTakenId.");
-            return "CameraCaptureChecks: 7 cases passed.";
+            return "CameraCaptureChecks: 8 cases passed.";
         }
         finally { UnityEngine.Object.Destroy(root); }
     }

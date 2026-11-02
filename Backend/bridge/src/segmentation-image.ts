@@ -1,7 +1,7 @@
 import sharp, { type OverlayOptions } from 'sharp';
 import type { Detection } from './segmentation.js';
 
-const palette = ['#FF4D4D', '#2DD4BF', '#FACC15', '#60A5FA', '#F472B6', '#A3E635', '#FB923C', '#C084FC'];
+export const palette = ['#FF4D4D', '#2DD4BF', '#FACC15', '#60A5FA', '#F472B6', '#A3E635', '#FB923C', '#C084FC'];
 const maxBytes = 1024 * 1024;
 const escapeXml = (text: string): string => text.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',

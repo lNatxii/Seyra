@@ -114,7 +114,7 @@ namespace Seyra.Cameras
                 Current = new CameraCapture {
                     Id = "cap_" + Guid.NewGuid().ToString("N").Substring(0, 12), Jpeg = jpeg,
                     Width = frame.Width, Height = frame.Height, TimestampUtc = frame.TimestampUtc,
-                    Camera = "left", CameraPose = frame.CameraPose, Intrinsics = frame.Intrinsics
+                    Camera = "left", CameraPose = frame.CameraPose, Intrinsics = frame.Intrinsics, Depth = frame.Depth
                 };
                 ++generation;
                 source.End();
@@ -139,12 +139,20 @@ namespace Seyra.Cameras
                 recent.Enqueue(new CameraCapture {
                     Id = photo.Id, Width = photo.Width, Height = photo.Height,
                     TimestampUtc = photo.TimestampUtc, Camera = photo.Camera,
-                    CameraPose = photo.CameraPose, Intrinsics = photo.Intrinsics
+                    CameraPose = photo.CameraPose, Intrinsics = photo.Intrinsics, Depth = photo.Depth
                 });
                 if (recent.Count > 8) recent.Dequeue();
             }
             SetState(CameraCaptureState.Idle);
             return photo;
+        }
+        public CameraCapture FindRecent(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            if (Current != null && Current.Id == id) return Current;
+            foreach (var photo in recent)
+                if (photo.Id == id) return photo;
+            return null;
         }
         public void Clear()
         {

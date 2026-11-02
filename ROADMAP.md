@@ -30,11 +30,13 @@ El historial y la papelera duran el runtime. Guardar/cargar contenido no equival
 
 ## Orden recomendado
 
-Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 14a; 32b y 09 quedan aplazadas.
+Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de noviembre. La puntuación (0–100) combina el valor para el usuario y la demo, el esfuerzo y el riesgo; el detalle está en cada sección. El usuario decide que la siguiente feature es 15b; 32b y 09 quedan aplazadas.
 
 | # | Feature | Puntuación | Motivo |
 | --- | --- | --- | --- |
-| 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; prueba con Unity y Quest 3 pendiente. Muestra un modelo de Meta sobre lo que el usuario tiene delante. Temporal: en 2D, sin relación con el espacio 3D. |
+| Siguiente | 15b. Cajas translúcidas sobre los objetos segmentados | 78 | Diseño listo. Sustituye el punto por una caja que envuelve el objeto; el fondo es una estimación. Riesgo: solo se valida en el visor. |
+| 1a | 15a. Posición 3D de los objetos segmentados | 82 | Completed · Revisada; correcta en Quest 3 según el usuario, error sin medir. Lleva las etiquetas de SAM a los objetos reales. |
+| 1b | 14a. Segmentación 2D con SAM 3.1 en un panel | 80 | Completed · Revisada; primera prueba en Quest 3 correcta según el usuario. Muestra un modelo de Meta sobre lo que el usuario tiene delante. |
 | 1 | 26. Tarjetas con imagen de internet | 85 | Completed · imágenes web retiradas en 26c y 26d (normas del hackathon); 26b con Pexels pausada sin claves. |
 | 2 | 31. Seyra en inglés | — | Completed · Revisada. La demo será en inglés. Recorrido manual pendiente. |
 | 2b | 18. Respuestas habladas | 75 | Completed · Cerrada. Voz `wit$Rebecca` probada en Quest 3; latencia sin medir. |
@@ -51,7 +53,7 @@ Revisado el 2 de noviembre de 2026, con el hackathon abierto hasta el 4 de novie
 | 10 | 30. Indicador de scroll | 60 | Completed · Revisada. Pista y pulgar ocultos por alfa; PanelChecks 229 aprobadas, sin errores de rebuild. Prueba Quest pendiente. |
 | 11 | 10a. Objetos interactivos | 50 | Completed · Revisada; prueba en Quest 3 pendiente. Toque, ficha que sigue al objeto y agarre con vuelta. |
 | 12 | 09. Gestión de contenido sin comandos | 42 | Útil, poco visible en la demo. Aplazada por decisión del usuario. |
-| 13 | 13, 14b, 15, 16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
+| 13 | 13, 14b, 15c, 16, 20, 21 | 15–30 | Dependen de captura y segmentación; fuera del alcance del hackathon. |
 
 ## P0 — Asistente espacial funcional
 
@@ -430,7 +432,7 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 ### 14. Segmentación puntual con SAM 3.1
 
-**Estado 14a:** Completed · Revisada (2 de noviembre de 2026). Bridge 49/49, muestra con API real y elección de herramienta 7/7 comprobados por Claude; recorrido integrado con Unity y Quest 3 pendiente. [Implementación, validación y limitaciones](Progress/Completed/14a-sam-segmentation-panel.md).
+**Estado 14a:** Completed · Revisada (2 de noviembre de 2026). Bridge 49/49, muestra con API real y elección de herramienta 7/7 comprobados por Claude; primera prueba del usuario en Quest 3 correcta; el resto de la lista de la sección 9 sigue pendiente. [Implementación, validación y limitaciones](Progress/Completed/14a-sam-segmentation-panel.md).
 
 **Estado 14b:** sin diseñar.
 
@@ -444,13 +446,25 @@ Solo las ventanas son agarrables hoy: las etiquetas y las primitivas se retiran 
 
 **Dependencias:** 11 y 12; 14a además usa 19, 22 y 32a. 14b depende de 14a. No incluye vídeo, tracking continuo ni reconstrucción 3D.
 
-### 15. Anotaciones asistidas sobre objetos segmentados
+### 15. Objetos segmentados en el espacio 3D
 
-**Entrega:** proponer una posición para una anotación usando la región seleccionada, la pose/calibración de captura y una fuente válida de geometría o profundidad. Pedir colocación manual cuando falte información espacial.
+**Estado 15a:** Completed · Revisada (2 de noviembre de 2026). Rejilla medida en Quest 3: unos 1190 de 1200 aciertos en 14–18 ms. Recorrido correcto según el usuario; error en centímetros sin medir. [Diseño](Progress/Completed/15a-segmented-objects-3d-position.md).
 
-**Aceptación:** la correspondencia entre imagen y mundo se verifica en varios puntos del entorno; se descartan resultados obsoletos; la tolerancia de colocación se acuerda con mediciones del prototipo. No confundir estabilidad de un anclaje con seguimiento de un objeto que se mueve.
+**Estado 15b:** In progress · diseño listo (2 de noviembre de 2026). [Diseño](Progress/InProgress/15b-translucent-object-boxes.md).
 
-**Dependencias:** 13 y 14b. El seguimiento de objetos móviles queda fuera de esta versión.
+**Estado 15c:** sin diseñar.
+
+**Entrega 15a:** en el momento de la foto se guarda la pose de la cámara y una rejilla de 40 × 30 rayos contra el entorno con `EnvironmentRaycastManager`. La profundidad queda así alineada con la foto, sin un valor por cada píxel, porque el SDK no da un mapa de esa resolución. Tras SAM, hasta 24 puntos de la máscara de cada objeto se convierten en una posición 3D, y se crea un punto de color, una etiqueta y una línea sobre el objeto real. La tarjeta 2D de 14a se conserva.
+
+**Aceptación 15a:** a menos de 2 m, cada objeto localizado tiene su punto sobre él o a pocos centímetros; mover la cabeza después de la foto no cambia las posiciones; un objeto sin profundidad válida no tiene punto y Seyra no afirma que lo tenga; sin permiso o sin soporte el resultado es igual que en 14a; un deshacer retira todas las etiquetas. La tolerancia se fija con la primera medida.
+
+**Entrega 15b:** una caja translúcida del color del objeto, con su etiqueta encima, en lugar del punto y la línea. Ancho y alto salen de las esquinas de la caja de SAM, cortadas a la distancia medida por 15a. La cara oculta no se ve, así que el fondo es una estimación. La caja es vertical y mira a la cámara.
+
+**Entrega 15c:** proponer una posición para una anotación usando la región seleccionada (14b), y pedir colocación manual cuando falte información espacial.
+
+**Aceptación 15b y 15c:** la correspondencia entre imagen y mundo se verifica en varios puntos del entorno; se descartan resultados obsoletos. No confundir estabilidad de un anclaje con seguimiento de un objeto que se mueve.
+
+**Dependencias:** 15a depende de 11, 12, 14a, 25 y 29. 15b depende de 15a. 15c depende de 13, 14b y 15a. El seguimiento de objetos móviles queda fuera de esta versión.
 
 ### 16. Continuidad del contenido anclado entre sesiones
 
