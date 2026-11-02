@@ -3,6 +3,23 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import { tools } from '../dist/tools.js';
+import { interactionSetSchema, interactionFieldsSchema } from '../dist/interaction.js';
+import { id } from '../dist/tools.js';
+test('interaction schemas accept details and reject unsupported fields', () => {
+  const set = interactionSetSchema(id);
+  const panel = { version: 1, kind: 'panel', title: 'Planet', text: 'A planet.', width: .4, height: .3, fontSize: 24 };
+  for (const fields of [{}, { grabbable: true, returnOnRelease: false, exclusive: false, detailSide: 'right', detailGap: .5, detailOpen: true },
+    { detail: { panel } }, { detail: { presentation: { type: 'infoPanel', id: 'facts', title: 'Facts' }, width: .4, height: .4 } }]) {
+    assert.equal(interactionFieldsSchema.safeParse(fields).success, true);
+    assert.equal(set.safeParse({ entityId: 'go_target', interactive: true, ...fields }).success, true);
+  }
+  assert.equal(set.safeParse({ entityId: 'go_target', interactive: false }).success, true);
+  for (const fields of [{ detailGap: -.01 }, { detailGap: .51 }, { detailGap: Infinity }, { detailSide: 'below' }, { grabbable: 1 },
+    { detail: { panel: { ...panel, kind: 'label', title: '' } } }, { detail: { panel, width: .4 } },
+    { detail: { presentation: { type: 'infoPanel', id: 'facts', title: 'Facts' }, width: .3, height: .4 } }, { detail: null }, { unknown: true }])
+    assert.equal(set.safeParse({ entityId: 'go_target', interactive: true, ...fields }).success, false, JSON.stringify(fields));
+  assert.equal(set.safeParse({ entityId: 'go_target', interactive: false, grabbable: false }).success, false);
+});
 const schema = name => tools.find(t => t.name === name).schema;
 const transform = { position: { x: 0, y: 0, z: 0 } };
 const empty = key => ({ key, name: key, type: 'empty', transform });
