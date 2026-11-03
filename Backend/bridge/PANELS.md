@@ -151,8 +151,7 @@ unity command script run --caller plugin --skill unity-cli C:/Proyectos/Seyra/Ba
 
 `PanelChecks` isolates its objects and temporary slots. `RunUnityIntegration` uses
 an isolated service and the actual MCP stdio/WebSocket path on port 4101. Backend
-schema and transport tests run with `npm test`. See
-[the phase-2 evidence](../../Progress/Completed/05-ui-phase-2.md).
+schema and transport tests run with `npm test`.
 
 ## Phase 3 compatibility
 
