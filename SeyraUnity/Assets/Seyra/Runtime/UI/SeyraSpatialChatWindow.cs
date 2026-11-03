@@ -257,6 +257,7 @@ namespace Seyra.UI
             session.ConnectionChanged += OnConnectionChanged;
             session.StateChanged += OnStateChanged;
             session.MessageUpserted += OnMessageUpserted;
+            session.MessageRemoved += RemoveRow;
             session.ActivityChanged += OnActivityChanged;
             session.FinalReplyReady += OnFinalReplyReady;
             session.PermissionChanged += OnPermissionChanged;
@@ -270,6 +271,7 @@ namespace Seyra.UI
             session.ConnectionChanged -= OnConnectionChanged;
             session.StateChanged -= OnStateChanged;
             session.MessageUpserted -= OnMessageUpserted;
+            session.MessageRemoved -= RemoveRow;
             session.ActivityChanged -= OnActivityChanged;
             session.FinalReplyReady -= OnFinalReplyReady;
             session.PermissionChanged -= OnPermissionChanged;

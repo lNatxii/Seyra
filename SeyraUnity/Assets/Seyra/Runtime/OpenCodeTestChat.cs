@@ -141,6 +141,7 @@ namespace Seyra.UI
             session.PermissionStatusChanged += OnPermissionStatusChanged;
             session.ControlsRefreshRequested += OnControlsRefreshRequested;
             session.MessageUpserted += OnMessageUpserted;
+            session.MessageRemoved += OnMessageRemoved;
             session.EchoAdopted += OnEchoAdopted;
         }
 
@@ -153,7 +154,18 @@ namespace Seyra.UI
             session.PermissionStatusChanged -= OnPermissionStatusChanged;
             session.ControlsRefreshRequested -= OnControlsRefreshRequested;
             session.MessageUpserted -= OnMessageUpserted;
+            session.MessageRemoved -= OnMessageRemoved;
             session.EchoAdopted -= OnEchoAdopted;
+        }
+
+        void OnMessageRemoved(string key)
+        {
+            if (!messageRows.TryGetValue(key, out var row)) return;
+            messageRows.Remove(key);
+            if (row == null) return;
+            row.gameObject.SetActive(false);
+            row.transform.SetParent(null, false);
+            Destroy(row.gameObject);
         }
 
         void SyncFromSession()

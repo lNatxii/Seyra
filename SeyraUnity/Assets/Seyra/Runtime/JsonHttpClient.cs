@@ -10,6 +10,7 @@ namespace Seyra.Networking
     public sealed class OpenCodeHttpException : Exception
     {
         public long StatusCode { get; }
+        public OpenCodeHttpException(long code, string message, Exception inner) : base(message, inner) { StatusCode = code; }
         public OpenCodeHttpException(long code, string message) : base(message) { StatusCode = code; }
     }
 
@@ -72,11 +73,11 @@ namespace Seyra.Networking
                         { throw new InvalidOperationException("Incompatible OpenCode response: expected API v2 JSON.", error); }
                     }
                 }
-                catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                { throw new OpenCodeHttpException(0, "OpenCode HTTP timed out. Outcome unknown; inspect before repeating any mutation."); }
+                catch (OperationCanceledException error) when (!token.IsCancellationRequested)
+                { throw new OpenCodeHttpException(0, "OpenCode HTTP timed out. Outcome unknown; inspect before repeating any mutation.", error); }
                 catch (HttpRequestException error)
                 { if (certificateMismatch) throw new Seyra.Configuration.ConnectionException("CERTIFICATE_MISMATCH");
-                  throw new OpenCodeHttpException(0, "OpenCode HTTP connection failed. Outcome unknown; no request will be retried."); }
+                  throw new OpenCodeHttpException(0, "OpenCode HTTP connection failed. Outcome unknown; no request will be retried.", error); }
             }
         }
 

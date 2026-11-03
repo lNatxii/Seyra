@@ -30,6 +30,7 @@ namespace Seyra.Chat
     /// </summary>
     public sealed class OpenCodeConversationSession : IDisposable
     {
+        static readonly int[] StartupRetryDelaysSeconds = { 1, 2, 4, 8, 8, 8 };
         public enum TurnState
         {
             Ready,
@@ -69,6 +70,7 @@ namespace Seyra.Chat
         public event Action<bool, string> ConnectionChanged;
         public event Action<TurnState, string> StateChanged;
         public event Action<ChatMessageItem> MessageUpserted;
+        public event Action<string> MessageRemoved;
         public event Action<IReadOnlyList<ChatMessageItem>> MessagesReplaced;
         public event Action<JObject> PermissionChanged;
         public event Action<string> PermissionStatusChanged;
@@ -150,7 +152,7 @@ namespace Seyra.Chat
             connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
             if (connectionSettings.CanConnect) http = new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings);
             SetConnected(false, "Connecting…");
-            _ = ConnectAsync(lifetime.Token);
+            _ = ConnectWithRetryAsync(lifetime.Token);
             _ = MonitorAsync(lifetime.Token);
         }
 
@@ -183,6 +185,7 @@ namespace Seyra.Chat
         void SetConnected(bool value, string label)
         {
             connected = value;
+            if (value) RemoveMessage("connection-error");
             ConnectionChanged?.Invoke(value, label);
             ControlsRefreshRequested?.Invoke();
         }
@@ -203,37 +206,7 @@ namespace Seyra.Chat
             SetConnected(false, "Connecting…");
             try
             {
-                while (syncing) await Task.Delay(20, token);
-                Seyra.Configuration.SeyraEnvironmentCredentials.ForceReload();
-                connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
-                http?.Dispose();
-                http = connectionSettings.CanConnect ? new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings) : null;
-                if (!connectionSettings.CanConnect) throw new Seyra.Configuration.ConnectionException(connectionSettings.ErrorCode);
-                var password = connectionSettings.IsGateway ? null : Seyra.Configuration.SeyraEnvironmentCredentials.OpenCodeServerPassword;
-                if (!connectionSettings.IsGateway && string.IsNullOrEmpty(password))
-                    throw new InvalidOperationException("HTTP password is missing from .env.local (" + Seyra.Configuration.SeyraEnvironmentCredentials.EnvFilePath + ").");
-                var backend = Application.isEditor ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend")) : Application.persistentDataPath;
-
-                http.SetPassword(password);
-                if (string.IsNullOrEmpty(sessionId))
-                {
-                    var agents = await http.RequestAsync("GET", "/api/agent", null, token);
-                    var profile = (agents["data"] as JArray)?.OfType<JObject>().FirstOrDefault(item => (string)item["id"] == agent);
-                    if (profile == null) throw new InvalidOperationException("OpenCode did not return the selected agent profile: " + agent);
-                    var request = new JObject
-                    {
-                        ["title"] = "Seyra · Spatial Chat",
-                        ["agent"] = agent,
-                        ["location"] = new JObject { ["directory"] = backend.Replace('\\', '/') }
-                    };
-                    if (connectionSettings.IsGateway) request.Remove("location");
-                    if (profile["model"] is JObject model) request["model"] = model.DeepClone();
-                    var result = await http.RequestAsync("POST", "/api/session", request, token);
-                    sessionId = (string)result["data"]?["id"];
-                    if (string.IsNullOrEmpty(sessionId)) throw new InvalidOperationException("OpenCode did not return an API v2 session.");
-                    submittedPermissions.Clear();
-                }
-                await SyncAsync(token, true);
+                await ConnectCoreAsync(token);
             }
             catch (OperationCanceledException) { }
             catch (Exception error)
@@ -248,6 +221,94 @@ namespace Seyra.Chat
                     ControlsRefreshRequested?.Invoke();
                 }
             }
+        }
+
+        static bool IsTransient(Exception error) => error is OpenCodeHttpException httpError &&
+            (httpError.StatusCode == 0 || httpError.StatusCode == 502 || httpError.StatusCode == 503 || httpError.StatusCode == 504);
+
+        async Task ConnectWithRetryAsync(CancellationToken token)
+        {
+            connecting = true;
+            SetConnected(false, "Connecting…");
+            try
+            {
+                for (var attempt = 0; ; attempt++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        await ConnectCoreAsync(token);
+                        return;
+                    }
+                    catch (Exception error) when (!token.IsCancellationRequested && IsTransient(error))
+                    {
+                        var cause = error;
+                        while (cause.InnerException != null) cause = cause.InnerException;
+                        var next = attempt < StartupRetryDelaysSeconds.Length
+                            ? $"Retrying in {StartupRetryDelaysSeconds[attempt]} s." : "No startup retries remaining.";
+                        Debug.LogWarning(Seyra.Configuration.SeyraEnvironmentCredentials.RedactToken(
+                            $"[SeyraChat] Connect attempt {attempt + 1} failed (status {((OpenCodeHttpException)error).StatusCode}, {cause.GetType().Name}: {cause.Message}). {next}"));
+                        if (attempt >= StartupRetryDelaysSeconds.Length) throw;
+                        await Task.Delay(TimeSpan.FromSeconds(StartupRetryDelaysSeconds[attempt]), token);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception error)
+            {
+                if (!token.IsCancellationRequested) ConnectionFailed(error);
+            }
+            finally
+            {
+                if (!token.IsCancellationRequested)
+                {
+                    connecting = false;
+                    ControlsRefreshRequested?.Invoke();
+                }
+            }
+        }
+
+        void RemoveMessage(string key)
+        {
+            if (!messageByKey.TryGetValue(key, out var item)) return;
+            messageByKey.Remove(key);
+            messages.Remove(item);
+            MessageRemoved?.Invoke(key);
+        }
+
+        async Task ConnectCoreAsync(CancellationToken token)
+        {
+            while (syncing) await Task.Delay(20, token);
+            Seyra.Configuration.SeyraEnvironmentCredentials.ForceReload();
+            connectionSettings = Seyra.Configuration.SeyraConnectionSettings.Load(serverUrl);
+            http?.Dispose();
+            http = connectionSettings.CanConnect ? new JsonHttpClient(connectionSettings.OpenCodeUrl, connectionSettings) : null;
+            if (!connectionSettings.CanConnect) throw new Seyra.Configuration.ConnectionException(connectionSettings.ErrorCode);
+            var password = connectionSettings.IsGateway ? null : Seyra.Configuration.SeyraEnvironmentCredentials.OpenCodeServerPassword;
+            if (!connectionSettings.IsGateway && string.IsNullOrEmpty(password))
+                throw new InvalidOperationException("HTTP password is missing from .env.local (" + Seyra.Configuration.SeyraEnvironmentCredentials.EnvFilePath + ").");
+            var backend = Application.isEditor ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../Backend")) : Application.persistentDataPath;
+
+            http.SetPassword(password);
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                var agents = await http.RequestAsync("GET", "/api/agent", null, token);
+                var profile = (agents["data"] as JArray)?.OfType<JObject>().FirstOrDefault(item => (string)item["id"] == agent);
+                if (profile == null) throw new InvalidOperationException("OpenCode did not return the selected agent profile: " + agent);
+                var request = new JObject
+                {
+                    ["title"] = "Seyra · Spatial Chat",
+                    ["agent"] = agent,
+                    ["location"] = new JObject { ["directory"] = backend.Replace('\\', '/') }
+                };
+                if (connectionSettings.IsGateway) request.Remove("location");
+                if (profile["model"] is JObject model) request["model"] = model.DeepClone();
+                var result = await http.RequestAsync("POST", "/api/session", request, token);
+                sessionId = (string)result["data"]?["id"];
+                if (string.IsNullOrEmpty(sessionId)) throw new InvalidOperationException("OpenCode did not return an API v2 session.");
+                submittedPermissions.Clear();
+            }
+            await SyncAsync(token, true);
         }
 
         async Task MonitorAsync(CancellationToken token)
