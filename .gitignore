@@ -18,6 +18,9 @@
 /SeyraUnity/[Bb]uilds/
 /SeyraUnity/[Ll]ogs/
 /SeyraUnity/[Uu]ser[Ss]ettings/
+# Local Meta XR debugger settings can contain an access token.
+/SeyraUnity/Assets/Resources/DevAgentSettings.asset
+/SeyraUnity/Assets/Resources/DevAgentSettings.asset.meta
 *.log
 
 # MemoryCaptures can get excessive in size.
