@@ -1,5 +1,7 @@
 # Seyra
 
+The name Seyra comes from **Spatial Expression & Reasoning Agent**.
+
 Seyra is a mixed-reality assistant for Meta Quest 3 that sees your space and acts in it. You talk to it with your voice. It can answer questions about what you are looking at, mark real objects, build 3D models on your table, place information on your walls and reimagine your room.
 
 The app runs on the headset. A backend on your PC runs the agent and holds the API keys, so the PC must stay on while you use Seyra.
